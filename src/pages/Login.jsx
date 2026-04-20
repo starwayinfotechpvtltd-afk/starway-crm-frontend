@@ -14,13 +14,15 @@ const Login = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        formData
-      );
+          `${API_BASE}/api/auth/login`,
+          formData
+        );
       const { token, role } = res.data;
 
       localStorage.setItem("token", token);
