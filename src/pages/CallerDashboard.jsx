@@ -11,14 +11,18 @@ import Calendar from "../Caller Pages/Calender";
 import Compose from "../Mailing System/Compose";
 import Sent from "../Mailing System/Sent";
 
+
+
 const CallerDashboard = () => {
   const [dashboardData, setDashboardData] = useState("");
+
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/dashboard", {
+        const res = await axios.get(`${API_BASE}/api/dashboard`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setDashboardData(res.data.dashboard);

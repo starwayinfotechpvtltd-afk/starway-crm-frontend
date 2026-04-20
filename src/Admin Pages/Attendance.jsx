@@ -26,11 +26,13 @@ const AttendanceManager = () => {
     fetchUsers();
   }, []);
 
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://localhost:5000/api/attendance/users",
+        `${API_BASE}/api/attendance/users`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -60,7 +62,7 @@ const AttendanceManager = () => {
       const token = localStorage.getItem("token");
       const status = attendanceStatus[userId];
       await axios.post(
-        "http://localhost:5000/api/attendance/mark-attendance",
+        `${API_BASE}/api/attendance/mark-attendance`,
         { userId, date, status },
         { headers: { Authorization: `Bearer ${token}` } }
       );
