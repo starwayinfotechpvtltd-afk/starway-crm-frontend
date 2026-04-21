@@ -24,6 +24,8 @@ import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import ContactPageOutlinedIcon from "@mui/icons-material/ContactPageOutlined";
+import DeveloperReports from "../Admin Pages/DeveloperReports";
+
 
 const NavBar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -276,6 +278,21 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
             <PersonOutlineOutlinedIcon className="sm:mr-1" /> All Users
           </Link>
         </li> */}
+        <li
+          className={`${
+            isActive("/dashboard-admin/new-leads")
+              ? "bg-indigo-100 text-indigo-600"
+              : "text-gray-700 hover:text-indigo-600"
+          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+        >
+          <Link
+            to="/dashboard-admin/developer-reports"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center"
+          >
+            <CalendarTodayOutlinedIcon className="sm:mr-1" /> Work Reports
+          </Link>
+        </li>
         <li
           className={`${
             isActive("/dashboard-admin/new-leads")

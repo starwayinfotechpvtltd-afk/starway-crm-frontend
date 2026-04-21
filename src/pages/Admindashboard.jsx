@@ -19,6 +19,7 @@ import Whatsapp from "../Components Global/Whatsapp";
 import Attendances from "../Admin Pages/Attendance";
 import Docs from "../Admin Pages/Docs";
 import Monthly from "../Admin Pages/MonthlyAttendance";
+import DeveloperReports from "../Admin Pages/DeveloperReports";
 
 const AdminDashboard = () => {
   const activeMenu = true;
@@ -64,6 +65,7 @@ const AdminDashboard = () => {
           <Route path="employee-attendances" element={<Attendances />} />
           <Route path="monthly-attendances" element={<Monthly />} />
           <Route path="employee-docs" element={<Docs />} />
+          <Route path="developer-reports" element={<DeveloperReports />} />
         </Routes>
         <Outlet />
       </div>
