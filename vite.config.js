@@ -30,7 +30,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "https://crmapi.starwaywebdigital.com/ ",
+        target: "https://crmapi.starwaywebdigital.com",
         changeOrigin: true,
         secure: false,
       },
