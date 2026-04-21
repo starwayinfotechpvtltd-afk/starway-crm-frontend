@@ -47,6 +47,9 @@ import { Send, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { CircularProgress } from "@mui/material";
 import axios from "axios";
+import ProjectKanban from "../Admin Pages/Components/Projectkanban";
+import { TableChart as KanbanIcon } from "@mui/icons-material";
+
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
@@ -257,6 +260,7 @@ const MobileProjectCard = ({
   onDelete,
   onToggleUpSale,
   onUpsaleInfo,
+  onKanban,
 }) => (
   <Card
     sx={{
@@ -356,6 +360,13 @@ const MobileProjectCard = ({
             </Button>
           )}
         </Box>
+        <IconButton
+          size="small"
+          onClick={() => onKanban(project)}
+          sx={{ color: J.purple, p: "4px" }}
+        >
+          <KanbanIcon sx={{ fontSize: 16 }} />
+        </IconButton>
         <Box sx={{ display: "flex", gap: 0.5 }}>
           <IconButton
             size="small"
@@ -535,6 +546,8 @@ const COLS = "minmax(160px,2fr) 155px minmax(110px,1.2fr) 110px 120px 130px 96px
 
 // ── Main component ────────────────────────────────────────────────────────────
 const ProjectList = () => {
+  const [kanbanOpen, setKanbanOpen] = useState(false);
+  const [kanbanProject, setKanbanProject] = useState(null);
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProject, setSelectedProject] = useState(null);
@@ -597,7 +610,7 @@ const ProjectList = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then((r) => setDevelopers(r.data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -606,7 +619,7 @@ const ProjectList = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then((r) => setServiceTypes(r.data.map((st) => st.name)))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const fetchProjects = async () => {
@@ -618,19 +631,24 @@ const ProjectList = () => {
     }
   };
 
+  const handleKanbanClick = (project) => {
+    setKanbanProject(project);
+    setKanbanOpen(true);
+  };
+
   const filteredProjects = Array.isArray(projects)
     ? projects.filter((p) => {
-        const devNames = normalizeDevelopers(p.assignedDeveloper).map(
-          (d) => d.username
-        );
-        return (
-          p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-          (!subscriptionFilter || p.subscriptionType === subscriptionFilter) &&
-          (!createdByFilter || p.createdBy === createdByFilter) &&
-          (!assignedToFilter || devNames.includes(assignedToFilter)) &&
-          (!serviceTypeFilter || p.serviceType.includes(serviceTypeFilter))
-        );
-      })
+      const devNames = normalizeDevelopers(p.assignedDeveloper).map(
+        (d) => d.username
+      );
+      return (
+        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (!subscriptionFilter || p.subscriptionType === subscriptionFilter) &&
+        (!createdByFilter || p.createdBy === createdByFilter) &&
+        (!assignedToFilter || devNames.includes(assignedToFilter)) &&
+        (!serviceTypeFilter || p.serviceType.includes(serviceTypeFilter))
+      );
+    })
     : [];
 
   const currentProjects = filteredProjects.slice(
@@ -703,7 +721,7 @@ const ProjectList = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
-    } catch {}
+    } catch { }
   };
 
   const handleStatusChange = async (id, status) => {
@@ -791,7 +809,7 @@ const ProjectList = () => {
       fetchProjects();
       setEditUpsaleDialogOpen(false);
       setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });
-    } catch {}
+    } catch { }
   };
 
   const handleUpdateClick = async (project) => {
@@ -1043,6 +1061,8 @@ const ProjectList = () => {
                 setSelectedProjectId(id);
                 setUpsaleDialogOpen(true);
               }}
+              onKanban={handleKanbanClick}
+
             />
           ))
         ) : (
@@ -1295,6 +1315,23 @@ const ProjectList = () => {
                         gap: 0.25,
                       }}
                     >
+
+                      <Tooltip title="Kanban" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleKanbanClick(project)}
+                          sx={{
+                            color: J.textSecondary,
+                            p: "4px",
+                            borderRadius: J.radius,
+                            "&:hover": { bgcolor: J.bgHover, color: J.purple },
+                          }}
+                        >
+                          {/* You can use any suitable icon — ViewKanban from MUI or a simple grid icon */}
+                          <KanbanIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Tooltip>
+
                       <Tooltip title="Updates" arrow>
                         <IconButton
                           size="small"
@@ -2448,6 +2485,16 @@ const ProjectList = () => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Kanban View */}
+      <ProjectKanban
+        open={kanbanOpen}
+        onClose={() => {
+          setKanbanOpen(false);
+          setKanbanProject(null);
+        }}
+        project={kanbanProject}
+      />
     </Box>
   );
 };

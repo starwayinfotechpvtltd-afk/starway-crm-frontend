@@ -172,10 +172,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
             onClick={() => setSidebarOpen(false)}
             className="flex items-center"
           >
-            <AccountTreeOutlinedIcon className="mr-1" /> One-Time Projects
+            <AccountTreeOutlinedIcon className="mr-1" /> Projects
           </Link>
         </li>
-        <li
+        {/* <li
           className={`${
             isActive("/dashboard-developer/subscription")
               ? "bg-indigo-100 text-indigo-600"
@@ -189,8 +189,8 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           >
             <AccountTreeOutlinedIcon className="mr-1" /> Subscription Based
           </Link>
-        </li>
-        <li
+        </li> */}
+        {/* <li
           className={`${
             isActive("/dashboard-developer/website-based")
               ? "bg-indigo-100 text-indigo-600"
@@ -204,8 +204,8 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           >
             <AccountTreeOutlinedIcon className="mr-1" /> Website Based
           </Link>
-        </li>
-
+        </li> */}
+{/* 
         <li
           className={`${
             isActive("/dashboard-developer/compose")
@@ -220,7 +220,7 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           >
             <MailOutlineIcon className="mr-1" /> Compose Mail
           </Link>
-        </li>
+        </li> */}
         <li
           className={`${
             isActive("/dashboard-developer/calendar")

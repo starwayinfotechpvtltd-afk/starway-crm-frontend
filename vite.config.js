@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://crmapi.starwaywebdigital.com",
+        target: "https://crmapi.starwaywebdigital.com/ ",
         changeOrigin: true,
         secure: false,
       },
