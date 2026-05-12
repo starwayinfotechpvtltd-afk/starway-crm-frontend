@@ -1,4 +1,3 @@
-
 // import React, { useState, useEffect, useRef, useCallback } from "react";
 // import {
 //   Box,
@@ -34,7 +33,6 @@
 
 // const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
-// // ── Design tokens (matches your existing J palette) ───────────────────────────
 // const J = {
 //   blue: "#0052CC",
 //   blueDark: "#0747A6",
@@ -76,7 +74,7 @@
 //   { id: "Done", label: "Done", color: J.green },
 // ];
 
-// const AVATAR_PALETTE = ["#0052CC","#00875A","#FF5630","#FF991F","#6554C0","#00B8D9"];
+// const AVATAR_PALETTE = ["#0052CC", "#00875A", "#FF5630", "#FF991F", "#6554C0", "#00B8D9"];
 // const stringToColor = (s) => {
 //   if (!s) return AVATAR_PALETTE[0];
 //   let h = 0;
@@ -150,6 +148,7 @@
 //   currentUserRole,
 //   isCreator,
 //   isAdmin,
+//   isDeveloper,
 //   onEdit,
 //   onDelete,
 //   onComplete,
@@ -158,12 +157,13 @@
 // }) => {
 //   const isAssigned = task.assignedTo?.id?.toString() === currentUserId?.toString();
 //   const isDone = task.status === "Done";
-  
+
 //   const canComplete = (isAssigned || isAdmin) && !isDone;
-//   const canEdit = isCreator || isAdmin;
-//   const canDelete = isCreator || isAdmin;
-//   // Developers and Admins can drag tasks
-//   const canDrag = isCreator || isAdmin || currentUserRole === "developer";
+//   // Developers can only edit tasks they created (assignedTo themselves and they made it)
+//   // Admins and creators can edit any task
+//   const canEdit = isAdmin || isCreator || (isDeveloper && isAssigned);
+//   const canDelete = isAdmin || isCreator || (isDeveloper && isAssigned);
+//   const canDrag = isAdmin || isCreator || isDeveloper;
 
 //   return (
 //     <Box
@@ -361,6 +361,8 @@
 //   currentUserRole,
 //   isCreator,
 //   isAdmin,
+//   isDeveloper,
+//   canAddTask,       // ← new: any assigned user can add
 //   onAddTask,
 //   onEdit,
 //   onDelete,
@@ -444,7 +446,8 @@
 //             {tasks.length}
 //           </Box>
 //         </Box>
-//         {(isCreator || isAdmin) && column.id === "Todo" && (
+//         {/* Show "+" button for anyone who can add tasks, only on the Todo column */}
+//         {canAddTask && column.id === "Todo" && (
 //           <Tooltip title="Add task" arrow>
 //             <IconButton
 //               size="small"
@@ -490,6 +493,7 @@
 //             currentUserRole={currentUserRole}
 //             isCreator={isCreator}
 //             isAdmin={isAdmin}
+//             isDeveloper={isDeveloper}
 //             onEdit={onEdit}
 //             onDelete={onDelete}
 //             onComplete={onComplete}
@@ -511,6 +515,7 @@
 //   projectDevelopers,
 //   isCreator,
 //   isAdmin,
+//   isDeveloper,
 //   currentUserId,
 //   currentUsername,
 // }) => {
@@ -546,6 +551,7 @@
 //         links: [],
 //         priority: "Medium",
 //         deadline: "",
+//         // Developers default to assigning to themselves
 //         assignedTo: { id: currentUserId, username: currentUsername },
 //       });
 //     }
@@ -572,7 +578,8 @@
 //     });
 //   };
 
-//   const canAssignToOthers = isCreator || isAdmin;
+//   // Admins and project creators can assign to anyone; developers only to themselves
+//   const canAssignToOthers = isAdmin || isCreator;
 
 //   const labelSx = {
 //     fontSize: "0.75rem",
@@ -593,6 +600,11 @@
 //       "&.Mui-focused fieldset": { borderColor: J.blue },
 //     },
 //   };
+
+//   // Developers can only see themselves in the assign dropdown
+//   const visibleDevelopers = canAssignToOthers
+//     ? projectDevelopers
+//     : projectDevelopers.filter((d) => d.id === currentUserId);
 
 //   return (
 //     <Dialog
@@ -687,25 +699,30 @@
 
 //           {/* Assign to */}
 //           <Box>
-//             <Typography component="span" sx={labelSx}>Assign To</Typography>
+//             <Typography component="span" sx={labelSx}>
+//               Assign To
+//               {!canAssignToOthers && (
+//                 <Typography
+//                   component="span"
+//                   sx={{ fontSize: "0.68rem", color: J.textDisabled, ml: 1, textTransform: "none", fontWeight: 400 }}
+//                 >
+//                   (you can only assign tasks to yourself)
+//                 </Typography>
+//               )}
+//             </Typography>
 //             <FormControl fullWidth size="small" sx={fieldSx}>
 //               <Select
 //                 value={form.assignedTo?.id || ""}
 //                 onChange={(e) => {
-//                   const dev = projectDevelopers.find(
-//                     (d) => d.id === e.target.value
-//                   );
+//                   const dev = projectDevelopers.find((d) => d.id === e.target.value);
 //                   if (dev) set("assignedTo", dev);
 //                 }}
-//                 disabled={!canAssignToOthers && projectDevelopers.length <= 1}
+//                 // Developers are locked to self-assignment
+//                 disabled={!canAssignToOthers}
 //                 sx={{ borderRadius: J.radius, fontSize: "0.875rem" }}
 //               >
-//                 {projectDevelopers.map((dev) => (
-//                   <MenuItem
-//                     key={dev.id}
-//                     value={dev.id}
-//                     sx={{ fontSize: "0.875rem" }}
-//                   >
+//                 {visibleDevelopers.map((dev) => (
+//                   <MenuItem key={dev.id} value={dev.id} sx={{ fontSize: "0.875rem" }}>
 //                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 //                       <Avatar
 //                         sx={{
@@ -719,9 +736,7 @@
 //                       </Avatar>
 //                       {dev.username}
 //                       {dev.id === currentUserId && (
-//                         <Typography
-//                           sx={{ fontSize: "0.72rem", color: J.textSecondary }}
-//                         >
+//                         <Typography sx={{ fontSize: "0.72rem", color: J.textSecondary }}>
 //                           (you)
 //                         </Typography>
 //                       )}
@@ -764,15 +779,7 @@
 //               </Button>
 //             </Box>
 //             {form.links.map((link, i) => (
-//               <Box
-//                 key={i}
-//                 sx={{
-//                   display: "flex",
-//                   alignItems: "center",
-//                   gap: 0.5,
-//                   mb: 0.5,
-//                 }}
-//               >
+//               <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
 //                 <LinkIcon sx={{ fontSize: 13, color: J.blue }} />
 //                 <Typography
 //                   component="a"
@@ -792,11 +799,7 @@
 //                 >
 //                   {link}
 //                 </Typography>
-//                 <IconButton
-//                   size="small"
-//                   onClick={() => removeLink(i)}
-//                   sx={{ p: "2px", color: J.textDisabled }}
-//                 >
+//                 <IconButton size="small" onClick={() => removeLink(i)} sx={{ p: "2px", color: J.textDisabled }}>
 //                   <CloseIcon sx={{ fontSize: 12 }} />
 //                 </IconButton>
 //               </Box>
@@ -848,9 +851,7 @@
 //     if (!open || !projectId) return;
 //     setLoading(true);
 //     axios
-//       .get(`${API_BASE}/api/tasks/${projectId}/completions`, {
-//         headers: authHeaders(),
-//       })
+//       .get(`${API_BASE}/api/tasks/${projectId}/completions`, { headers: authHeaders() })
 //       .then((r) => setCompletions(r.data || []))
 //       .catch(() => setCompletions([]))
 //       .finally(() => setLoading(false));
@@ -909,22 +910,13 @@
 //               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
 //                 <CheckCircleIcon sx={{ fontSize: 16, color: J.green, mt: 0.25, flexShrink: 0 }} />
 //                 <Box sx={{ flex: 1, minWidth: 0 }}>
-//                   <Typography
-//                     sx={{
-//                       fontSize: "0.875rem",
-//                       fontWeight: 600,
-//                       color: J.textPrimary,
-//                       mb: 0.25,
-//                     }}
-//                   >
+//                   <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: J.textPrimary, mb: 0.25 }}>
 //                     {c.taskTitle}
 //                   </Typography>
 //                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
 //                     <Typography sx={{ fontSize: "0.75rem", color: J.textSecondary }}>
 //                       Completed by{" "}
-//                       <strong style={{ color: J.textPrimary }}>
-//                         {c.completedBy?.username}
-//                       </strong>
+//                       <strong style={{ color: J.textPrimary }}>{c.completedBy?.username}</strong>
 //                     </Typography>
 //                     <Typography sx={{ fontSize: "0.75rem", color: J.textDisabled }}>·</Typography>
 //                     <Typography sx={{ fontSize: "0.75rem", color: J.textSecondary }}>
@@ -957,23 +949,32 @@
 
 //   const currentUserId = localStorage.getItem("userId");
 //   const currentUsername = localStorage.getItem("username") || "You";
-//   const currentUserRole = localStorage.getItem("role") || "developer"; // "admin" | "developer"
+//   const currentUserRole = localStorage.getItem("role") || "developer";
 //   const isAdmin = currentUserRole === "admin";
+//   const isDeveloper = currentUserRole === "developer";
 
-//   // Check if current user is the project creator
-//   // The project.createdBy is a username string in your schema
-//   const isCreator =
-//     isAdmin || project?.createdBy === currentUsername;
+//   // isCreator: true if admin OR the logged-in user created the project
+//   const isCreator = isAdmin || project?.createdBy === currentUsername;
+
+//   // isAssignedDeveloper: true if this developer is in the project's assignedDeveloper list
+//   const isAssignedDeveloper = React.useMemo(() => {
+//     if (!project || !currentUserId) return false;
+//     return (project.assignedDeveloper || []).some(
+//       (d) => d.id?.toString() === currentUserId.toString()
+//     );
+//   }, [project, currentUserId]);
+
+//   // Anyone who is admin, creator, or an assigned developer can add tasks
+//   const canAddTask = isAdmin || isCreator || (isDeveloper && isAssignedDeveloper);
 
 //   // Build developer list for assignment dropdown
-//   // Include the creator if they're also a developer, plus all assigned devs
 //   const projectDevelopers = React.useMemo(() => {
 //     if (!project) return [];
 //     const devs = (project.assignedDeveloper || []).map((d) => ({
 //       id: d.id,
 //       username: d.username,
 //     }));
-//     // If current user is creator but not in dev list, add them for self-assignment
+//     // If current user is creator/admin but not in dev list, add for self-assignment
 //     const currentInList = devs.some((d) => d.id === currentUserId);
 //     if (!currentInList && (isCreator || isAdmin)) {
 //       devs.unshift({ id: currentUserId, username: currentUsername });
@@ -1063,9 +1064,7 @@
 //     dragTask.current = task;
 //     e.dataTransfer.effectAllowed = "move";
 //   };
-//   const handleDragEnd = () => {
-//     dragTask.current = null;
-//   };
+//   const handleDragEnd = () => { dragTask.current = null; };
 //   const handleDragOver = (e) => {
 //     e.preventDefault();
 //     e.dataTransfer.dropEffect = "move";
@@ -1075,7 +1074,6 @@
 //     const task = dragTask.current;
 //     if (!task || task.status === newStatus) return;
 
-//     // Optimistic update
 //     setTasks((prev) =>
 //       prev.map((t) => (t._id === task._id ? { ...t, status: newStatus } : t))
 //     );
@@ -1086,9 +1084,9 @@
 //         { status: newStatus },
 //         { headers: authHeaders() }
 //       );
-//       fetchTasks(); // Sync from server for completedAt etc.
+//       fetchTasks();
 //     } catch {
-//       fetchTasks(); // Rollback
+//       fetchTasks();
 //       toast("Failed to move task", "error");
 //     }
 //   };
@@ -1135,9 +1133,7 @@
 //                 justifyContent: "center",
 //               }}
 //             >
-//               <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: J.blue }}>
-//                 K
-//               </Typography>
+//               <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: J.blue }}>K</Typography>
 //             </Box>
 //             <Box>
 //               <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: J.textPrimary }}>
@@ -1165,7 +1161,9 @@
 //                 <HistoryIcon sx={{ fontSize: 16 }} />
 //               </IconButton>
 //             </Tooltip>
-//             {(isCreator || isAdmin) && (
+
+//             {/* Show "Add Task" button for everyone who can add tasks */}
+//             {canAddTask && (
 //               <Button
 //                 size="small"
 //                 variant="contained"
@@ -1196,14 +1194,7 @@
 //         {/* Board */}
 //         <DialogContent sx={{ flex: 1, overflow: "hidden", p: 0, bgcolor: J.bgPage }}>
 //           {loading ? (
-//             <Box
-//               sx={{
-//                 display: "flex",
-//                 justifyContent: "center",
-//                 alignItems: "center",
-//                 height: "100%",
-//               }}
-//             >
+//             <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
 //               <CircularProgress size={28} sx={{ color: J.blue }} />
 //             </Box>
 //           ) : (
@@ -1226,6 +1217,8 @@
 //                   currentUserRole={currentUserRole}
 //                   isCreator={isCreator}
 //                   isAdmin={isAdmin}
+//                   isDeveloper={isDeveloper}
+//                   canAddTask={canAddTask}
 //                   onAddTask={() => {
 //                     setEditingTask(null);
 //                     setTaskFormOpen(true);
@@ -1259,6 +1252,7 @@
 //         projectDevelopers={projectDevelopers}
 //         isCreator={isCreator}
 //         isAdmin={isAdmin}
+//         isDeveloper={isDeveloper}
 //         currentUserId={currentUserId}
 //         currentUsername={currentUsername}
 //       />
@@ -1291,7 +1285,6 @@
 // };
 
 // export default ProjectKanban;
-
 
 
 
