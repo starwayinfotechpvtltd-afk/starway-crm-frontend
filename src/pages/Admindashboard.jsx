@@ -20,6 +20,7 @@ import Attendances from "../Admin Pages/Attendance";
 import Docs from "../Admin Pages/Docs";
 import Monthly from "../Admin Pages/MonthlyAttendance";
 import DeveloperReports from "../Admin Pages/DeveloperReports";
+import CallerTeams from "../Admin Pages/CallerTeams";
 
 const AdminDashboard = () => {
   const activeMenu = true;
@@ -66,6 +67,7 @@ const AdminDashboard = () => {
           <Route path="monthly-attendances" element={<Monthly />} />
           <Route path="employee-docs" element={<Docs />} />
           <Route path="developer-reports" element={<DeveloperReports />} />
+          <Route path="caller-teams" element={<CallerTeams />} />
         </Routes>
         <Outlet />
       </div>

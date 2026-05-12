@@ -152,11 +152,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
       </div>
       <ul className="space-y-4">
         <li
-          className={`${
-            isActive("/dashboard-admin")
+          className={`${isActive("/dashboard-admin")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin"
@@ -168,11 +167,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
         </li>
 
         <li
-          className={`${
-            isActive("/dashboard-admin/create-user")
+          className={`${isActive("/dashboard-admin/create-user")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/create-user"
@@ -185,9 +183,8 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
 
         <li>
           <div
-            className={`${
-              isUserOpen ? "bg-indigo-100 text-indigo-600" : "text-gray-700"
-            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            className={`${isUserOpen ? "bg-indigo-100 text-indigo-600" : "text-gray-700"
+              } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
             onClick={toggleUserDropdown}
           >
             <div className="flex items-center justify-between">
@@ -200,11 +197,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           {isUserOpen && (
             <ul className="pl-4 mt-2 space-y-2">
               <li
-                className={`${
-                  isActive("/dashboard-admin/users")
+                className={`${isActive("/dashboard-admin/users")
                     ? "bg-indigo-100 text-indigo-600"
                     : "text-gray-700 hover:text-indigo-600"
-                } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+                  } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
               >
                 <Link
                   to="/dashboard-admin/users"
@@ -245,11 +241,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
                 </Link>
               </li> */}
               <li
-                className={`${
-                  isActive("/dashboard-admin/employee-")
+                className={`${isActive("/dashboard-admin/employee-")
                     ? "bg-indigo-100 text-indigo-600"
                     : "text-gray-700 hover:text-indigo-600"
-                } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+                  } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
               >
                 <Link
                   to="/dashboard-admin/employee-docs"
@@ -257,6 +252,20 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
                   className="flex items-center"
                 >
                   <ContactPageOutlinedIcon className="mr-1" /> Docs
+                </Link>
+              </li>
+              <li
+                className={`${isActive("/dashboard-admin/caller-teams")
+                    ? "bg-indigo-100 text-indigo-600"
+                    : "text-gray-700 hover:text-indigo-600"
+                  } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+              >
+                <Link
+                  to="/dashboard-admin/caller-teams"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center"
+                >
+                  <PersonOutlineOutlinedIcon className="mr-1" /> Caller Teams
                 </Link>
               </li>
             </ul>
@@ -279,11 +288,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li> */}
         <li
-          className={`${
-            isActive("/dashboard-admin/new-leads")
+          className={`${isActive("/dashboard-admin/new-leads")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/developer-reports"
@@ -294,11 +302,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li>
         <li
-          className={`${
-            isActive("/dashboard-admin/new-leads")
+          className={`${isActive("/dashboard-admin/new-leads")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/new-leads"
@@ -309,11 +316,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li>
         <li
-          className={`${
-            isActive("/dashboard-admin/assigned-leads")
+          className={`${isActive("/dashboard-admin/assigned-leads")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/assigned-leads"
@@ -324,11 +330,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li>
         <li
-          className={`${
-            isActive("/dashboard-admin/closed-leads")
+          className={`${isActive("/dashboard-admin/closed-leads")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/closed-leads"
@@ -339,11 +344,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li>
         <li
-          className={`${
-            isActive("/dashboard-admin/create-project")
+          className={`${isActive("/dashboard-admin/create-project")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/create-project"
@@ -355,11 +359,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li>
         <li
-          className={`${
-            isActive("/dashboard-admin/projects")
+          className={`${isActive("/dashboard-admin/projects")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/projects"
@@ -438,9 +441,9 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
                   Inbox
                 </Link>
               </li> */}
-            {/* </ul>
+        {/* </ul>
           )}
-        </li> */} 
+        </li> */}
 
 
 
@@ -479,11 +482,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
 
 
         <li
-          className={`${
-            isActive("/dashboard-admin/calendar")
+          className={`${isActive("/dashboard-admin/calendar")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/calendar"
@@ -494,11 +496,10 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
           </Link>
         </li>
         <li
-          className={`${
-            isActive("/dashboard-admin/to-do-list")
+          className={`${isActive("/dashboard-admin/to-do-list")
               ? "bg-indigo-100 text-indigo-600"
               : "text-gray-700 hover:text-indigo-600"
-          } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
+            } cursor-pointer p-2 rounded-md hover:bg-gray-200`}
         >
           <Link
             to="/dashboard-admin/to-do-list"

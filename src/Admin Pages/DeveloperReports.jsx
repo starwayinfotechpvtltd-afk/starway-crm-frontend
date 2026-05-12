@@ -341,7 +341,7 @@ export default function DeveloperReports() {
   const overdueList = filteredTasks.filter(
     t => t.deadline && new Date(t.deadline) < new Date() && t.status !== "Done"
   );
-  const normalList = filteredTasks.filter(
+  const normalList = filteredTasks.filter(  
     t => !(t.deadline && new Date(t.deadline) < new Date() && t.status !== "Done")
   );
 

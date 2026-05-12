@@ -14,6 +14,7 @@ import InventoryOutlinedIcon from "@mui/icons-material/InventoryOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import { Link } from "react-router-dom";
 
+
 const NavBar = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -93,6 +94,16 @@ const SidebarContent = ({ setSidebarOpen }) => {
             className="flex items-center"
           >
             <WidgetsOutlinedIcon /> Home
+          </Link>
+        </li>
+
+        <li className="text-gray-700 hover:text-indigo-600 cursor-pointer p-2 rounded-md hover:bg-gray-200">
+          <Link
+            to="/dashboard-team-manager/leads"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center"
+          >
+            <CalendarTodayOutlinedIcon /> New Leads
           </Link>
         </li>
 

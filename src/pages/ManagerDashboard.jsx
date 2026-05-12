@@ -5,6 +5,7 @@ import Home from "../Manager Pages/Home";
 import ClosedLeads from "../Manager Pages/ClosedLeads";
 import NewLeads from "../Manager Pages/NewLeads";
 import NavBar_Manager from "../Components Manager/NavBar_Manager";
+import Leads from "../Manager Pages/Leads";
 
 const DeveloperDashboard = () => {
   const [dashboardData, setDashboardData] = useState("");
@@ -35,6 +36,7 @@ const DeveloperDashboard = () => {
           <Route index element={<Home />} />
           <Route path="new-leads" element={<NewLeads />} />
           <Route path="leads-closed" element={<ClosedLeads />} />
+          <Route path="leads" element={<Leads />} />
           {/* <Route path="to-do-list" element={<ToDoList />} /> */}
         </Routes>
         <Outlet />

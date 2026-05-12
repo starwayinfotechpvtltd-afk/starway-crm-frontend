@@ -40,12 +40,14 @@ dayjs.extend(isBetween);
 const AssignedLeads = () => {
   const [assignedLeads, setAssignedLeads] = useState([]);
   const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]); // NEW: Teams State
   
   // Filter States
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedUser, setSelectedUser] = useState(""); // Transferred To
   const [selectedLeadOwner, setSelectedLeadOwner] = useState(""); // Caller
+  const [selectedTeam, setSelectedTeam] = useState(""); // NEW: Selected Team State
   const [dateFilterType, setDateFilterType] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -63,6 +65,7 @@ const AssignedLeads = () => {
   useEffect(() => {
     fetchAssignedLeads();
     fetchUsers();
+    fetchTeams(); // Fetch teams on mount
   }, []);
 
   const fetchAssignedLeads = async () => {
@@ -89,6 +92,19 @@ const AssignedLeads = () => {
       setUsers(response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
+    }
+  };
+
+  // NEW: Fetch Teams Function
+  const fetchTeams = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${API_BASE}/api/teams`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTeams(response.data);
+    } catch (error) {
+      console.error("Error fetching teams:", error);
     }
   };
 
@@ -174,10 +190,10 @@ const AssignedLeads = () => {
   // --- Jira-Style Status Lozenge ---
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
-    if (s === "ongoing") return { bg: '#DEEBFF', color: '#0052CC' }; // Blue
-    if (s === "closed") return { bg: '#E3FCEF', color: '#006644' }; // Green
-    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' }; // Red
-    return { bg: '#DFE1E6', color: '#42526E' }; // Gray default
+    if (s === "ongoing") return { bg: '#DEEBFF', color: '#0052CC' }; 
+    if (s === "closed") return { bg: '#E3FCEF', color: '#006644' }; 
+    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' }; 
+    return { bg: '#DFE1E6', color: '#42526E' }; 
   };
 
   // --- Date Logic ---
@@ -209,11 +225,25 @@ const AssignedLeads = () => {
     const assignedToMatch = selectedUser ? lead.assignedTo?._id === selectedUser : true;
     const ownerMatch = selectedLeadOwner ? lead.leadOwner === selectedLeadOwner : true;
 
+    // NEW: Team Match Logic
+    const teamMatch = selectedTeam ? (() => {
+      const targetTeam = teams.find(t => t._id === selectedTeam);
+      if (!targetTeam) return true;
+      
+      const validTeamMembers = [
+        ...targetTeam.members.map(m => m.username),
+        targetTeam.manager?.username
+      ].filter(Boolean); 
+
+      return validTeamMembers.includes(lead.leadOwner);
+    })() : true;
+
     const dateRange = getDateRange();
     const leadDate = dayjs(lead.assignedAt);
     const dateMatch = dateRange ? leadDate.isBetween(dateRange.start, dateRange.end, "day", "[]") : true;
 
-    return searchMatch && statusMatch && assignedToMatch && ownerMatch && dateMatch;
+    // Added teamMatch to the return statement
+    return searchMatch && statusMatch && assignedToMatch && ownerMatch && teamMatch && dateMatch;
   });
 
   const paginatedLeads = filteredLeads.slice((page - 1) * rowsPerPage, page * rowsPerPage);
@@ -236,6 +266,27 @@ const AssignedLeads = () => {
           </div>
 
           <Grid container spacing={2} alignItems="center">
+            
+            {/* NEW: Filter by Team */}
+            <Grid item xs={12} sm={6} md={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Filter by Team</InputLabel>
+                <Select
+                  value={selectedTeam}
+                  onChange={(e) => { setSelectedTeam(e.target.value); setPage(1); }}
+                  label="Filter by Team"
+                  sx={{ borderRadius: '3px' }}
+                >
+                  <MenuItem value=""><em>All Teams</em></MenuItem>
+                  {teams.map((team) => (
+                    <MenuItem key={team._id} value={team._id}>
+                      {team.teamName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
             {/* Filter by Caller */}
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">

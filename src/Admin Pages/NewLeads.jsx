@@ -44,6 +44,7 @@ const NewLeads = () => {
   const [leads, setLeads] = useState([]);
   const [callers, setCallers] = useState([]);
   const [adminsManagers, setAdminsManagers] = useState([]);
+  const [teams, setTeams] = useState([]); // NEW: Teams state
   
   // Filter States
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,6 +53,7 @@ const NewLeads = () => {
   const [endDate, setEndDate] = useState(null);
   const [selectedAssignedTo, setSelectedAssignedTo] = useState("");
   const [selectedCreatedBy, setSelectedCreatedBy] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState(""); // NEW: Selected Team State
   const [showTransfersOnly, setShowTransfersOnly] = useState(false);
   const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
   
@@ -60,7 +62,7 @@ const NewLeads = () => {
   const [openModal, setOpenModal] = useState(false);
   const [uniqueLeadOwners, setUniqueLeadOwners] = useState([]);
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(15); // Jira-like compact view allows more rows
+  const [rowsPerPage, setRowsPerPage] = useState(15); 
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
@@ -68,28 +70,29 @@ const NewLeads = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
+        const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        const leadsResponse = await axios.get(`${API_BASE}/api/leads/new`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Fetch all necessary data in parallel for better performance
+        const [
+          leadsResponse, 
+          adminsManagersResponse, 
+          callersResponse, 
+          teamsResponse // NEW: Fetch teams
+        ] = await Promise.all([
+          axios.get(`${API_BASE}/api/leads/new`, config),
+          axios.get(`${API_BASE}/api/auth/admins-managers`, config),
+          axios.get(`${API_BASE}/api/auth/callers`, config),
+          axios.get(`${API_BASE}/api/teams`, config)
+        ]);
+
         setLeads(leadsResponse.data);
+        setAdminsManagers(adminsManagersResponse.data);
+        setCallers(callersResponse.data);
+        setTeams(teamsResponse.data);
 
-        const owners = [
-          ...new Set(leadsResponse.data.map((lead) => lead.leadOwner)),
-        ];
+        const owners = [...new Set(leadsResponse.data.map((lead) => lead.leadOwner))];
         setUniqueLeadOwners(owners);
 
-        const adminsManagersResponse = await axios.get(
-          `${API_BASE}/api/auth/admins-managers`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setAdminsManagers(adminsManagersResponse.data);
-
-        const callersResponse = await axios.get(
-          `${API_BASE}/api/auth/callers`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setCallers(callersResponse.data);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -112,10 +115,7 @@ const NewLeads = () => {
         };
       case "custom":
         return startDate && endDate
-          ? {
-              start: startDate.startOf("day"),
-              end: endDate.endOf("day"),
-            }
+          ? { start: startDate.startOf("day"), end: endDate.endOf("day") }
           : null;
       default:
         return null;
@@ -123,23 +123,28 @@ const NewLeads = () => {
   };
 
   const filteredLeads = leads.filter((lead) => {
-    const searchMatch = lead.leadName
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase());
+    const searchMatch = lead.leadName?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const dateRange = getDateRange();
     const leadDate = dayjs(lead.createdAt);
-    const dateMatch = dateRange
-      ? leadDate.isBetween(dateRange.start, dateRange.end, "day", "[]")
-      : true;
+    const dateMatch = dateRange ? leadDate.isBetween(dateRange.start, dateRange.end, "day", "[]") : true;
 
-    const assignedToMatch = selectedAssignedTo
-      ? lead.assignedTo?._id === selectedAssignedTo
-      : true;
+    const assignedToMatch = selectedAssignedTo ? lead.assignedTo?._id === selectedAssignedTo : true;
+    const createdByMatch = selectedCreatedBy ? lead.leadOwner === selectedCreatedBy : true;
+
+    // NEW: Team Match Logic
+    // If a team is selected, we check if the lead's owner is either a member of that team or the manager.
+    const teamMatch = selectedTeam ? (() => {
+      const targetTeam = teams.find(t => t._id === selectedTeam);
+      if (!targetTeam) return true;
       
-    const createdByMatch = selectedCreatedBy
-      ? lead.leadOwner === selectedCreatedBy
-      : true;
+      const validTeamMembers = [
+        ...targetTeam.members.map(m => m.username),
+        targetTeam.manager?.username
+      ].filter(Boolean); // Remove undefined values
+
+      return validTeamMembers.includes(lead.leadOwner);
+    })() : true;
 
     // Toggle logic
     const transfersMatch = showTransfersOnly ? Boolean(lead.assignedTo) : true;
@@ -150,6 +155,7 @@ const NewLeads = () => {
       dateMatch &&
       assignedToMatch &&
       createdByMatch &&
+      teamMatch && // Include team match in final return
       transfersMatch &&
       unassignedMatch
     );
@@ -165,16 +171,13 @@ const NewLeads = () => {
     setSelectedLead(null);
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+  const handleChangePage = (event, newPage) => setPage(newPage);
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(1);
   };
 
-  // Prevent conflicting toggles
   const handleTransferToggle = (e) => {
     setShowTransfersOnly(e.target.checked);
     if (e.target.checked) setShowUnassignedOnly(false);
@@ -185,18 +188,14 @@ const NewLeads = () => {
     if (e.target.checked) setShowTransfersOnly(false);
   };
 
-  const paginatedLeads = filteredLeads.slice(
-    (page - 1) * rowsPerPage,
-    page * rowsPerPage
-  );
+  const paginatedLeads = filteredLeads.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
-  // Jira-like Status Lozenge Styling
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
-    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' }; // Red
-    if (s.includes("new") || s.includes("active")) return { bg: '#E3FCEF', color: '#006644' }; // Green
-    if (s.includes("contacted") || s.includes("progress")) return { bg: '#DEEBFF', color: '#0052CC' }; // Blue
-    return { bg: '#DFE1E6', color: '#42526E' }; // Gray default
+    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' };
+    if (s.includes("new") || s.includes("active")) return { bg: '#E3FCEF', color: '#006644' };
+    if (s.includes("contacted") || s.includes("progress")) return { bg: '#DEEBFF', color: '#0052CC' };
+    return { bg: '#DFE1E6', color: '#42526E' };
   };
 
   return (
@@ -216,10 +215,30 @@ const NewLeads = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               sx={{ width: { xs: '100%', md: '50%' }, '& .MuiOutlinedInput-root': { borderRadius: '3px' } }}
             />
-
           </div>
 
           <Grid container spacing={2} alignItems="center">
+            
+            {/* NEW: Team Filter */}
+            <Grid item xs={12} sm={6} md={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Filter by Team</InputLabel>
+                <Select
+                  value={selectedTeam}
+                  onChange={(e) => setSelectedTeam(e.target.value)}
+                  label="Filter by Team"
+                  sx={{ borderRadius: '3px' }}
+                >
+                  <MenuItem value=""><em>All Teams</em></MenuItem>
+                  {teams.map((team) => (
+                    <MenuItem key={team._id} value={team._id}>
+                      {team.teamName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
             {/* Caller Filter */}
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
@@ -429,7 +448,7 @@ const NewLeads = () => {
                               height: '20px', 
                               fontSize: '11px', 
                               fontWeight: 700, 
-                              borderRadius: '3px',
+                               borderRadius: '3px',
                               backgroundColor: '#EBECF0',
                               color: '#42526E'
                             }} 
