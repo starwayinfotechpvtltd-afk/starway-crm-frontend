@@ -113,7 +113,7 @@ const SidebarContent = ({ setSidebarOpen }) => {
             onClick={() => setSidebarOpen(false)}
             className="flex items-center"
           >
-            <CalendarTodayOutlinedIcon /> New Leads
+            <CalendarTodayOutlinedIcon /> Transfers
           </Link>
         </li>
 
