@@ -67,59 +67,42 @@ function ManagerTeamLeads() {
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
   useEffect(() => {
-    const initializeDashboard = async () => {
+    const fetchTeamDashboard = async () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        // 1. Fetch Current User, Teams, and Leads in parallel
-        const [userRes, teamsRes, leadsRes] = await Promise.all([
-          axios.get(`${API_BASE}/api/auth/user`, config),
-          axios.get(`${API_BASE}/api/teams`, config),
-          axios.get(`${API_BASE}/api/leads/all-assigned`, config) // Or your active leads endpoint
-        ]);
+        // Fetch highly optimized payload from our new backend endpoint
+        const response = await axios.get(`${API_BASE}/api/leads/team-leads`, config);
+        const { team, leads: fetchedLeads } = response.data;
 
-        const currentUser = userRes.data;
-        const allTeams = teamsRes.data;
-        const allLeads = leadsRes.data;
-
-        // 2. Find the team where current user is the manager
-        const managerTeam = allTeams.find(t => t.manager?._id === currentUser._id);
-        
-        if (!managerTeam) {
+        if (!team) {
           setMyTeam(null);
           setLoading(false);
-          return; // Stop here if they don't manage a team
+          return;
         }
 
-        setMyTeam(managerTeam);
+        setMyTeam(team);
 
-        // 3. Extract usernames of the manager's team members
-        const validTeamUsernames = managerTeam.members.map(m => m.username);
-        validTeamUsernames.push(currentUser.username); // Include manager just in case they own leads
-        setTeamCallers([...new Set(validTeamUsernames)]);
+        // Extract member usernames for the filter dropdown
+        const usernames = team.members.map(m => m.username);
+        usernames.push(localStorage.getItem("username")); // Include manager if they self-generate leads
+        setTeamCallers([...new Set(usernames)]);
 
-        // 4. Filter Leads: Must belong to team member AND NOT be closed
-        const activeTeamLeads = allLeads.filter(lead => {
-          const isNotClosed = lead.status !== "closed";
-          const belongsToTeam = validTeamUsernames.includes(lead.leadOwner);
-          return isNotClosed && belongsToTeam;
-        });
-
-        // Sort by assignment date descending
-        const sortedLeads = activeTeamLeads.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
-        setLeads(sortedLeads);
-
+        // Filter out closed leads by default for the active pipeline view
+        const activeLeads = fetchedLeads.filter(lead => lead.status !== "closed");
+        
+        setLeads(activeLeads);
       } catch (err) {
-        console.error("Error initializing dashboard:", err);
+        console.error("Error loading team dashboard:", err);
         setError("Failed to load your team's leads. Please verify your connection.");
       } finally {
         setLoading(false);
       }
     };
 
-    initializeDashboard();
+    fetchTeamDashboard();
   }, []);
 
   // --- Date Logic ---
@@ -146,9 +129,9 @@ function ManagerTeamLeads() {
       }
 
       const dateRange = getDateRange();
-      if (dateRange && lead.assignedAt) {
-        const assignedDate = dayjs(lead.assignedAt);
-        if (!assignedDate.isBetween(dateRange.start, dateRange.end, "day", "[]")) return false;
+      if (dateRange && lead.createdAt) { // Uses createdAt so new leads are caught properly
+        const leadDate = dayjs(lead.createdAt);
+        if (!leadDate.isBetween(dateRange.start, dateRange.end, "day", "[]")) return false;
       }
 
       return true;
@@ -179,9 +162,15 @@ function ManagerTeamLeads() {
   const handleSave = async () => {
     try {
       const token = localStorage.getItem("token");
+      
+      // Note: Assuming your backend has a route like PUT /api/leads/:id to handle full object updates.
+      // If you are only updating status, change URL to `/api/leads/update-status/${selectedLead._id}`
       const response = await axios.put(
-        `${API_BASE}/api/leads/${selectedLead._id}`,
-        editedLead,
+        `${API_BASE}/api/leads/update-status/${selectedLead._id}`,
+        { 
+          status: editedLead.status, 
+          currencySymbol: editedLead.currencySymbol 
+        }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -190,7 +179,8 @@ function ManagerTeamLeads() {
       if (response.data.status === "closed") {
         updatedLeads = leads.filter(lead => lead._id !== selectedLead._id);
       } else {
-        updatedLeads = leads.map((lead) => lead._id === selectedLead._id ? response.data : lead);
+        // Merge the response data into the existing lead
+        updatedLeads = leads.map((lead) => lead._id === selectedLead._id ? { ...lead, ...response.data } : lead);
       }
 
       setLeads(updatedLeads);
@@ -301,11 +291,11 @@ function ManagerTeamLeads() {
             {/* Date Preset Filter */}
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel>Assignment Date</InputLabel>
+                <InputLabel>Created Date</InputLabel>
                 <Select
                   value={dateFilterType}
                   onChange={(e) => { setDateFilterType(e.target.value); setPage(1); }}
-                  label="Assignment Date"
+                  label="Created Date"
                   sx={{ borderRadius: '3px' }}
                 >
                   <MenuItem value=""><em>All Time</em></MenuItem>
