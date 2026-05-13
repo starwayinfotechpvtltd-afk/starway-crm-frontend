@@ -41,6 +41,7 @@ import isBetween from "dayjs/plugin/isBetween";
 dayjs.extend(isBetween);
 
 const NewLeads = () => {
+  const [isLoading, setIsLoading] = useState(true);
   const [leads, setLeads] = useState([]);
   const [callers, setCallers] = useState([]);
   const [adminsManagers, setAdminsManagers] = useState([]);
@@ -68,6 +69,7 @@ const NewLeads = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const token = localStorage.getItem("token");
         const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -95,6 +97,8 @@ const NewLeads = () => {
 
       } catch (error) {
         console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -197,6 +201,16 @@ const NewLeads = () => {
     if (s.includes("contacted") || s.includes("progress")) return { bg: '#DEEBFF', color: '#0052CC' };
     return { bg: '#DFE1E6', color: '#42526E' };
   };
+
+  // --- Loader Screen ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white font-sans">
+        <div className="w-10 h-10 border-4 border-[#EBECF0] border-t-[#0052CC] rounded-full animate-spin"></div>
+        <p className="mt-4 text-[#5E6C84] text-sm font-medium animate-pulse">Loading leads...</p>
+      </div>
+    );
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>

@@ -29,6 +29,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const [totalLeads, setTotalLeads] = useState(0);
   const [closedLeads, setClosedLeads] = useState(0);
   const [newLeads, setNewLeads] = useState(0);
@@ -60,6 +61,7 @@ function App() {
   // --- Data Fetching ---
   useEffect(() => {
     const fetchAllData = async () => {
+      setIsLoading(true);
       try {
         const [
           totalRes, closedRes, newRes, activeCountRes,
@@ -93,6 +95,8 @@ function App() {
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -130,6 +134,16 @@ function App() {
       </div>
     </motion.div>
   );
+
+  // --- Loader Screen ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 font-sans">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-[#2383e2] rounded-full animate-spin"></div>
+        <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <motion.div 

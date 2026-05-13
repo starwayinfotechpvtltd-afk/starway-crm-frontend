@@ -77,102 +77,97 @@ function App() {
   const currentUserId = localStorage.getItem("userId");
   const username = localStorage.getItem("username") || "MD ASAD";
 
-  // 1. Fetch Projects
+  // Consolidated Data Fetching
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("No authentication token found");
-
-        const response = await fetch(`${API_BASE}/api/newproject/projects/my-projects`, {
+        
+        const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+        const reqOptions = {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        });
+        };
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to fetch projects");
+        // 1. Fetch Projects & Counts concurrently
+        const [projectsRes, oneTimeRes, subRes, webRes, totalRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/api/newproject/projects/my-projects`, reqOptions).then(r => {
+            if (!r.ok) throw new Error("Failed to fetch projects");
+            return r.json();
+          }),
+          axios.get(`${API_BASE}/api/newproject/projects/active-one-time`, authHeader),
+          axios.get(`${API_BASE}/api/newproject/projects/active-subscription-based`, authHeader),
+          axios.get(`${API_BASE}/api/newproject/projects/active-website-based`, authHeader),
+          axios.get(`${API_BASE}/api/newproject/projects/total-active`, authHeader)
+        ]);
+
+        let fetchedProjects = [];
+
+        if (projectsRes.status === "fulfilled") {
+          fetchedProjects = projectsRes.value;
+          setProjectsData(fetchedProjects);
+        } else {
+          throw new Error(projectsRes.reason?.message || "Error fetching projects");
         }
 
-        const data = await response.json();
-        setProjectsData(data);
+        if (oneTimeRes.status === "fulfilled") setActiveOneTimeProjectsCount(oneTimeRes.value.data.length);
+        if (subRes.status === "fulfilled") setActiveSubscriptionBasedProjectsCount(subRes.value.data.length);
+        if (webRes.status === "fulfilled") setWebsiteBasedCount(webRes.value.data.length);
+        if (totalRes.status === "fulfilled") setTotalActiveProjectsCount(totalRes.value.data.length);
+
+        // 2. Fetch Tasks & Completions based on fetched projects
+        if (fetchedProjects.length > 0 && currentUserId) {
+          let allPending = [];
+          let allCompleted = [];
+          const oneWeekAgo = subDays(new Date(), 7);
+
+          await Promise.all(
+            fetchedProjects.map(async (p) => {
+              try {
+                const [tasksRes, compRes] = await Promise.all([
+                  axios.get(`${API_BASE}/api/tasks/${p._id}`, authHeader).catch(() => ({ data: [] })),
+                  axios.get(`${API_BASE}/api/tasks/${p._id}/completions`, authHeader).catch(() => ({ data: [] }))
+                ]);
+
+                // Filter pending tasks assigned to me
+                const pending = tasksRes.data.filter(
+                  t => t.status !== "Done" && t.assignedTo?.id === currentUserId
+                );
+                allPending.push(...pending);
+
+                // Filter completions done by me in the last 7 days
+                const recentComps = compRes.data.filter(
+                  c => c.completedBy?.id === currentUserId && isAfter(new Date(c.completedAt), oneWeekAgo)
+                );
+                allCompleted.push(...recentComps);
+              } catch (err) {
+                console.error(`Failed to fetch tasks for project ${p._id}`, err);
+              }
+            })
+          );
+
+          // Sort pending by deadline
+          allPending.sort((a, b) => new Date(a.deadline || '2099-01-01') - new Date(b.deadline || '2099-01-01'));
+          
+          setPendingTasks(allPending);
+          setWeeklyCompletions(allCompleted);
+        }
       } catch (err) {
-        console.error("Error fetching projects:", err);
+        console.error("Error fetching dashboard data:", err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProjects();
-  }, []);
-
-  // 2. Fetch Tasks & Completions based on Projects
-  useEffect(() => {
-    if (!projectsData.length || !currentUserId) return;
-
-    const fetchTasksAndCompletions = async () => {
-      const token = localStorage.getItem("token");
-      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-      
-      let allPending = [];
-      let allCompleted = [];
-      const oneWeekAgo = subDays(new Date(), 7);
-
-      await Promise.all(
-        projectsData.map(async (p) => {
-          try {
-            const [tasksRes, compRes] = await Promise.all([
-              axios.get(`${API_BASE}/api/tasks/${p._id}`, authHeader).catch(() => ({ data: [] })),
-              axios.get(`${API_BASE}/api/tasks/${p._id}/completions`, authHeader).catch(() => ({ data: [] }))
-            ]);
-
-            // Filter pending tasks assigned to me
-            const pending = tasksRes.data.filter(
-              t => t.status !== "Done" && t.assignedTo?.id === currentUserId
-            );
-            allPending.push(...pending);
-
-            // Filter completions done by me in the last 7 days
-            const recentComps = compRes.data.filter(
-              c => c.completedBy?.id === currentUserId && isAfter(new Date(c.completedAt), oneWeekAgo)
-            );
-            allCompleted.push(...recentComps);
-          } catch (err) {
-            console.error(`Failed to fetch tasks for project ${p._id}`, err);
-          }
-        })
-      );
-
-      // Sort pending by deadline
-      allPending.sort((a, b) => new Date(a.deadline || '2099-01-01') - new Date(b.deadline || '2099-01-01'));
-      
-      setPendingTasks(allPending);
-      setWeeklyCompletions(allCompleted);
-    };
-
-    fetchTasksAndCompletions();
-  }, [projectsData, currentUserId]);
-
-  // 3. Fetch independent project counts (keeping your existing logic)
-  useEffect(() => {
-    const authHeader = { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } };
-    
-    axios.get(`${API_BASE}/api/newproject/projects/active-one-time`, authHeader)
-      .then(res => setActiveOneTimeProjectsCount(res.data.length)).catch(console.error);
-      
-    axios.get(`${API_BASE}/api/newproject/projects/active-subscription-based`, authHeader)
-      .then(res => setActiveSubscriptionBasedProjectsCount(res.data.length)).catch(console.error);
-      
-    axios.get(`${API_BASE}/api/newproject/projects/active-website-based`, authHeader)
-      .then(res => setWebsiteBasedCount(res.data.length)).catch(console.error);
-      
-    axios.get(`${API_BASE}/api/newproject/projects/total-active`, authHeader)
-      .then(res => setTotalActiveProjectsCount(res.data.length)).catch(console.error);
-  }, []);
+    fetchDashboardData();
+  }, [currentUserId]);
 
   // --- Chart Data Preparation ---
   const taskChartData = useMemo(() => {
@@ -217,6 +212,16 @@ function App() {
       default: return 'text-blue-600 bg-blue-100';
     }
   };
+
+  // --- Loader Screen ---
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 font-sans">
+        <div className="w-10 h-10 border-4 border-[#EBECF0] border-t-[#0052CC] rounded-full animate-spin"></div>
+        <p className="mt-4 text-[#5E6C84] text-sm font-medium animate-pulse">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-900 pb-12">
@@ -364,13 +369,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="4" className="px-5 py-8 text-center text-sm text-gray-500 animate-pulse">
-                        Loading projects...
-                      </td>
-                    </tr>
-                  ) : error ? (
+                  {error ? (
                     <tr>
                       <td colSpan="4" className="px-5 py-8 text-center text-sm text-red-500">{error}</td>
                     </tr>

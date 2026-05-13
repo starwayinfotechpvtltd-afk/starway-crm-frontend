@@ -38,6 +38,7 @@ import isBetween from "dayjs/plugin/isBetween";
 dayjs.extend(isBetween);
 
 const AssignedLeads = () => {
+  const [isLoading, setIsLoading] = useState(true);
   const [assignedLeads, setAssignedLeads] = useState([]);
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]); // NEW: Teams State
@@ -63,9 +64,22 @@ const AssignedLeads = () => {
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
   useEffect(() => {
-    fetchAssignedLeads();
-    fetchUsers();
-    fetchTeams(); // Fetch teams on mount
+    const loadInitialData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([
+          fetchAssignedLeads(),
+          fetchUsers(),
+          fetchTeams()
+        ]);
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   const fetchAssignedLeads = async () => {
@@ -132,7 +146,7 @@ const AssignedLeads = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      fetchAssignedLeads();
+      fetchAssignedLeads(); // Refresh leads in background
     } catch (error) {
       console.error("Error unassigning lead:", error);
     } finally {
@@ -247,6 +261,16 @@ const AssignedLeads = () => {
   });
 
   const paginatedLeads = filteredLeads.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  // --- Loader Screen ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white font-sans">
+        <div className="w-10 h-10 border-4 border-[#EBECF0] border-t-[#0052CC] rounded-full animate-spin"></div>
+        <p className="mt-4 text-[#5E6C84] text-sm font-medium animate-pulse">Loading assigned leads...</p>
+      </div>
+    );
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
