@@ -15,7 +15,8 @@
 //   FilterList as FilterIcon,
 // } from "@mui/icons-material";
 // import axios from "axios";
-// import { format, isBefore, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from "date-fns";
+// // Added differenceInCalendarDays for strict day-to-day comparison without time bleeding
+// import { format, isBefore, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday, differenceInCalendarDays } from "date-fns";
 
 // const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
@@ -75,16 +76,40 @@
 // const DeadlineChip = ({ deadline }) => {
 //   if (!deadline) return null;
 //   const d = new Date(deadline);
-//   const now = new Date();
-//   const isOverdue = isBefore(d, now);
-//   const isSoon = !isOverdue && isBefore(d, addDays(now, 3));
+  
+//   // Use differenceInCalendarDays to safely ignore hours/minutes
+//   const diff = differenceInCalendarDays(d, new Date());
+  
+//   const isOverdue = diff < 0;
+//   const isCritical = diff === 0 || diff === 1; // Today or Tomorrow
+//   const isSoon = diff > 1 && diff <= 3; // In 2-3 days
+
+//   let bgcolor = J.bgSubtle;
+//   let color = J.textSecondary;
+//   let label = format(d, "MMM d");
+//   let icon = <CalendarIcon sx={{ fontSize:10 }} />;
+
+//   if (isOverdue) {
+//     bgcolor = "#A40E26"; // Distinct Deep Red
+//     color = "#FFFFFF";
+//     label = `OVERDUE (${Math.abs(diff)}d)`;
+//     icon = <span style={{ fontSize:"10px", lineHeight:1 }}>🚨</span>;
+//   } else if (isCritical) {
+//     bgcolor = J.redBg;
+//     color = J.red;
+//     label = diff === 0 ? "Due Today" : "Due Tomorrow";
+//     icon = <span style={{ fontSize:"10px", lineHeight:1 }}>🔥</span>;
+//   } else if (isSoon) {
+//     bgcolor = J.orangeBg;
+//     color = J.orange;
+//     label = `Due in ${diff}d`;
+//   }
+
 //   return (
-//     <Box sx={{ display:"inline-flex", alignItems:"center", gap:"3px", px:0.75, py:0.25,
-//       borderRadius:J.radius,
-//       bgcolor: isOverdue ? J.redBg : isSoon ? J.orangeBg : J.bgSubtle,
-//       color:   isOverdue ? J.red  : isSoon ? J.orange  : J.textSecondary,
-//       fontSize:"0.68rem", fontWeight:600 }}>
-//       <CalendarIcon sx={{ fontSize:10 }} />{format(d,"MMM d")}
+//     <Box sx={{ display:"inline-flex", alignItems:"center", gap:"4px", px:0.75, py:0.25,
+//       borderRadius:J.radius, bgcolor, color,
+//       fontSize:"0.68rem", fontWeight:700 }}>
+//       {icon} {label}
 //     </Box>
 //   );
 // };
@@ -179,7 +204,6 @@
 //                   <Typography sx={{ fontSize:"0.62rem", color:J.textDisabled }}>
 //                     · {c.createdAt ? format(new Date(c.createdAt), "MMM d, h:mm a") : ""}
 //                   </Typography>
-//                   {/* Delete button — only visible to comment author */}
 //                   {isMe && (
 //                     <Tooltip title="Delete" arrow>
 //                       <IconButton
@@ -552,21 +576,21 @@
 //     assignedTo: { id: currentUserId, username: currentUsername },
 //   }), [currentUserId, currentUsername]);
 
-//   const [form,       setForm]       = useState(blankForm);
-//   const [linkInput,  setLinkInput]  = useState("");
-//   const [errors,     setErrors]     = useState({});
+//   const [form,        setForm]       = useState(blankForm);
+//   const [linkInput,   setLinkInput]  = useState("");
+//   const [errors,      setErrors]     = useState({});
 
 //   useEffect(() => {
 //     if (initialData) {
 //       setForm({
-//         title:       initialData.title        || "",
-//         description: initialData.description  || "",
-//         links:       initialData.links        || [],
-//         priority:    initialData.priority     || "Medium",
-//         deadline:    initialData.deadline
+//         title:        initialData.title        || "",
+//         description:  initialData.description  || "",
+//         links:        initialData.links        || [],
+//         priority:     initialData.priority     || "Medium",
+//         deadline:     initialData.deadline
 //           ? format(new Date(initialData.deadline), "yyyy-MM-dd")
 //           : "",
-//         assignedTo:  initialData.assignedTo   || { id: currentUserId, username: currentUsername },
+//         assignedTo:   initialData.assignedTo   || { id: currentUserId, username: currentUsername },
 //       });
 //     } else {
 //       setForm(blankForm());
@@ -1504,6 +1528,13 @@
 
 
 
+
+
+
+
+
+
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Box, Typography, IconButton, Button, Avatar, Tooltip,
@@ -2071,7 +2102,7 @@ const KanbanColumn = ({ column, tasks, currentUserId, isCreator, isAdmin, isDeve
 
 // ── Task Form Dialog ──────────────────────────────────────────────────────────
 const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDevelopers,
-  isCreator, isAdmin, isDeveloper, currentUserId, currentUsername }) => {
+  isCreator, isAdmin, isDeveloper, currentUserId, currentUsername, isSubmitting }) => {
 
   const blankForm = useCallback(() => ({
     title: "",
@@ -2163,7 +2194,9 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
         <Typography sx={{ fontWeight:600, fontSize:"1rem", color:J.textPrimary }}>
           {initialData ? "Edit Task" : "Create Task"}
         </Typography>
-        <IconButton size="small" onClick={onClose}><CloseIcon sx={{ fontSize:18 }} /></IconButton>
+        <IconButton size="small" onClick={onClose} disabled={isSubmitting}>
+          <CloseIcon sx={{ fontSize:18 }} />
+        </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ p:3 }}>
@@ -2183,6 +2216,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
               helperText={errors.title}
               sx={errorFieldSx("title")}
               FormHelperTextProps={{ sx:{ fontSize:"0.7rem", color:J.red, mt:0.25 } }}
+              disabled={isSubmitting}
             />
           </Box>
 
@@ -2195,6 +2229,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
               onChange={e => set("description", e.target.value)}
               placeholder="Add details, context, or acceptance criteria..."
               sx={fieldSx}
+              disabled={isSubmitting}
             />
           </Box>
 
@@ -2202,7 +2237,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
           <Box sx={{ display:"flex", gap:2 }}>
             <Box sx={{ flex:1 }}>
               <Typography component="span" sx={labelSx}>Priority</Typography>
-              <FormControl fullWidth size="small" sx={fieldSx}>
+              <FormControl fullWidth size="small" sx={fieldSx} disabled={isSubmitting}>
                 <Select
                   value={form.priority}
                   onChange={e => set("priority", e.target.value)}
@@ -2233,6 +2268,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
                 sx={errorFieldSx("deadline")}
                 InputLabelProps={{ shrink:true }}
                 FormHelperTextProps={{ sx:{ fontSize:"0.7rem", color:J.red, mt:0.25 } }}
+                disabled={isSubmitting}
               />
             </Box>
           </Box>
@@ -2246,7 +2282,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
                   textTransform:"none", fontWeight:400 }}>(you only)</Typography>
               )}
             </Typography>
-            <FormControl fullWidth size="small" sx={fieldSx}>
+            <FormControl fullWidth size="small" sx={fieldSx} disabled={isSubmitting}>
               <Select
                 value={form.assignedTo?.id || ""}
                 disabled={!canAssignToOthers}
@@ -2283,8 +2319,10 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
                 onKeyPress={e => e.key === "Enter" && addLink()}
                 placeholder="https://..."
                 sx={fieldSx}
+                disabled={isSubmitting}
               />
               <Button variant="outlined" size="small" onClick={addLink}
+                disabled={isSubmitting}
                 sx={{ height:32, borderRadius:J.radius, color:J.blue, borderColor:J.border,
                   textTransform:"none", fontSize:"0.8125rem", whiteSpace:"nowrap",
                   "&:hover":{ borderColor:J.blue, bgcolor:J.blueLight } }}>
@@ -2301,7 +2339,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
                     textDecoration:"none", "&:hover":{ textDecoration:"underline" } }}>
                   {link}
                 </Typography>
-                <IconButton size="small" onClick={() => removeLink(i)}
+                <IconButton size="small" onClick={() => removeLink(i)} disabled={isSubmitting}
                   sx={{ p:"2px", color:J.textDisabled }}>
                   <CloseIcon sx={{ fontSize:12 }} />
                 </IconButton>
@@ -2312,7 +2350,7 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
       </DialogContent>
 
       <DialogActions sx={{ px:3, py:2, borderTop:`1px solid ${J.border}` }}>
-        <Button onClick={onClose}
+        <Button onClick={onClose} disabled={isSubmitting}
           sx={{ height:32, borderRadius:J.radius, color:J.textSecondary,
             fontSize:"0.8125rem", textTransform:"none" }}>
           Cancel
@@ -2320,10 +2358,19 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
         <Button
           onClick={handleSubmit}
           variant="contained" disableElevation
+          disabled={isSubmitting}
           sx={{ height:32, borderRadius:J.radius, bgcolor:J.blue,
             fontSize:"0.8125rem", textTransform:"none",
-            "&:hover":{ bgcolor:J.blueDark } }}>
-          {initialData ? "Save changes" : "Create task"}
+            "&:hover":{ bgcolor:J.blueDark },
+            "&.Mui-disabled": { bgcolor: J.textDisabled, color: "#fff" } }}>
+          {isSubmitting ? (
+             <>
+               <CircularProgress size={14} sx={{ color:"#fff", mr:1 }} />
+               {initialData ? "Saving..." : "Creating..."}
+             </>
+          ) : (
+             initialData ? "Save changes" : "Create task"
+          )}
         </Button>
       </DialogActions>
     </Dialog>
@@ -2719,6 +2766,7 @@ const ProjectKanban = ({ open, onClose, project }) => {
   const [filterUser,     setFilterUser]     = useState("all");
   const [filterStatus,   setFilterStatus]   = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false); // NEW STATE FOR BUTTON
   const [snack, setSnack] = useState({ open:false, msg:"", severity:"success" });
   const dragTask = useRef(null);
 
@@ -2746,17 +2794,24 @@ const ProjectKanban = ({ open, onClose, project }) => {
 
   const toast = (msg, severity="success") => setSnack({ open:true, msg, severity });
 
-  const fetchTasks = useCallback(async () => {
+  // Modified fetchTasks to accept a boolean. If false, it updates in background without a loading spinner
+  const fetchTasks = useCallback(async (showLoader = true) => {
     if (!project?._id) return;
-    setLoading(true);
+    if (showLoader) setLoading(true);
     try {
       const r = await axios.get(`${API_BASE}/api/tasks/${project._id}`, { headers:authHeaders() });
       setTasks(r.data || []);
-    } catch { setTasks([]); }
-    finally { setLoading(false); }
+    } catch {
+      if (showLoader) setTasks([]);
+    } finally {
+      if (showLoader) setLoading(false);
+    }
   }, [project?._id]);
 
-  useEffect(() => { if (open) fetchTasks(); else setTasks([]); }, [open, fetchTasks]);
+  useEffect(() => { 
+    if (open) fetchTasks(true); 
+    else setTasks([]); 
+  }, [open, fetchTasks]);
 
   const filteredTasks = useMemo(() => tasks.filter(t => {
     if (filterUser     !== "all" && t.assignedTo?.id !== filterUser) return false;
@@ -2770,6 +2825,7 @@ const ProjectKanban = ({ open, onClose, project }) => {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
   const handleTaskSubmit = async formData => {
+    setIsSubmittingTask(true);
     try {
       if (editingTask) {
         await axios.put(`${API_BASE}/api/tasks/${project._id}/${editingTask._id}`, formData, { headers:authHeaders() });
@@ -2778,8 +2834,14 @@ const ProjectKanban = ({ open, onClose, project }) => {
         await axios.post(`${API_BASE}/api/tasks/${project._id}`, formData, { headers:authHeaders() });
         toast("Task created");
       }
-      setTaskFormOpen(false); setEditingTask(null); fetchTasks();
-    } catch (err) { toast(err.response?.data?.message || "Failed to save task","error"); }
+      setTaskFormOpen(false); 
+      setEditingTask(null); 
+      fetchTasks(false); // Background fetch to avoid jumping
+    } catch (err) { 
+      toast(err.response?.data?.message || "Failed to save task","error"); 
+    } finally {
+      setIsSubmittingTask(false);
+    }
   };
 
   const handleDelete = async taskId => {
@@ -2791,10 +2853,16 @@ const ProjectKanban = ({ open, onClose, project }) => {
   };
 
   const handleComplete = async task => {
+    // Optimistic Update
+    setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status: "Done" } : t));
     try {
       await axios.post(`${API_BASE}/api/tasks/${project._id}/${task._id}/complete`, {}, { headers:authHeaders() });
-      toast("Task marked complete! 🎉"); fetchTasks();
-    } catch (err) { toast(err.response?.data?.message || "Failed to complete task","error"); }
+      toast("Task marked complete! 🎉"); 
+      fetchTasks(false); // Background sync
+    } catch (err) { 
+      toast(err.response?.data?.message || "Failed to complete task","error"); 
+      fetchTasks(false); // Revert on fail
+    }
   };
 
   const handleDragStart = (e, task) => { dragTask.current = task; e.dataTransfer.effectAllowed = "move"; };
@@ -2806,6 +2874,7 @@ const ProjectKanban = ({ open, onClose, project }) => {
     const task = dragTask.current;
     if (!task || task.status === newStatus) return;
 
+    // Optimistic update
     setTasks(prev => prev.map(t => t._id === task._id ? { ...t, status:newStatus } : t));
 
     try {
@@ -2821,9 +2890,9 @@ const ProjectKanban = ({ open, onClose, project }) => {
           { status:newStatus }, { headers:authHeaders() }
         );
       }
-      fetchTasks();
+      fetchTasks(false); // Background sync
     } catch {
-      fetchTasks();
+      fetchTasks(false); // Revert on fail
       toast("Failed to move task","error");
     }
   };
@@ -2986,6 +3055,7 @@ const ProjectKanban = ({ open, onClose, project }) => {
         projectDevelopers={projectDevelopers}
         isCreator={isCreator} isAdmin={isAdmin} isDeveloper={isDeveloper}
         currentUserId={currentUserId} currentUsername={currentUsername}
+        isSubmitting={isSubmittingTask} // Passed down the submitting state
       />
 
       {detailTask && (
