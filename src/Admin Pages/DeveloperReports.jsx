@@ -1271,6 +1271,7 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
           ) : pendingSlice.map(t => {
             const isOverdue = checkIsOverdue(t.deadline, t.status);
             const pc = PRIORITY_COLOR[t.priority] || "#94a3b8";
+            const blue = "#3b82f6";
             return (
               <div key={t._id} onClick={() => onTaskClick(t)}
                 className="border border-gray-200 rounded-md p-3 cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all bg-white relative overflow-hidden">
@@ -1278,13 +1279,15 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
                 <div className="pl-3">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Badge label={t.priority} color={pc} />
+                    <Badge label={t.projectName} color={blue} />
                     {isOverdue && (
                       <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase">Overdue</span>
                     )}
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 truncate">{t.title}</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate pt-2">{t.title}</p>
                   <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
                     <span className="text-xs text-gray-500">{t.assignedTo?.username}</span>
+
                     {t.deadline && (
                       <span className={`flex items-center gap-1 text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
                         <Calendar size={11} />
@@ -1313,10 +1316,13 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
           {completedSlice.length === 0 ? (
             <div className="py-8 text-center text-gray-400 text-sm">No completed tasks in this period</div>
           ) : completedSlice.map(t => (
+            
             <div key={t._id} onClick={() => onTaskClick(t)}
               className="border border-emerald-200 rounded-md p-3 cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all bg-emerald-50/40 relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-md bg-emerald-500" />
-              <div className="pl-3">
+              {/* add it here */}
+              <span className="text-xs border border-gray-300 text-gray-500 px-2 py-1 rounded ml-3 mb-4">{t.projectName}</span>
+              <div className="pl-3 pt-2">
                 <p className="text-sm font-semibold text-gray-700 line-through decoration-emerald-400 truncate">{t.title}</p>
                 <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
                   <span className="text-xs text-gray-500">{t.assignedTo?.username}</span>
