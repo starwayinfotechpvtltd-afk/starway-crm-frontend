@@ -71,6 +71,7 @@
     "react-spreadsheet": "^0.9.5",
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.1",
+    "redis": "^5.12.1",
     "swiper": "^11.2.5",
     "tailwindcss": "^4.0.9",
     "tui-calendar": "^1.15.3",
