@@ -396,7 +396,7 @@
 
 //         {/* Body */}
 //         <div style={{ padding: "18px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          
+
 //           {/* Select Project */}
 //           <div>
 //             <label style={labelStyle}>Project <span style={{ color: T.red }}>*</span></label>
@@ -1052,7 +1052,11 @@
 //   const [kanbanProject,   setKanbanProject]   = useState(null);
 //   const [kanbanOpen,      setKanbanOpen]      = useState(false);
 //   const [sidebarOpen,     setSidebarOpen]     = useState(true);
-  
+
+//   // Lazy Loading / Pagination states
+//   const [projectVisibleCount, setProjectVisibleCount] = useState(10);
+//   const [pendingVisibleCount, setPendingVisibleCount] = useState(15);
+
 //   // Quick-add global modal state
 //   const [quickAddModalOpen, setQuickAddModalOpen] = useState(false);
 //   const [selectedSidebarTask, setSelectedSidebarTask] = useState(null);
@@ -1067,9 +1071,12 @@
 //   const currentUserId   = localStorage.getItem("userId");
 //   const currentUsername = localStorage.getItem("username") || "Developer";
 
+//   // Reset project pagination when filters change
+//   useEffect(() => { setProjectVisibleCount(10); }, [search, filterCreatedBy, filterSub, filterService, filterStatus]);
+
 //   // ── Fetch projects ──────────────────────────────────────────────────────────
-//   const fetchProjects = useCallback(async () => {
-//     setLoadingProjects(true);
+//   const fetchProjects = useCallback(async (isSilent = false) => {
+//     if (!isSilent) setLoadingProjects(true);
 //     try {
 //       const r = await axios.get(`${API_BASE}/api/newproject/projects`, { headers: authHeaders() });
 //       const all  = Array.isArray(r.data) ? r.data : [];
@@ -1084,44 +1091,52 @@
 //       setProjects([]);
 //       return [];
 //     } finally {
-//       setLoadingProjects(false);
+//       if (!isSilent) setLoadingProjects(false);
 //     }
 //   }, [currentUserId]);
 
-//   // ── Fetch tasks ─────────────────────────────────────────────────────────────
-//   const fetchAllTasks = useCallback(async (projectList) => {
-//     setLoadingTasks(true);
+//   // ── Fetch tasks (Chunked network requests) ──────────────────────────────────
+//   const fetchAllTasks = useCallback(async (projectList, isSilent = false) => {
+//     if (!isSilent) setLoadingTasks(true);
 //     const result = {};
-//     await Promise.allSettled(
-//       projectList.map(async (p) => {
-//         try {
-//           const r = await axios.get(`${API_BASE}/api/tasks/${p._id}`, { headers: authHeaders() });
-//           result[p._id] = (r.data || []).filter(
-//             t => t.status !== "Done" && t.assignedTo?.id?.toString() === currentUserId?.toString()
-//           );
-//         } catch {
-//           result[p._id] = [];
-//         }
-//       })
-//     );
+
+//     // Process in chunks of 5 to avoid overloading the server
+//     for (let i = 0; i < projectList.length; i += 5) {
+//       const chunk = projectList.slice(i, i + 5);
+//       await Promise.allSettled(
+//         chunk.map(async (p) => {
+//           try {
+//             const r = await axios.get(`${API_BASE}/api/tasks/${p._id}`, { headers: authHeaders() });
+//             result[p._id] = (r.data || []).filter(
+//               t => t.status !== "Done" && t.assignedTo?.id?.toString() === currentUserId?.toString()
+//             );
+//           } catch {
+//             result[p._id] = [];
+//           }
+//         })
+//       );
+//     }
 //     setTasks(result);
-//     setLoadingTasks(false);
+//     if (!isSilent) setLoadingTasks(false);
 //   }, [currentUserId]);
 
-//   // ── Fetch completed tasks per project ───────────────────────────────────────
+//   // ── Fetch completed tasks per project (Chunked network requests) ────────────
 //   const fetchLastCompleted = useCallback(async (projectList) => {
 //     const result = {};
-//     await Promise.allSettled(
-//       projectList.map(async (p) => {
-//         try {
-//           const r = await axios.get(`${API_BASE}/api/tasks/${p._id}/completions`, { headers: authHeaders() });
-//           // store the entire completions array to show up to 5 on expansion
-//           result[p._id] = r.data || [];
-//         } catch {
-//           result[p._id] = [];
-//         }
-//       })
-//     );
+//     for (let i = 0; i < projectList.length; i += 5) {
+//       const chunk = projectList.slice(i, i + 5);
+//       await Promise.allSettled(
+//         chunk.map(async (p) => {
+//           try {
+//             const r = await axios.get(`${API_BASE}/api/tasks/${p._id}/completions`, { headers: authHeaders() });
+//             // store the entire completions array to show up to 5 on expansion
+//             result[p._id] = r.data || [];
+//           } catch {
+//             result[p._id] = [];
+//           }
+//         })
+//       );
+//     }
 //     setLastCompleted(result);
 //   }, []);
 
@@ -1145,9 +1160,10 @@
 //   // Called after a quick-add succeeds so sidebar task list refreshes
 //   const handleQuickAddSuccess = useCallback(() => {
 //     setToast("Task created successfully!");
-//     fetchProjects().then(mine => {
+//     // Silent refresh so UI doesn't reset or jump around
+//     fetchProjects(true).then(mine => {
 //       if (mine.length) {
-//         fetchAllTasks(mine);
+//         fetchAllTasks(mine, true);
 //         fetchLastCompleted(mine);
 //       }
 //     });
@@ -1169,6 +1185,11 @@
 //       return 0;
 //     });
 //   }, [projects, tasks]);
+
+//   // Lazy loaded pending tasks
+//   const visiblePendingTasks = useMemo(() => {
+//     return pendingTasks.slice(0, pendingVisibleCount);
+//   }, [pendingTasks, pendingVisibleCount]);
 
 //   // ── Filters ─────────────────────────────────────────────────────────────────
 //   const filteredProjects = useMemo(() => projects.filter(p => {
@@ -1263,7 +1284,7 @@
 //                   </div>
 //                 </React.Fragment>
 //               ))}
-              
+
 //               <div style={{ width: 1, height: 28, background: T.border, marginLeft: 6, marginRight: 6 }} />
 
 //               <button type="button" onClick={() => setQuickAddModalOpen(true)} onPointerDown={stopDragEvent}
@@ -1360,10 +1381,11 @@
 //             ) : (
 //               <>
 //                 <div style={{ fontSize: "0.75rem", color: T.textSecondary, marginBottom: 14 }}>
-//                   Showing <strong style={{ color: T.textPrimary }}>{filteredProjects.length}</strong> of{" "}
-//                   <strong style={{ color: T.textPrimary }}>{projects.length}</strong> projects
+//                   Showing <strong style={{ color: T.textPrimary }}>{Math.min(projectVisibleCount, filteredProjects.length)}</strong> of{" "}
+//                   <strong style={{ color: T.textPrimary }}>{filteredProjects.length}</strong> projects
 //                 </div>
-//                 {filteredProjects.map(p => (
+
+//                 {filteredProjects.slice(0, projectVisibleCount).map(p => (
 //                   <ProjectCard
 //                     key={p._id}
 //                     project={p}
@@ -1371,6 +1393,23 @@
 //                     onOpenKanban={(proj) => { setKanbanProject(proj); setKanbanOpen(true); }}
 //                   />
 //                 ))}
+
+//                 {/* Lazy Load Button for Projects */}
+//                 {projectVisibleCount < filteredProjects.length && (
+//                   <div style={{ textAlign: "center", padding: "20px 0" }}>
+//                     <button
+//                       onClick={() => setProjectVisibleCount(p => p + 10)}
+//                       style={{
+//                         padding: "8px 20px", borderRadius: T.radiusSm,
+//                         background: T.bgInput, border: `1px solid ${T.border}`,
+//                         color: T.blue, fontSize: "0.85rem", fontWeight: 700,
+//                         cursor: "pointer", fontFamily: T.font
+//                       }}
+//                     >
+//                       Load More Projects...
+//                     </button>
+//                   </div>
+//                 )}
 //               </>
 //             )}
 //           </div>
@@ -1413,36 +1452,53 @@
 //                   <div style={{ fontSize: "0.72rem", color: T.textDisabled, marginTop: 4 }}>No pending tasks</div>
 //                 </div>
 //               ) : (
-//                 ["In Progress","Todo"].map(status => {
-//                   const group = pendingTasks.filter(t => t.status === status);
-//                   if (!group.length) return null;
-//                   return (
-//                     <div key={status} style={{ marginBottom: 16 }}>
-//                       <div style={{
-//                         fontSize: "0.62rem", fontWeight: 700,
-//                         color: status === "In Progress" ? T.blue : T.textDisabled,
-//                         textTransform: "uppercase", letterSpacing: "0.08em",
-//                         marginBottom: 8, paddingLeft: 2,
-//                       }}>
-//                         {status === "In Progress" ? "▶ In Progress" : "○ To Do"} ({group.length})
+//                 <>
+//                   {["In Progress","Todo"].map(status => {
+//                     const group = visiblePendingTasks.filter(t => t.status === status);
+//                     if (!group.length) return null;
+//                     return (
+//                       <div key={status} style={{ marginBottom: 16 }}>
+//                         <div style={{
+//                           fontSize: "0.62rem", fontWeight: 700,
+//                           color: status === "In Progress" ? T.blue : T.textDisabled,
+//                           textTransform: "uppercase", letterSpacing: "0.08em",
+//                           marginBottom: 8, paddingLeft: 2,
+//                         }}>
+//                           {status === "In Progress" ? "▶ In Progress" : "○ To Do"} ({group.length})
+//                         </div>
+//                         {group.map(t => (
+//                           <SidebarTaskItem
+//                             key={t._id} task={t}
+//                             projectId={t._projectId} projectName={t._projectName}
+//                             currentUserId={currentUserId} onTaskComplete={handleTaskComplete}
+//                             onTaskClick={(task, pId, pName) => setSelectedSidebarTask({ task, projectId: pId, projectName: pName })}
+//                           />
+//                         ))}
 //                       </div>
-//                       {group.map(t => (
-//                         <SidebarTaskItem
-//                           key={t._id} task={t}
-//                           projectId={t._projectId} projectName={t._projectName}
-//                           currentUserId={currentUserId} onTaskComplete={handleTaskComplete}
-//                           onTaskClick={(task, pId, pName) => setSelectedSidebarTask({ task, projectId: pId, projectName: pName })}
-//                         />
-//                       ))}
+//                     );
+//                   })}
+
+//                   {/* Lazy Load Button for Pending Tasks */}
+//                   {pendingVisibleCount < pendingTasks.length && (
+//                     <div style={{ textAlign: "center", paddingTop: "8px", paddingBottom: "8px" }}>
+//                       <button 
+//                         onClick={() => setPendingVisibleCount(p => p + 15)}
+//                         style={{
+//                           background: "none", border: "none", color: T.blue, 
+//                           fontSize: "0.75rem", fontWeight: 700, cursor: "pointer"
+//                         }}
+//                       >
+//                         Load More Tasks...
+//                       </button>
 //                     </div>
-//                   );
-//                 })
+//                   )}
+//                 </>
 //               )}
 //             </div>
 
 //             <div style={{ padding: "10px 12px", borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
 //               <button type="button"
-//                 onClick={() => fetchProjects().then(mine => { if (mine.length) { fetchAllTasks(mine); fetchLastCompleted(mine); } })}
+//                 onClick={() => fetchProjects(true).then(mine => { if (mine.length) { fetchAllTasks(mine, true); fetchLastCompleted(mine); } })}
 //                 onPointerDown={stopDragEvent}
 //                 style={{
 //                   width: "100%", padding: "7px", borderRadius: T.radiusSm,
@@ -1465,7 +1521,8 @@
 //           onClose={() => {
 //             setKanbanOpen(false);
 //             setKanbanProject(null);
-//             fetchProjects().then(mine => { if (mine.length) { fetchAllTasks(mine); fetchLastCompleted(mine); } });
+//             // Silently fetch data when kanban closes so UI doesn't reset or jump
+//             fetchProjects(true).then(mine => { if (mine.length) { fetchAllTasks(mine, true); fetchLastCompleted(mine); } });
 //           }}
 //           project={kanbanProject}
 //         />
@@ -1501,6 +1558,10 @@
 // };
 
 // export default DeveloperDashboard;
+
+
+
+
 
 
 
@@ -1560,10 +1621,10 @@ const T = {
 };
 
 const PRIORITY_CFG = {
-  Critical: { color: T.red,    bg: T.redBg,    dot: "●" },
-  High:     { color: T.orange, bg: T.orangeBg,  dot: "▲" },
-  Medium:   { color: T.blue,   bg: T.blueBg,    dot: "◆" },
-  Low:      { color: T.green,  bg: T.greenBg,   dot: "▼" },
+  Critical: { color: T.red, bg: T.redBg, dot: "●" },
+  High: { color: T.orange, bg: T.orangeBg, dot: "▲" },
+  Medium: { color: T.blue, bg: T.blueBg, dot: "◆" },
+  Low: { color: T.green, bg: T.greenBg, dot: "▼" },
 };
 
 const authHeaders = () => ({
@@ -1574,10 +1635,10 @@ const authHeaders = () => ({
 const getUrgency = (deadline) => {
   if (!deadline) return null;
   const diff = differenceInCalendarDays(new Date(deadline), new Date());
-  if (diff < 0)   return "overdue";
-  if (diff <= 1)  return "critical";
-  if (diff <= 3)  return "high";
-  if (diff <= 6)  return "medium";
+  if (diff < 0) return "overdue";
+  if (diff <= 1) return "critical";
+  if (diff <= 3) return "high";
+  if (diff <= 6) return "medium";
   if (diff <= 10) return "low";
   return null;
 };
@@ -1628,7 +1689,7 @@ const URGENCY_STYLES = {
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 const avatar = (name = "?") => name.charAt(0).toUpperCase();
 const avatarColor = (s) => {
-  const palette = ["#0969DA","#1A7F37","#D1242F","#8250DF","#BF8700","#0349B6"];
+  const palette = ["#0969DA", "#1A7F37", "#D1242F", "#8250DF", "#BF8700", "#0349B6"];
   let h = 0;
   for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
   return palette[Math.abs(h) % palette.length];
@@ -1670,8 +1731,10 @@ const StatusPill = ({ status }) => {
       color: isActive ? T.green : T.textDisabled,
       border: `1px solid ${isActive ? T.green : T.border}40`,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%",
-        background: isActive ? T.green : T.textDisabled, display: "inline-block" }} />
+      <span style={{
+        width: 6, height: 6, borderRadius: "50%",
+        background: isActive ? T.green : T.textDisabled, display: "inline-block"
+      }} />
       {status}
     </span>
   );
@@ -1691,8 +1754,8 @@ const DeadlineLabel = ({ deadline }) => {
       {overdue
         ? `${Math.abs(diff)}d overdue`
         : diff === 0 ? "Due today"
-        : diff === 1 ? "Due tomorrow"
-        : `Due in ${diff}d`}
+          : diff === 1 ? "Due tomorrow"
+            : `Due in ${diff}d`}
     </span>
   );
 };
@@ -1733,13 +1796,19 @@ const CommentModal = ({ task, projectId, currentUserId, onClose }) => {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: "0.7rem", color: T.textDisabled, textTransform: "uppercase",
-              letterSpacing: "0.06em", marginBottom: 3 }}>Add Comment</div>
-            <div style={{ fontSize: "0.875rem", fontWeight: 700, color: T.textPrimary,
-              lineHeight: 1.3, maxWidth: 260 }}>{task.title}</div>
+            <div style={{
+              fontSize: "0.7rem", color: T.textDisabled, textTransform: "uppercase",
+              letterSpacing: "0.06em", marginBottom: 3
+            }}>Add Comment</div>
+            <div style={{
+              fontSize: "0.875rem", fontWeight: 700, color: T.textPrimary,
+              lineHeight: 1.3, maxWidth: 260
+            }}>{task.title}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
-            fontSize: "1.1rem", color: T.textDisabled, padding: "0 4px", lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: "1.1rem", color: T.textDisabled, padding: "0 4px", lineHeight: 1
+          }}>×</button>
         </div>
         {posted ? (
           <div style={{ textAlign: "center", padding: "16px 0", color: T.green, fontWeight: 600, fontSize: "0.875rem" }}>
@@ -1785,12 +1854,12 @@ const CommentModal = ({ task, projectId, currentUserId, onClose }) => {
 };
 
 // ── Global Add Task Modal ─────────────────────────────────────────────────────
-const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose, onSuccess }) => {
+const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, currentUsername, onClose, onSuccess }) => {
   const currentUserRole = localStorage.getItem("role") || "developer";
-  const isAdmin   = currentUserRole === "admin";
+  const isAdmin = currentUserRole === "admin";
 
   const activeProjects = useMemo(() => projects.filter(p => p.status !== "Closed"), [projects]);
-  const [selectedProjectId, setSelectedProjectId] = useState(activeProjects[0]?._id || "");
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || activeProjects[0]?._id || "");
   const project = useMemo(() => activeProjects.find(p => p._id === selectedProjectId), [activeProjects, selectedProjectId]);
 
   const isCreator = isAdmin || project?.createdBy === currentUsername;
@@ -1813,11 +1882,10 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
     assignedTo: { id: currentUserId, username: currentUsername },
     links: [],
   });
-  const [errors, setErrors]   = useState({});
-  const [saving, setSaving]   = useState(false);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
   const [linkInput, setLinkInput] = useState("");
 
-  // Ensure assigned to is valid when changing projects
   useEffect(() => {
     setForm(p => ({ ...p, assignedTo: { id: currentUserId, username: currentUsername } }));
   }, [selectedProjectId, currentUserId, currentUsername]);
@@ -1848,7 +1916,7 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
   const validate = () => {
     const e = {};
     if (!form.title.trim()) e.title = "Title is required";
-    if (!form.deadline)     e.deadline = "Deadline is required";
+    if (!form.deadline) e.deadline = "Deadline is required";
     return e;
   };
 
@@ -1857,12 +1925,20 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
     try {
-      await axios.post(
+      const res = await axios.post(
         `${API_BASE}/api/tasks/${selectedProjectId}`,
         { ...form, deadline: form.deadline || null },
         { headers: authHeaders() }
       );
-      onSuccess?.();
+
+      const newTask = res.data?.task || res.data || {
+        ...form,
+        _id: Math.random().toString(),
+        status: "Todo",
+        createdAt: new Date().toISOString()
+      };
+
+      onSuccess?.(newTask, selectedProjectId);
       onClose();
     } catch (err) {
       console.error("Global add task error:", err);
@@ -1898,11 +1974,9 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
         boxShadow: T.shadowMd, fontFamily: T.font,
         overflow: "hidden",
       }}>
-        {/* Header */}
         <div style={{
           padding: "16px 20px", borderBottom: `1px solid ${T.border}`,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
         }}>
           <div>
             <div style={{ fontSize: "1rem", fontWeight: 700, color: T.textPrimary }}>Create New Task</div>
@@ -1913,10 +1987,7 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
           }}>×</button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: "18px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          
-          {/* Select Project */}
           <div>
             <label style={labelStyle}>Project <span style={{ color: T.red }}>*</span></label>
             <select
@@ -1933,34 +2004,28 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
             </select>
           </div>
 
-          {/* Title */}
           <div>
             <label style={labelStyle}>Title <span style={{ color: T.red }}>*</span></label>
             <input
-              autoFocus value={form.title}
-              onChange={e => set("title", e.target.value)}
-              placeholder="What needs to be done?"
-              style={inputStyle(!!errors.title)}
+              autoFocus value={form.title} onChange={e => set("title", e.target.value)}
+              placeholder="What needs to be done?" style={inputStyle(!!errors.title)}
               onFocus={e => e.target.style.borderColor = errors.title ? T.red : T.borderFocus}
               onBlur={e => e.target.style.borderColor = errors.title ? T.red : T.border}
             />
             {errors.title && <div style={{ fontSize: "0.68rem", color: T.red, marginTop: 4 }}>{errors.title}</div>}
           </div>
 
-          {/* Description */}
           <div>
             <label style={labelStyle}>Description</label>
             <textarea
               value={form.description} onChange={e => set("description", e.target.value)}
-              placeholder="Add details, context, or acceptance criteria..."
-              rows={3}
+              placeholder="Add details, context, or acceptance criteria..." rows={3}
               style={{ ...inputStyle(false), resize: "vertical", lineHeight: 1.5 }}
               onFocus={e => e.target.style.borderColor = T.borderFocus}
               onBlur={e => e.target.style.borderColor = T.border}
             />
           </div>
 
-          {/* Priority + Deadline row */}
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>Priority</label>
@@ -1972,10 +2037,8 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
                   backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 28,
                 }}
               >
-                {["Low","Medium","High","Critical"].map(p => (
-                  <option key={p} value={p}>{
-                    { Low: "↓ Low", Medium: "→ Medium", High: "↑ High", Critical: "⚑ Critical" }[p]
-                  }</option>
+                {["Low", "Medium", "High", "Critical"].map(p => (
+                  <option key={p} value={p}>{{ Low: "↓ Low", Medium: "→ Medium", High: "↑ High", Critical: "⚑ Critical" }[p]}</option>
                 ))}
               </select>
             </div>
@@ -1983,8 +2046,7 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
               <label style={labelStyle}>Deadline <span style={{ color: T.red }}>*</span></label>
               <input
                 type="date" value={form.deadline} min={todayStr()}
-                onChange={e => set("deadline", e.target.value)}
-                style={inputStyle(!!errors.deadline)}
+                onChange={e => set("deadline", e.target.value)} style={inputStyle(!!errors.deadline)}
                 onFocus={e => e.target.style.borderColor = errors.deadline ? T.red : T.borderFocus}
                 onBlur={e => e.target.style.borderColor = errors.deadline ? T.red : T.border}
               />
@@ -1992,74 +2054,24 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
             </div>
           </div>
 
-          {/* Assign To */}
           <div>
-            <label style={labelStyle}>
-              Assign To
-              {!canAssignToOthers && (
-                <span style={{ fontSize: "0.62rem", color: T.textDisabled, marginLeft: 6,
-                  textTransform: "none", fontWeight: 400 }}>(you only)</span>
-              )}
-            </label>
+            <label style={labelStyle}>Assign To</label>
             <select
-              value={form.assignedTo?.id || ""}
-              disabled={!canAssignToOthers}
-              onChange={e => {
-                const dev = developers.find(d => d.id === e.target.value);
-                if (dev) set("assignedTo", dev);
-              }}
+              value={form.assignedTo?.id || ""} disabled={!canAssignToOthers}
+              onChange={e => { const dev = developers.find(d => d.id === e.target.value); if (dev) set("assignedTo", dev); }}
               style={{
                 ...inputStyle(false), appearance: "none",
-                backgroundImage: selectChevron,
-                backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 28,
+                backgroundImage: selectChevron, backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 28,
                 opacity: !canAssignToOthers ? 0.6 : 1,
               }}
             >
               {(canAssignToOthers ? developers : developers.filter(d => d.id === currentUserId)).map(dev => (
-                <option key={dev.id} value={dev.id}>
-                  {dev.username}{dev.id === currentUserId ? " (you)" : ""}
-                </option>
+                <option key={dev.id} value={dev.id}>{dev.username}{dev.id === currentUserId ? " (you)" : ""}</option>
               ))}
             </select>
           </div>
-
-          {/* Links */}
-          <div>
-            <label style={labelStyle}>Links / References</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-              <input
-                value={linkInput} onChange={e => setLinkInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addLink())}
-                placeholder="https://..."
-                style={{ ...inputStyle(false), flex: 1 }}
-                onFocus={e => e.target.style.borderColor = T.borderFocus}
-                onBlur={e => e.target.style.borderColor = T.border}
-              />
-              <button onClick={addLink} style={{
-                padding: "7px 14px", borderRadius: T.radiusSm,
-                background: T.accentDim, border: `1px solid ${T.accent}50`,
-                color: T.accent, fontSize: "0.78rem", fontWeight: 600,
-                cursor: "pointer", fontFamily: T.font, whiteSpace: "nowrap",
-              }}>Add</button>
-            </div>
-            {form.links.map((link, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: "0.7rem", color: T.blue }}>🔗</span>
-                <a href={link} target="_blank" rel="noopener noreferrer" style={{
-                  fontSize: "0.75rem", color: T.blue, flex: 1,
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  textDecoration: "none",
-                }}>{link}</a>
-                <button onClick={() => removeLink(i)} style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  fontSize: "0.9rem", color: T.textDisabled, lineHeight: 1, padding: "1px 4px",
-                }}>×</button>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Footer */}
         <div style={{
           padding: "14px 20px", borderTop: `1px solid ${T.border}`,
           display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0,
@@ -2085,7 +2097,7 @@ const GlobalAddTaskModal = ({ projects, currentUserId, currentUsername, onClose,
   );
 };
 
-// ── Sidebar Task Details Modal ────────────────────────────────────────────────
+// ── Task Details Modal ────────────────────────────────────────────────────────
 const SidebarTaskDetailModal = ({ task, projectId, projectName, currentUserId, onClose, onTaskComplete }) => {
   const cfg = PRIORITY_CFG[task.priority] || PRIORITY_CFG.Medium;
   const [completing, setCompleting] = useState(false);
@@ -2093,11 +2105,8 @@ const SidebarTaskDetailModal = ({ task, projectId, projectName, currentUserId, o
   const handleComplete = async () => {
     setCompleting(true);
     try {
-      await axios.post(
-        `${API_BASE}/api/tasks/${projectId}/${task._id}/complete`, {},
-        { headers: authHeaders() }
-      );
-      onTaskComplete(task._id);
+      await axios.post(`${API_BASE}/api/tasks/${projectId}/${task._id}/complete`, {}, { headers: authHeaders() });
+      onTaskComplete(task._id, projectId);
       onClose();
     } catch (err) {
       console.error("Complete error:", err);
@@ -2116,72 +2125,69 @@ const SidebarTaskDetailModal = ({ task, projectId, projectName, currentUserId, o
         display: "flex", flexDirection: "column",
         boxShadow: T.shadowMd, fontFamily: T.font,
       }}>
-         {/* Header */}
-         <div style={{ padding: "18px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-                <div style={{ fontSize: "0.7rem", color: T.textSecondary, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>Task Details</div>
-                <div style={{ fontSize: "1.1rem", fontWeight: 700, color: T.textPrimary, lineHeight: 1.3 }}>{task.title}</div>
-                <div style={{ fontSize: "0.8rem", color: T.textSecondary, marginTop: 4 }}>Project: <strong style={{ color: T.textPrimary }}>{projectName}</strong></div>
+        <div style={{ padding: "18px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: "0.7rem", color: T.textSecondary, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>Task Details</div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 700, color: T.textPrimary, lineHeight: 1.3 }}>{task.title}</div>
+            <div style={{ fontSize: "0.8rem", color: T.textSecondary, marginTop: 4 }}>Project: <strong style={{ color: T.textPrimary }}>{projectName}</strong></div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem", color: T.textDisabled }}>×</button>
+        </div>
+
+        <div style={{ padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: cfg.bg, color: cfg.color, borderRadius: T.radiusSm, fontSize: "0.78rem", fontWeight: 700 }}>
+              <span>{cfg.dot}</span> {task.priority} Priority
             </div>
-            <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem", color: T.textDisabled }}>×</button>
-         </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: "0.78rem" }}>
+              <span style={{ fontWeight: 700, color: T.textSecondary }}>Status:</span>
+              <span style={{ color: task.status === "In Progress" ? T.blue : T.textPrimary, fontWeight: 700 }}>{task.status}</span>
+            </div>
+            {task.deadline && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: "0.78rem" }}>
+                <span style={{ fontWeight: 700, color: T.textSecondary }}>Deadline:</span>
+                <DeadlineLabel deadline={task.deadline} />
+              </div>
+            )}
+          </div>
 
-         {/* Body */}
-         <div style={{ padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
-             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: cfg.bg, color: cfg.color, borderRadius: T.radiusSm, fontSize: "0.78rem", fontWeight: 700 }}>
-                    <span>{cfg.dot}</span> {task.priority} Priority
-                 </div>
-                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: "0.78rem" }}>
-                    <span style={{ fontWeight: 700, color: T.textSecondary }}>Status:</span>
-                    <span style={{ color: task.status === "In Progress" ? T.blue : T.textPrimary, fontWeight: 700 }}>{task.status}</span>
-                 </div>
-                 {task.deadline && (
-                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: "0.78rem" }}>
-                         <span style={{ fontWeight: 700, color: T.textSecondary }}>Deadline:</span>
-                         <DeadlineLabel deadline={task.deadline} />
-                     </div>
-                 )}
-             </div>
+          {task.description && (
+            <div>
+              <div style={{ fontSize: "0.7rem", fontWeight: 700, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Description</div>
+              <div style={{ fontSize: "0.85rem", color: T.textSecondary, lineHeight: 1.6, background: T.bgInput, padding: "12px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.border}`, whiteSpace: "pre-wrap" }}>
+                {task.description}
+              </div>
+            </div>
+          )}
 
-             {task.description && (
-                 <div>
-                     <div style={{ fontSize: "0.7rem", fontWeight: 700, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Description</div>
-                     <div style={{ fontSize: "0.85rem", color: T.textSecondary, lineHeight: 1.6, background: T.bgInput, padding: "12px 16px", borderRadius: T.radiusSm, border: `1px solid ${T.border}`, whiteSpace: "pre-wrap" }}>
-                         {task.description}
-                     </div>
-                 </div>
-             )}
+          {task.links?.length > 0 && (
+            <div>
+              <div style={{ fontSize: "0.7rem", fontWeight: 700, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Links</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {task.links.map((lnk, i) => (
+                  <a key={i} href={lnk} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.85rem", color: T.blue, textDecoration: "none", wordBreak: "break-all" }}>🔗 {lnk}</a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-             {task.links?.length > 0 && (
-                 <div>
-                     <div style={{ fontSize: "0.7rem", fontWeight: 700, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Links</div>
-                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                         {task.links.map((lnk, i) => (
-                             <a key={i} href={lnk} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.85rem", color: T.blue, textDecoration: "none", wordBreak: "break-all" }}>🔗 {lnk}</a>
-                         ))}
-                     </div>
-                 </div>
-             )}
-         </div>
-
-         {/* Footer */}
-         <div style={{ padding: "16px 24px", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: T.radiusSm, background: "none", border: `1px solid ${T.border}`, color: T.textSecondary, fontSize: "0.85rem", cursor: "pointer", fontFamily: T.font }}>Close</button>
-              <button onClick={handleComplete} disabled={completing} style={{ padding: "8px 20px", borderRadius: T.radiusSm, background: completing ? T.grayBg : T.green, border: "none", color: completing ? T.textDisabled : "#FFF", fontSize: "0.85rem", fontWeight: 700, cursor: completing ? "not-allowed" : "pointer", fontFamily: T.font, transition: "background 0.15s" }}>
-                  {completing ? "Completing…" : "Mark As Done"}
-              </button>
-         </div>
+        <div style={{ padding: "16px 24px", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: 12 }}>
+          <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: T.radiusSm, background: "none", border: `1px solid ${T.border}`, color: T.textSecondary, fontSize: "0.85rem", cursor: "pointer", fontFamily: T.font }}>Close</button>
+          <button onClick={handleComplete} disabled={completing} style={{ padding: "8px 20px", borderRadius: T.radiusSm, background: completing ? T.grayBg : T.green, border: "none", color: completing ? T.textDisabled : "#FFF", fontSize: "0.85rem", fontWeight: 700, cursor: completing ? "not-allowed" : "pointer", fontFamily: T.font, transition: "background 0.15s" }}>
+            {completing ? "Completing…" : "Mark As Done"}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-// ── Pending Task Sidebar Item ─────────────────────────────────────────────────
-const SidebarTaskItem = ({ task, projectId, projectName, currentUserId, onTaskComplete, onTaskClick }) => {
-  const cfg     = PRIORITY_CFG[task.priority] || PRIORITY_CFG.Medium;
+// ── Generic Task Card (Used in Boards and Sidebar) ────────────────────────────
+const TaskCard = ({ task, projectId, projectName, currentUserId, onTaskComplete, onTaskClick }) => {
+  const cfg = PRIORITY_CFG[task.priority] || PRIORITY_CFG.Medium;
   const urgency = getUrgency(task.deadline);
-  const ustyle  = urgency ? URGENCY_STYLES[urgency] : null;
+  const ustyle = urgency ? URGENCY_STYLES[urgency] : null;
   const [completing, setCompleting] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
 
@@ -2189,20 +2195,17 @@ const SidebarTaskItem = ({ task, projectId, projectName, currentUserId, onTaskCo
     e.stopPropagation();
     setCompleting(true);
     try {
-      await axios.post(
-        `${API_BASE}/api/tasks/${projectId}/${task._id}/complete`, {},
-        { headers: authHeaders() }
-      );
-      onTaskComplete(task._id);
+      await axios.post(`${API_BASE}/api/tasks/${projectId}/${task._id}/complete`, {}, { headers: authHeaders() });
+      onTaskComplete(task._id, projectId);
     } catch (err) {
       console.error("Complete error:", err);
       setCompleting(false);
     }
   };
 
-  const cardBg     = ustyle?.bg     || T.bgCard;
+  const cardBg = ustyle?.bg || T.bgCard;
   const cardBorder = ustyle ? `1px solid ${ustyle.border}` : `1px solid ${T.border}`;
-  const cardShadow = ustyle?.glow   || T.shadow;
+  const cardShadow = ustyle?.glow || T.shadow;
   const borderLeft = ustyle?.borderLeft || "4px solid transparent";
 
   return (
@@ -2233,13 +2236,15 @@ const SidebarTaskItem = ({ task, projectId, projectName, currentUserId, onTaskCo
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontSize: "0.8rem", fontWeight: 600, color: T.textPrimary,
-              lineHeight: 1.4, marginBottom: 2,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              lineHeight: 1.4, marginBottom: 4,
+              wordBreak: "break-word"
             }}>{task.title}</div>
+
             <div style={{
-              fontSize: "0.7rem", color: T.textSecondary, marginBottom: 4,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              fontSize: "0.7rem", color: T.textSecondary, marginBottom: 6,
+              wordBreak: "break-word"
             }}>{projectName}</div>
+
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               {task.deadline && <DeadlineLabel deadline={task.deadline} />}
               {urgency && urgency !== "low" && (
@@ -2252,6 +2257,7 @@ const SidebarTaskItem = ({ task, projectId, projectName, currentUserId, onTaskCo
                 </span>
               )}
             </div>
+
             <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
               <button onClick={handleComplete} disabled={completing} style={{
                 display: "flex", alignItems: "center", gap: 4,
@@ -2297,10 +2303,27 @@ const SidebarTaskItem = ({ task, projectId, projectName, currentUserId, onTaskCo
   );
 };
 
-// ── Project Card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
+// ── Project Card (List View) ──────────────────────────────────────────────────
+const ProjectCard = ({ project, onOpenKanban }) => {
   const closed = project.status === "Closed";
   const [expanded, setExpanded] = useState(false);
+  const [completions, setCompletions] = useState([]);
+  const [loadingComps, setLoadingComps] = useState(false);
+
+  const handleToggleExpand = async (e) => {
+    e.stopPropagation();
+    if (!expanded && completions.length === 0) {
+      setLoadingComps(true);
+      try {
+        const r = await axios.get(`${API_BASE}/api/tasks/${project._id}/completions`, { headers: authHeaders() });
+        setCompletions(r.data || []);
+      } catch (err) {
+        console.error("Failed to load completions");
+      }
+      setLoadingComps(false);
+    }
+    setExpanded(!expanded);
+  };
 
   return (
     <div
@@ -2313,10 +2336,9 @@ const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
         position: "relative", zIndex: 1,
       }}
     >
-      {/* Card header — always visible */}
       <div
         style={{ padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer" }}
-        onClick={() => setExpanded(p => !p)}
+        onClick={handleToggleExpand}
         onPointerDown={stopDragEvent}
       >
         <div style={{
@@ -2328,51 +2350,28 @@ const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
-            <span style={{ fontSize: "0.9rem", fontWeight: 700,
-              color: closed ? T.closedText : T.textPrimary, fontFamily: T.font }}>
+            <span style={{
+              fontSize: "0.9rem", fontWeight: 700,
+              color: closed ? T.closedText : T.textPrimary, fontFamily: T.font
+            }}>
               {project.projectName}
             </span>
             <StatusPill status={project.status} />
-            {closed && (
-              <span style={{ fontSize: "0.68rem", color: T.textDisabled, fontStyle: "italic" }}>Read-only</span>
-            )}
+            {closed && <span style={{ fontSize: "0.68rem", color: T.textDisabled, fontStyle: "italic" }}>Read-only</span>}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
             {(project.serviceType || []).map((s, i) => <ServiceTag key={i} label={s} closed={closed} />)}
             <SubTag label={project.subscriptionType} closed={closed} />
           </div>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap",
-            fontSize: "0.75rem", color: closed ? T.textDisabled : T.textSecondary }}>
+          <div style={{
+            display: "flex", gap: 16, flexWrap: "wrap",
+            fontSize: "0.75rem", color: closed ? T.textDisabled : T.textSecondary
+          }}>
             <span>Created by <strong style={{ color: closed ? T.textDisabled : T.textPrimary }}>{project.createdBy}</strong></span>
             {project.clientName && (
               <span>Client: <strong style={{ color: closed ? T.textDisabled : T.textPrimary }}>{project.clientName}</strong></span>
             )}
           </div>
-
-          {/* ── Last completed task strip (Collapsed) ──────────────────── */}
-          {!expanded && completedTasks?.length > 0 && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6, marginTop: 10,
-              padding: "6px 12px", borderRadius: T.radiusSm,
-              background: T.greenBg, border: `1px solid #B7EBC8`,
-            }}
-              onClick={e => e.stopPropagation()}
-            >
-              <span style={{ fontSize: "0.7rem", color: T.green }}>✔</span>
-              <span style={{
-                fontSize: "0.75rem", fontWeight: 600, color: T.green,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
-              }}>
-                {completedTasks[0].taskTitle}
-              </span>
-              <span style={{ fontSize: "0.65rem", color: "#5DAA78", whiteSpace: "nowrap", flexShrink: 0 }}>
-                by {completedTasks[0].completedBy?.username}
-                {completedTasks[0].completedAt
-                  ? ` · ${format(new Date(completedTasks[0].completedAt), "MMM d")}`
-                  : ""}
-              </span>
-            </div>
-          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -2384,19 +2383,21 @@ const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
         </div>
       </div>
 
-      {/* Expanded details */}
       {expanded && (
         <div style={{
           borderTop: `1px solid ${T.border}`, padding: "16px 18px",
           display: "flex", flexDirection: "column", gap: 16,
         }}>
-          {/* ── Top 5 Recent Completions ─────────────────────────────────── */}
-          {completedTasks?.length > 0 && (
+          {loadingComps ? (
+            <div style={{ fontSize: "0.75rem", color: T.textSecondary }}>Loading history...</div>
+          ) : completions.length > 0 && (
             <div>
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Recent Completions</div>
+              <div style={{
+                fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8
+              }}>Recent Completions</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {completedTasks.slice(0, 5).map((u, i) => (
+                {completions.slice(0, 5).map((u, i) => (
                   <div key={i} style={{
                     display: "flex", alignItems: "center", gap: 8,
                     padding: "7px 12px", background: T.bgInput,
@@ -2421,8 +2422,10 @@ const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
               { label: "Client Website", value: project.referenceSite },
             ].filter(f => f.value).map(({ label, value }) => (
               <div key={label}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-                  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
+                <div style={{
+                  fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
+                  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3
+                }}>{label}</div>
                 <div style={{ fontSize: "0.8rem", color: closed ? T.textDisabled : T.textPrimary, wordBreak: "break-all" }}>
                   {label === "Client Website" ? (
                     <a href={value} target="_blank" rel="noopener noreferrer"
@@ -2436,67 +2439,16 @@ const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
 
           {project.projectDetails && (
             <div>
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Details</div>
-              <div style={{ fontSize: "0.8rem", color: closed ? T.textDisabled : T.textSecondary,
+              <div style={{
+                fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4
+              }}>Details</div>
+              <div style={{
+                fontSize: "0.8rem", color: closed ? T.textDisabled : T.textSecondary,
                 lineHeight: 1.6, padding: "8px 12px", background: T.bgInput,
-                borderRadius: T.radiusSm, border: `1px solid ${T.border}` }}>
+                borderRadius: T.radiusSm, border: `1px solid ${T.border}`
+              }}>
                 {project.projectDetails}
-              </div>
-            </div>
-          )}
-
-          {project.comments && (
-            <div>
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Comments</div>
-              <div style={{ fontSize: "0.8rem", color: closed ? T.textDisabled : T.textSecondary,
-                lineHeight: 1.6, padding: "8px 12px", background: T.bgInput,
-                borderRadius: T.radiusSm, border: `1px solid ${T.border}` }}>
-                {project.comments}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-              textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Team</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(project.assignedDeveloper || []).map((dev, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", gap: 7,
-                  padding: "4px 10px", background: T.bgInput,
-                  borderRadius: "20px", border: `1px solid ${T.border}`,
-                }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: "50%",
-                    background: avatarColor(dev.username),
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "0.6rem", fontWeight: 800, color: "#FFF",
-                  }}>{avatar(dev.username)}</div>
-                  <span style={{ fontSize: "0.78rem", color: closed ? T.textDisabled : T.textPrimary }}>
-                    {dev.username}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {project.upsaleData?.length > 0 && (
-            <div>
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Upsale Packages</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {project.upsaleData.map((u, i) => (
-                  <div key={i} style={{
-                    padding: "6px 12px", background: T.bgInput,
-                    borderRadius: T.radiusSm, border: `1px solid ${T.border}`,
-                    fontSize: "0.78rem", color: closed ? T.textDisabled : T.textSecondary,
-                  }}>
-                    <strong style={{ color: closed ? T.textDisabled : T.accent }}>{u.serviceType}</strong>
-                    {u.amount && <span> · ${Number(u.amount).toLocaleString()}</span>}
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -2527,8 +2479,7 @@ const ProjectCard = ({ project, onOpenKanban, completedTasks }) => {
 // ── Filter Select ─────────────────────────────────────────────────────────────
 const FilterSelect = ({ label, value, onChange, options }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 140 }}>
-    <label style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-      textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
+    <label style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
     <select value={value} onChange={e => onChange(e.target.value)} onPointerDown={stopDragEvent}
       style={{
         background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
@@ -2562,181 +2513,126 @@ const Toast = ({ message, onHide }) => {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 const DeveloperDashboard = () => {
-  const [projects,        setProjects]        = useState([]);
-  const [tasks,           setTasks]           = useState({});
-  // lastCompleted: { [projectId]: completions Array }
-  const [lastCompleted,   setLastCompleted]   = useState({});
-  const [loadingProjects, setLoadingProjects] = useState(true);
-  const [loadingTasks,    setLoadingTasks]    = useState(false);
-  const [kanbanProject,   setKanbanProject]   = useState(null);
-  const [kanbanOpen,      setKanbanOpen]      = useState(false);
-  const [sidebarOpen,     setSidebarOpen]     = useState(true);
-  
-  // Lazy Loading / Pagination states
-  const [projectVisibleCount, setProjectVisibleCount] = useState(10);
-  const [pendingVisibleCount, setPendingVisibleCount] = useState(15);
-  
-  // Quick-add global modal state
+  const [viewMode, setViewMode] = useState("boards");
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState({});
+  const [loadingInitial, setLoadingInitial] = useState(true);
+
+  const [kanbanProject, setKanbanProject] = useState(null);
+  const [kanbanOpen, setKanbanOpen] = useState(false);
+  const [openingKanbanId, setOpeningKanbanId] = useState(null);
+
   const [quickAddModalOpen, setQuickAddModalOpen] = useState(false);
+  const [quickAddInitialProject, setQuickAddInitialProject] = useState("");
   const [selectedSidebarTask, setSelectedSidebarTask] = useState(null);
-  const [toast,           setToast]           = useState("");
+  const [toast, setToast] = useState("");
 
-  const [search,          setSearch]          = useState("");
+  const [search, setSearch] = useState("");
   const [filterCreatedBy, setFilterCreatedBy] = useState("");
-  const [filterSub,       setFilterSub]       = useState("");
-  const [filterService,   setFilterService]   = useState("");
-  const [filterStatus,    setFilterStatus]    = useState("");
+  const [filterSub, setFilterSub] = useState("");
+  const [filterService, setFilterService] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [projectVisibleCount, setProjectVisibleCount] = useState(10);
 
-  const currentUserId   = localStorage.getItem("userId");
+  const currentUserId = localStorage.getItem("userId");
   const currentUsername = localStorage.getItem("username") || "Developer";
 
-  // Reset project pagination when filters change
   useEffect(() => { setProjectVisibleCount(10); }, [search, filterCreatedBy, filterSub, filterService, filterStatus]);
 
-  // ── Fetch projects ──────────────────────────────────────────────────────────
-  const fetchProjects = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoadingProjects(true);
+  const loadInitialData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoadingInitial(true);
     try {
       const r = await axios.get(`${API_BASE}/api/newproject/projects`, { headers: authHeaders() });
-      const all  = Array.isArray(r.data) ? r.data : [];
+      const all = Array.isArray(r.data) ? r.data : [];
       const mine = all.filter(p =>
         (p.assignedDeveloper || []).some(
           d => d.id && currentUserId && d.id.toString() === currentUserId.toString()
         )
       );
+
+      const tasksResult = {};
+      await Promise.allSettled(mine.map(async (p) => {
+        try {
+          const tasksRes = await axios.get(`${API_BASE}/api/tasks/${p._id}`, { headers: authHeaders() });
+          tasksResult[p._id] = (tasksRes.data || []).filter(
+            t => t.status !== "Done" && t.assignedTo?.id?.toString() === currentUserId?.toString()
+          );
+        } catch {
+          tasksResult[p._id] = [];
+        }
+      }));
+
+      setTasks(tasksResult);
       setProjects(mine);
-      return mine;
-    } catch {
-      setProjects([]);
-      return [];
+    } catch (err) {
+      console.error("Dashboard load error:", err);
     } finally {
-      if (!isSilent) setLoadingProjects(false);
+      if (!isSilent) setLoadingInitial(false);
     }
   }, [currentUserId]);
-
-  // ── Fetch tasks (Chunked network requests) ──────────────────────────────────
-  const fetchAllTasks = useCallback(async (projectList, isSilent = false) => {
-    if (!isSilent) setLoadingTasks(true);
-    const result = {};
-    
-    // Process in chunks of 5 to avoid overloading the server
-    for (let i = 0; i < projectList.length; i += 5) {
-      const chunk = projectList.slice(i, i + 5);
-      await Promise.allSettled(
-        chunk.map(async (p) => {
-          try {
-            const r = await axios.get(`${API_BASE}/api/tasks/${p._id}`, { headers: authHeaders() });
-            result[p._id] = (r.data || []).filter(
-              t => t.status !== "Done" && t.assignedTo?.id?.toString() === currentUserId?.toString()
-            );
-          } catch {
-            result[p._id] = [];
-          }
-        })
-      );
-    }
-    setTasks(result);
-    if (!isSilent) setLoadingTasks(false);
-  }, [currentUserId]);
-
-  // ── Fetch completed tasks per project (Chunked network requests) ────────────
-  const fetchLastCompleted = useCallback(async (projectList) => {
-    const result = {};
-    for (let i = 0; i < projectList.length; i += 5) {
-      const chunk = projectList.slice(i, i + 5);
-      await Promise.allSettled(
-        chunk.map(async (p) => {
-          try {
-            const r = await axios.get(`${API_BASE}/api/tasks/${p._id}/completions`, { headers: authHeaders() });
-            // store the entire completions array to show up to 5 on expansion
-            result[p._id] = r.data || [];
-          } catch {
-            result[p._id] = [];
-          }
-        })
-      );
-    }
-    setLastCompleted(result);
-  }, []);
 
   useEffect(() => {
-    fetchProjects().then(mine => {
-      if (mine.length) {
-        fetchAllTasks(mine);
-        fetchLastCompleted(mine);
-      }
-    });
-  }, [fetchProjects, fetchAllTasks, fetchLastCompleted]);
+    loadInitialData();
+  }, [loadInitialData]);
 
-  const handleTaskComplete = useCallback((taskId) => {
+  const handleTaskComplete = useCallback((taskId, projectId) => {
     setTasks(prev => {
-      const next = { ...prev };
-      for (const pid in next) next[pid] = next[pid].filter(t => t._id !== taskId);
-      return next;
+      const projectTasks = prev[projectId] || [];
+      return {
+        ...prev,
+        [projectId]: projectTasks.filter(t => t._id !== taskId)
+      };
     });
   }, []);
 
-  // Called after a quick-add succeeds so sidebar task list refreshes
-  const handleQuickAddSuccess = useCallback(() => {
+  const handleQuickAddSuccess = useCallback((newTask, projectId) => {
     setToast("Task created successfully!");
-    // Silent refresh so UI doesn't reset or jump around
-    fetchProjects(true).then(mine => {
-      if (mine.length) {
-        fetchAllTasks(mine, true);
-        fetchLastCompleted(mine);
-      }
-    });
-  }, [fetchProjects, fetchAllTasks, fetchLastCompleted]);
+    setTasks(prev => ({
+      ...prev,
+      [projectId]: [...(prev[projectId] || []), newTask]
+    }));
+  }, []);
 
-  // ── Pending tasks flat list ─────────────────────────────────────────────────
-  const pendingTasks = useMemo(() => {
-    const flat = [];
-    projects.forEach(p => {
-      (tasks[p._id] || []).forEach(t => flat.push({ ...t, _projectId: p._id, _projectName: p.projectName }));
-    });
-    const priorityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-    return flat.sort((a, b) => {
-      const pd = (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
-      if (pd !== 0) return pd;
-      if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
-      if (a.deadline) return -1;
-      if (b.deadline) return 1;
-      return 0;
-    });
+  const handleOpenKanban = useCallback((project) => {
+    setOpeningKanbanId(project._id);
+    setTimeout(() => {
+      setKanbanProject(project);
+      setKanbanOpen(true);
+      setOpeningKanbanId(null);
+    }, 450);
+  }, []);
+
+  const activeCount = projects.filter(p => p.status === "Active").length;
+  const closedCount = projects.filter(p => p.status === "Closed").length;
+
+  const boardProjects = useMemo(() => {
+    return projects.filter(p => p.status !== "Closed" && tasks[p._id]?.length > 0);
   }, [projects, tasks]);
 
-  // Lazy loaded pending tasks
-  const visiblePendingTasks = useMemo(() => {
-    return pendingTasks.slice(0, pendingVisibleCount);
-  }, [pendingTasks, pendingVisibleCount]);
-
-  // ── Filters ─────────────────────────────────────────────────────────────────
   const filteredProjects = useMemo(() => projects.filter(p => {
-    const matchSearch    = !search          || p.projectName.toLowerCase().includes(search.toLowerCase()) || p.clientName?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || p.projectName.toLowerCase().includes(search.toLowerCase()) || p.clientName?.toLowerCase().includes(search.toLowerCase());
     const matchCreatedBy = !filterCreatedBy || p.createdBy === filterCreatedBy;
-    const matchSub       = !filterSub       || p.subscriptionType === filterSub;
-    const matchService   = !filterService   || (p.serviceType || []).includes(filterService);
-    const matchStatus    = !filterStatus    || p.status === filterStatus;
+    const matchSub = !filterSub || p.subscriptionType === filterSub;
+    const matchService = !filterService || (p.serviceType || []).includes(filterService);
+    const matchStatus = !filterStatus || p.status === filterStatus;
     return matchSearch && matchCreatedBy && matchSub && matchService && matchStatus;
   }), [projects, search, filterCreatedBy, filterSub, filterService, filterStatus]);
 
   const createdByOptions = [...new Set(projects.map(p => p.createdBy).filter(Boolean))];
-  const subOptions       = [...new Set(projects.map(p => p.subscriptionType).filter(Boolean))];
-  const serviceOptions   = [...new Set(projects.flatMap(p => p.serviceType || []))];
-
-  const activeCount = projects.filter(p => p.status === "Active").length;
-  const closedCount = projects.filter(p => p.status === "Closed").length;
+  const subOptions = [...new Set(projects.map(p => p.subscriptionType).filter(Boolean))];
+  const serviceOptions = [...new Set(projects.flatMap(p => p.serviceType || []))];
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #C1C7CD; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #C1C7CD; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #A1A8AE; }
         input::placeholder, textarea::placeholder { color: ${T.textDisabled}; }
+        
         @keyframes shimmer {
           0%   { background-position: 200% center; }
           100% { background-position: -200% center; }
@@ -2749,9 +2645,11 @@ const DeveloperDashboard = () => {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         .sidebar-task--overdue { animation: urgentPulse 2.2s ease-in-out infinite; }
         .sidebar-task--overdue:hover { animation: none; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        
         .project-card { transition: border-color 0.2s, box-shadow 0.2s; }
         .project-card:not(.closed):hover {
           border-color: ${T.accent}50 !important;
@@ -2759,298 +2657,267 @@ const DeveloperDashboard = () => {
         }
         .sidebar-task { transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s; }
         .sidebar-task:hover { transform: translateY(-1px); border-color: ${T.blue}80 !important; }
+
+        .btn-loading {
+          opacity: 0.7;
+          cursor: not-allowed !important;
+          position: relative;
+        }
       `}</style>
 
       <div style={{
-        display: "flex", height: "100vh", background: T.bg,
-        fontFamily: T.font, color: T.textPrimary,
-        overflow: "hidden", position: "relative",
+        display: "flex", flexDirection: "column", height: "100vh", background: T.bg,
+        fontFamily: T.font, color: T.textPrimary, overflow: "hidden", 
       }}>
 
-        {/* ── Main content ─────────────────────────────────────────────── */}
         <div style={{
-          flex: 1, display: "flex", flexDirection: "column",
-          overflow: "hidden", position: "relative", zIndex: 1,
+          padding: "16px 24px", borderBottom: `1px solid ${T.border}`,
+          display: "flex", alignItems: "center", gap: 16,
+          background: T.bgCard, flexShrink: 0, zIndex: 10, 
         }}>
-          {/* Top bar */}
           <div style={{
-            padding: "16px 24px", borderBottom: `1px solid ${T.border}`,
-            display: "flex", alignItems: "center", gap: 16,
-            background: T.bgCard, flexShrink: 0, position: "relative", zIndex: 2,
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: "50%",
-              background: avatarColor(currentUsername),
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "0.85rem", fontWeight: 800, color: "#FFF", flexShrink: 0,
-            }}>{avatar(currentUsername)}</div>
-            <div>
-              <div style={{ fontSize: "0.7rem", color: T.textSecondary, marginBottom: 1 }}>Developer Dashboard</div>
-              <div style={{ fontSize: "0.9rem", fontWeight: 700, color: T.textPrimary }}>{currentUsername}</div>
-            </div>
+            width: 36, height: 36, borderRadius: "50%", background: avatarColor(currentUsername),
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.85rem", fontWeight: 800, color: "#FFF", flexShrink: 0,
+          }}>{avatar(currentUsername)}</div>
 
-            <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
-              {[
-                { label: "Active",        val: activeCount,        color: T.green },
-                { label: "Closed",        val: closedCount,        color: T.textDisabled },
-                { label: "Pending Tasks", val: loadingTasks ? "…" : pendingTasks.length, color: pendingTasks.length > 0 ? T.orange : T.textSecondary },
-              ].map(({ label, val, color }, i) => (
-                <React.Fragment key={label}>
-                  {i > 0 && <div style={{ width: 1, height: 28, background: T.border }} />}
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "0.65rem", color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                    <div style={{ fontSize: "1.1rem", fontWeight: 800, color }}>{val}</div>
-                  </div>
-                </React.Fragment>
-              ))}
-              
-              <div style={{ width: 1, height: 28, background: T.border, marginLeft: 6, marginRight: 6 }} />
-
-              <button type="button" onClick={() => setQuickAddModalOpen(true)} onPointerDown={stopDragEvent}
-                style={{
-                  padding: "7px 16px", borderRadius: T.radiusSm,
-                  fontSize: "0.8rem", fontWeight: 700, fontFamily: T.font,
-                  background: T.accent, border: "none",
-                  color: "#FFF", cursor: "pointer", transition: "background 0.15s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = T.accentHover}
-                onMouseLeave={e => e.currentTarget.style.background = T.accent}
-              >+ Add Task</button>
-
-              <button type="button" onClick={() => setSidebarOpen(p => !p)} onPointerDown={stopDragEvent}
-                style={{
-                  padding: "6px 12px", borderRadius: T.radiusSm,
-                  fontSize: "0.75rem", fontWeight: 600, fontFamily: T.font,
-                  background: sidebarOpen ? T.accentDim : T.bgInput,
-                  border: `1px solid ${sidebarOpen ? T.accent + "50" : T.border}`,
-                  color: sidebarOpen ? T.accent : T.textSecondary,
-                  cursor: "pointer", transition: "all 0.15s",
-                }}
-              >{sidebarOpen ? "Hide Tasks" : "Show Tasks"}</button>
-            </div>
+          <div>
+            <div style={{ fontSize: "0.7rem", color: T.textSecondary, marginBottom: 1 }}>Developer Dashboard</div>
+            <div style={{ fontSize: "0.9rem", fontWeight: 700, color: T.textPrimary }}>{currentUsername}</div>
           </div>
 
-          {/* Filter bar */}
-          <div style={{
-            padding: "12px 24px", borderBottom: `1px solid ${T.border}`,
-            background: T.bgCard, display: "flex", gap: 12, alignItems: "flex-end",
-            flexWrap: "wrap", flexShrink: 0, position: "relative", zIndex: 2,
-          }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 200px", minWidth: 180 }}>
-              <label style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled,
-                textTransform: "uppercase", letterSpacing: "0.06em" }}>Search</label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                  color: T.textDisabled, fontSize: "0.8rem", pointerEvents: "none" }}>⌕</span>
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  onPointerDown={stopDragEvent} placeholder="Project name, client..."
-                  style={{
-                    width: "100%", background: T.bgInput, border: `1px solid ${T.border}`,
-                    borderRadius: T.radiusSm, color: T.textPrimary, fontSize: "0.8rem",
-                    padding: "6px 10px 6px 28px", outline: "none", fontFamily: T.font, cursor: "text",
-                  }}
-                  onFocus={e => e.target.style.borderColor = T.borderFocus}
-                  onBlur={e => e.target.style.borderColor = T.border}
-                />
-              </div>
-            </div>
-            <FilterSelect label="Created By"   value={filterCreatedBy} onChange={setFilterCreatedBy} options={createdByOptions} />
-            <FilterSelect label="Subscription" value={filterSub}       onChange={setFilterSub}       options={subOptions} />
-            <FilterSelect label="Service"      value={filterService}   onChange={setFilterService}   options={serviceOptions} />
-            <FilterSelect label="Status"       value={filterStatus}    onChange={setFilterStatus}    options={["Active","Closed"]} />
-            {(search || filterCreatedBy || filterSub || filterService || filterStatus) && (
-              <button type="button"
-                onClick={() => { setSearch(""); setFilterCreatedBy(""); setFilterSub(""); setFilterService(""); setFilterStatus(""); }}
-                onPointerDown={stopDragEvent}
-                style={{
-                  padding: "6px 12px", alignSelf: "flex-end", borderRadius: T.radiusSm,
-                  fontSize: "0.78rem", fontFamily: T.font, whiteSpace: "nowrap",
-                  background: "transparent", border: `1px solid ${T.border}`,
-                  color: T.textSecondary, cursor: "pointer",
-                }}
-              >× Clear</button>
-            )}
-          </div>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
+            {[
+              { label: "Active", val: activeCount, color: T.green },
+              { label: "Closed", val: closedCount, color: T.textDisabled },
+            ].map(({ label, val, color }, i) => (
+              <React.Fragment key={label}>
+                {i > 0 && <div style={{ width: 1, height: 28, background: T.border }} />}
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "0.65rem", color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 800, color }}>{val}</div>
+                </div>
+              </React.Fragment>
+            ))}
 
-          {/* Project list */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", position: "relative", zIndex: 1 }}>
-            {loadingProjects ? (
-              <div style={{ display: "flex", justifyContent: "center", paddingTop: 60 }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: "50%",
-                    border: `3px solid ${T.border}`, borderTopColor: T.accent,
-                    animation: "spin 0.7s linear infinite", margin: "0 auto 12px",
-                  }} />
-                  <div style={{ fontSize: "0.85rem", color: T.textSecondary }}>Loading your projects…</div>
-                </div>
-              </div>
-            ) : filteredProjects.length === 0 ? (
-              <div style={{ textAlign: "center", paddingTop: 60, color: T.textSecondary }}>
-                <div style={{ fontSize: "2rem", marginBottom: 12 }}>📂</div>
-                <div style={{ fontSize: "0.95rem", fontWeight: 600, color: T.textPrimary, marginBottom: 6 }}>
-                  {projects.length === 0 ? "No projects assigned to you" : "No projects match your filters"}
-                </div>
-                <div style={{ fontSize: "0.8rem" }}>
-                  {projects.length === 0
-                    ? "Ask your project manager to assign you to a project."
-                    : "Try adjusting or clearing the filters."}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: "0.75rem", color: T.textSecondary, marginBottom: 14 }}>
-                  Showing <strong style={{ color: T.textPrimary }}>{Math.min(projectVisibleCount, filteredProjects.length)}</strong> of{" "}
-                  <strong style={{ color: T.textPrimary }}>{filteredProjects.length}</strong> projects
-                </div>
-                
-                {filteredProjects.slice(0, projectVisibleCount).map(p => (
-                  <ProjectCard
-                    key={p._id}
-                    project={p}
-                    completedTasks={lastCompleted[p._id] || []}
-                    onOpenKanban={(proj) => { setKanbanProject(proj); setKanbanOpen(true); }}
-                  />
-                ))}
+            <div style={{ width: 1, height: 28, background: T.border, margin: "0 4px" }} />
 
-                {/* Lazy Load Button for Projects */}
-                {projectVisibleCount < filteredProjects.length && (
-                  <div style={{ textAlign: "center", padding: "20px 0" }}>
-                    <button
-                      onClick={() => setProjectVisibleCount(p => p + 10)}
-                      style={{
-                        padding: "8px 20px", borderRadius: T.radiusSm,
-                        background: T.bgInput, border: `1px solid ${T.border}`,
-                        color: T.blue, fontSize: "0.85rem", fontWeight: 700,
-                        cursor: "pointer", fontFamily: T.font
-                      }}
-                    >
-                      Load More Projects...
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+            <button onClick={() => { setQuickAddInitialProject(""); setQuickAddModalOpen(true); }}
+              style={{
+                padding: "8px 16px", borderRadius: T.radiusSm,
+                fontSize: "0.8rem", fontWeight: 700, fontFamily: T.font,
+                background: T.accent, border: "none", color: "#FFF",
+                cursor: "pointer", transition: "background 0.15s", whiteSpace: "nowrap"
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = T.accentHover}
+              onMouseLeave={e => e.currentTarget.style.background = T.accent}
+            >+ Add Task</button>
+
+            <button onClick={() => setViewMode(v => v === "boards" ? "list" : "boards")}
+              style={{
+                padding: "8px 16px", borderRadius: T.radiusSm,
+                fontSize: "0.8rem", fontWeight: 700, fontFamily: T.font,
+                background: T.bgInput, border: `1px solid ${T.border}`,
+                color: T.textPrimary, cursor: "pointer", transition: "border 0.15s",
+                whiteSpace: "nowrap"
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = T.borderFocus}
+              onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+            >
+              {viewMode === "boards" ? "☰ View Full Projects" : "⏸ View Boards"}
+            </button>
           </div>
         </div>
 
-        {/* ── Pending Tasks Sidebar ─────────────────────────────────────── */}
-        {sidebarOpen && (
-          <div style={{
-            width: 300, borderLeft: `1px solid ${T.border}`,
-            background: T.bgSidebar, display: "flex", flexDirection: "column",
-            overflow: "hidden", flexShrink: 0, position: "relative", zIndex: 10,
-          }}>
-            <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: T.textPrimary }}>Pending Tasks</span>
-                {!loadingTasks && pendingTasks.length > 0 && (
-                  <span style={{
-                    background: T.orange, color: "#000", fontSize: "0.65rem", fontWeight: 800,
-                    borderRadius: "10px", padding: "2px 7px", minWidth: 20, textAlign: "center",
-                  }}>{pendingTasks.length}</span>
-                )}
-              </div>
-              <div style={{ fontSize: "0.7rem", color: T.textDisabled }}>Assigned to you · not yet done</div>
-            </div>
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
 
-            <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
-              {loadingTasks ? (
-                <div style={{ textAlign: "center", paddingTop: 40 }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    border: `3px solid ${T.border}`, borderTopColor: T.accent,
-                    animation: "spin 0.7s linear infinite", margin: "0 auto 12px",
-                  }} />
-                  <div style={{ fontSize: "0.8rem", color: T.textDisabled }}>Loading tasks…</div>
-                </div>
-              ) : pendingTasks.length === 0 ? (
-                <div style={{ textAlign: "center", paddingTop: 30 }}>
-                  <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>✓</div>
-                  <div style={{ fontSize: "0.8rem", color: T.green, fontWeight: 600 }}>All caught up!</div>
-                  <div style={{ fontSize: "0.72rem", color: T.textDisabled, marginTop: 4 }}>No pending tasks</div>
+          {loadingInitial ? (
+            <div style={{ display: "flex", width: "100%", justifyContent: "center", paddingTop: 80 }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  border: `3px solid ${T.border}`, borderTopColor: T.accent,
+                  animation: "spin 0.7s linear infinite", margin: "0 auto 12px",
+                }} />
+                <div style={{ fontSize: "0.85rem", color: T.textSecondary, fontWeight: 600 }}>Loading workspace...</div>
+              </div>
+            </div>
+          ) : viewMode === "boards" ? (
+
+            <div style={{
+              display: "flex", gap: 20, padding: 24, overflowX: "auto", overflowY: "hidden",
+              flex: 1, alignItems: "flex-start", scrollBehavior: "smooth"
+            }}>
+              {boardProjects.length === 0 ? (
+                <div style={{ width: "100%", textAlign: "center", paddingTop: 60, color: T.textSecondary }}>
+                  <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>⏸</div>
+                  <div style={{ fontSize: "1rem", fontWeight: 700, color: T.textPrimary, marginBottom: 8 }}>No Pending Tasks</div>
+                  <div style={{ fontSize: "0.85rem", maxWidth: 300, margin: "0 auto" }}>
+                    There are currently no active tasks across your projects. Use the "Add Task" button to create one and initialize a board.
+                  </div>
                 </div>
               ) : (
-                <>
-                  {["In Progress","Todo"].map(status => {
-                    const group = visiblePendingTasks.filter(t => t.status === status);
-                    if (!group.length) return null;
-                    return (
-                      <div key={status} style={{ marginBottom: 16 }}>
-                        <div style={{
-                          fontSize: "0.62rem", fontWeight: 700,
-                          color: status === "In Progress" ? T.blue : T.textDisabled,
-                          textTransform: "uppercase", letterSpacing: "0.08em",
-                          marginBottom: 8, paddingLeft: 2,
-                        }}>
-                          {status === "In Progress" ? "▶ In Progress" : "○ To Do"} ({group.length})
+                boardProjects.map(p => {
+                  const projectTasks = tasks[p._id] || [];
+                  return (
+                    <div key={p._id} style={{
+                      width: 340, minWidth: 340, maxWidth: 340, // Stricter widths so boards are uniform sizes
+                      maxHeight: "100%",
+                      background: T.bgSidebar, border: `1px solid ${T.border}`,
+                      borderRadius: T.radius, display: "flex", flexDirection: "column",
+                      boxShadow: T.shadow
+                    }}>
+                      <div style={{
+                        padding: "12px 16px", borderBottom: `1px solid ${T.border}`,
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        background: T.bgCard, borderRadius: `${T.radius} ${T.radius} 0 0`, flexShrink: 0
+                      }}>
+                        <div style={{ minWidth: 0, paddingRight: 8 }}>
+                          <div style={{ fontSize: "0.9rem", fontWeight: 700, color: T.textPrimary, wordBreak: "break-word" }}>
+                            {p.projectName}
+                          </div>
+                          <div style={{ fontSize: "0.7rem", color: T.textSecondary, marginTop: 2 }}>
+                            {projectTasks.length} Pending {projectTasks.length === 1 ? "Task" : "Tasks"}
+                          </div>
                         </div>
-                        {group.map(t => (
-                          <SidebarTaskItem
-                            key={t._id} task={t}
-                            projectId={t._projectId} projectName={t._projectName}
+                        <button onClick={() => { setQuickAddInitialProject(p._id); setQuickAddModalOpen(true); }}
+                          style={{
+                            width: 28, height: 28, borderRadius: "50%", background: T.accentDim,
+                            border: `1px solid ${T.accent}30`, color: T.accent, fontSize: "1.1rem",
+                            fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: "pointer", transition: "all 0.15s", flexShrink: 0
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = T.accent; e.currentTarget.style.color = "#FFF"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = T.accentDim; e.currentTarget.style.color = T.accent; }}
+                          title="Add task to this project"
+                        >+</button>
+                      </div>
+
+                      <div style={{
+                        padding: "12px 10px",
+                        overflowY: "auto", // Keeps height flexible but scrollable if hitting maxHeight
+                        flexShrink: 1,
+                        display: "flex", flexDirection: "column", gap: 10
+                      }}>
+                        {projectTasks.map(t => (
+                          <TaskCard
+                            key={t._id} task={t} projectId={p._id} projectName={p.projectName}
                             currentUserId={currentUserId} onTaskComplete={handleTaskComplete}
                             onTaskClick={(task, pId, pName) => setSelectedSidebarTask({ task, projectId: pId, projectName: pName })}
                           />
                         ))}
                       </div>
-                    );
-                  })}
-                  
-                  {/* Lazy Load Button for Pending Tasks */}
-                  {pendingVisibleCount < pendingTasks.length && (
-                    <div style={{ textAlign: "center", paddingTop: "8px", paddingBottom: "8px" }}>
-                      <button 
-                        onClick={() => setPendingVisibleCount(p => p + 15)}
-                        style={{
-                          background: "none", border: "none", color: T.blue, 
-                          fontSize: "0.75rem", fontWeight: 700, cursor: "pointer"
-                        }}
-                      >
-                        Load More Tasks...
-                      </button>
+
+                      <div style={{ padding: "10px", borderTop: `1px solid ${T.border}`, background: T.bgCard, borderRadius: `0 0 ${T.radius} ${T.radius}`, flexShrink: 0 }}>
+                        <button
+                          className={openingKanbanId === p._id ? "btn-loading" : ""}
+                          onClick={() => handleOpenKanban(p)}
+                          disabled={openingKanbanId === p._id}
+                          style={{
+                            width: "100%", padding: "8px", borderRadius: T.radiusSm,
+                            background: "transparent", border: `1px solid ${T.border}`, color: T.textSecondary,
+                            fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: T.font,
+                            display: "flex", justifyContent: "center", alignItems: "center", gap: 6
+                          }}
+                        >
+                          {openingKanbanId === p._id ? (
+                            <><div style={{ width: 12, height: 12, border: `2px solid ${T.textSecondary}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} /> Loading...</>
+                          ) : "⬛ Open Kanban"}
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </>
+                  );
+                })
               )}
             </div>
 
-            <div style={{ padding: "10px 12px", borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
-              <button type="button"
-                onClick={() => fetchProjects(true).then(mine => { if (mine.length) { fetchAllTasks(mine, true); fetchLastCompleted(mine); } })}
-                onPointerDown={stopDragEvent}
-                style={{
-                  width: "100%", padding: "7px", borderRadius: T.radiusSm,
-                  fontSize: "0.75rem", fontFamily: T.font, fontWeight: 600,
-                  background: T.bgInput, border: `1px solid ${T.border}`,
-                  color: T.textSecondary, cursor: "pointer", transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderFocus; e.currentTarget.style.color = T.textPrimary; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textSecondary; }}
-              >↻ Refresh</button>
+          ) : (
+
+            <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+              <div style={{
+                padding: "12px 24px", borderBottom: `1px solid ${T.border}`,
+                background: T.bgCard, display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap", flexShrink: 0
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 200px", minWidth: 180 }}>
+                  <label style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em" }}>Search</label>
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: T.textDisabled, fontSize: "0.8rem", pointerEvents: "none" }}>⌕</span>
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Project name, client..."
+                      style={{
+                        width: "100%", background: T.bgInput, border: `1px solid ${T.border}`,
+                        borderRadius: T.radiusSm, color: T.textPrimary, fontSize: "0.8rem",
+                        padding: "6px 10px 6px 28px", outline: "none", fontFamily: T.font,
+                      }}
+                      onFocus={e => e.target.style.borderColor = T.borderFocus}
+                      onBlur={e => e.target.style.borderColor = T.border}
+                    />
+                  </div>
+                </div>
+                <FilterSelect label="Created By" value={filterCreatedBy} onChange={setFilterCreatedBy} options={createdByOptions} />
+                <FilterSelect label="Subscription" value={filterSub} onChange={setFilterSub} options={subOptions} />
+                <FilterSelect label="Service" value={filterService} onChange={setFilterService} options={serviceOptions} />
+                <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus} options={["Active", "Closed"]} />
+                {(search || filterCreatedBy || filterSub || filterService || filterStatus) && (
+                  <button onClick={() => { setSearch(""); setFilterCreatedBy(""); setFilterSub(""); setFilterService(""); setFilterStatus(""); }}
+                    style={{
+                      padding: "6px 12px", alignSelf: "flex-end", borderRadius: T.radiusSm,
+                      fontSize: "0.78rem", fontFamily: T.font, whiteSpace: "nowrap",
+                      background: "transparent", border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer",
+                    }}
+                  >× Clear</button>
+                )}
+              </div>
+
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+                {filteredProjects.length === 0 ? (
+                  <div style={{ textAlign: "center", paddingTop: 60, color: T.textSecondary }}>
+                    <div style={{ fontSize: "2rem", marginBottom: 12 }}>📂</div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 600, color: T.textPrimary, marginBottom: 6 }}>No projects match your filters</div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: "0.75rem", color: T.textSecondary, marginBottom: 14 }}>
+                      Showing <strong style={{ color: T.textPrimary }}>{Math.min(projectVisibleCount, filteredProjects.length)}</strong> of{" "}
+                      <strong style={{ color: T.textPrimary }}>{filteredProjects.length}</strong> projects
+                    </div>
+                    {filteredProjects.slice(0, projectVisibleCount).map(p => (
+                      <ProjectCard key={p._id} project={p} onOpenKanban={handleOpenKanban} />
+                    ))}
+                    {projectVisibleCount < filteredProjects.length && (
+                      <div style={{ textAlign: "center", padding: "20px 0" }}>
+                        <button onClick={() => setProjectVisibleCount(p => p + 10)}
+                          style={{
+                            padding: "8px 20px", borderRadius: T.radiusSm, background: T.bgInput,
+                            border: `1px solid ${T.border}`, color: T.blue, fontSize: "0.85rem",
+                            fontWeight: 700, cursor: "pointer", fontFamily: T.font
+                          }}
+                        >Load More Projects...</button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* ── Kanban dialog ─────────────────────────────────────────────────── */}
       {kanbanProject && (
         <ProjectKanban
           open={kanbanOpen}
           onClose={() => {
             setKanbanOpen(false);
             setKanbanProject(null);
-            // Silently fetch data when kanban closes so UI doesn't reset or jump
-            fetchProjects(true).then(mine => { if (mine.length) { fetchAllTasks(mine, true); fetchLastCompleted(mine); } });
+            loadInitialData(true);
           }}
           project={kanbanProject}
         />
       )}
 
-      {/* ── Global Quick Add Task Modal ─────────────────────────────────────── */}
       {quickAddModalOpen && (
         <GlobalAddTaskModal
           projects={projects}
+          initialProjectId={quickAddInitialProject}
           currentUserId={currentUserId}
           currentUsername={currentUsername}
           onClose={() => setQuickAddModalOpen(false)}
@@ -3058,7 +2925,6 @@ const DeveloperDashboard = () => {
         />
       )}
 
-      {/* ── Sidebar Task Detail Modal ───────────────────────────────────────── */}
       {selectedSidebarTask && (
         <SidebarTaskDetailModal
           task={selectedSidebarTask.task}
@@ -3070,7 +2936,6 @@ const DeveloperDashboard = () => {
         />
       )}
 
-      {/* ── Toast ─────────────────────────────────────────────────────────── */}
       {toast && <Toast message={toast} onHide={() => setToast("")} />}
     </>
   );
