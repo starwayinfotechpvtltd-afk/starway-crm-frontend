@@ -1212,7 +1212,7 @@ function App() {
     <div className="bg-[#F6F8FA] min-h-screen font-sans antialiased text-[#1F2328] pb-12 flex flex-col relative">
       
       {/* ── Global Top Navbar ── */}
-      <nav className="sticky top-18 z-[50] bg-white border-b border-[#D0D7DE] shadow-sm px-6 py-3 flex flex-col sm:flex-row gap-4 justify-between items-center w-full">
+      <nav className="sticky top-15 z-[50] bg-white border-b border-[#D0D7DE] shadow-sm px-6 py-3 flex flex-col sm:flex-row gap-4 justify-between items-center w-full">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#0969DA] text-white flex items-center justify-center font-bold text-sm">
             {username.charAt(0).toUpperCase()}
