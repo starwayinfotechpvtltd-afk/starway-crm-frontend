@@ -559,6 +559,7 @@ import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 
+
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Syne:wght@400;500&display=swap');
 
@@ -854,10 +855,12 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
         open={salesOpen}
         onToggle={() => setSalesOpen(!salesOpen)}
       >
+        <Item to="/dashboard-admin/add-leads" icon={AssessmentOutlinedIcon} label="Add Leads" />
         <Item to="/dashboard-admin/new-leads" icon={CalendarTodayOutlinedIcon} label="All New Leads" />
         <Item to="/dashboard-admin/assigned-leads" icon={AssignmentLateOutlinedIcon} label="Assigned Leads" />
         <Item to="/dashboard-admin/closed-leads" icon={EventAvailableOutlinedIcon} label="Closed Leads" />
         <Item to="/dashboard-admin/calendar" icon={CalendarMonthOutlinedIcon} label="Calendar" />
+        <Item to="/dashboard-admin/work-reports" icon={AssessmentOutlinedIcon} label="Work Reports" />
       </Group>
 
       <div className="sb-divider" />

@@ -302,10 +302,10 @@ export default function AddLeadForm() {
   };
 
   return (
-    <Box sx={{ minHeight: "92vh", display: "flex", bgcolor: "#fff", fontFamily: 'Inter, sans-serif' }}>
+    <Box sx={{ minHeight: "94vh", display: "flex", bgcolor: "#fff", fontFamily: 'Inter, sans-serif' }}>
       <Box sx={{ width: 300, borderRight: "1px solid #f1f5f9", bgcolor: "#f8fafc", p: 4, display: { xs: "none", md: "block" } }}>
         <ButtonBase sx={{ display: "flex", alignItems: "center", gap: 1, mb: 6, color: "#64748b", p: 1, borderRadius: 1 }}>
-          <ArrowLeft size={18} /> <Typography sx={{ fontSize: "0.9rem" }}><a href="/dashboard-caller">Back to Dashboard</a></Typography>
+          <ArrowLeft size={18} /> <Typography sx={{ fontSize: "0.9rem" }}><a href="/dashboard-admin">Back to Dashboard</a></Typography>
         </ButtonBase>
         {steps.map((s) => (
           <Box key={s.id} sx={{ mb: 5, opacity: currentStep >= s.id ? 1 : 0.4, display: "flex", gap: 2.5, alignItems: 'center' }}>
