@@ -29,7 +29,7 @@ import {
   Tooltip,
   Badge,
   ToggleButton,
-  ToggleButtonGroup, 
+  ToggleButtonGroup,
   Modal
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -47,18 +47,18 @@ const AssignedLeads = () => {
   const [assignedLeads, setAssignedLeads] = useState([]);
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
-  
+
   const loggedInUsername = localStorage.getItem("username");
 
   // Filter & Toggle States
   const [searchTerm, setSearchTerm] = useState("");
   const [visibilityToggle, setVisibilityToggle] = useState("active"); // "active", "dropped", "all"
-  const [sortOrder, setSortOrder] = useState("newest"); 
-  
+  const [sortOrder, setSortOrder] = useState("newest");
+
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedUser, setSelectedUser] = useState(""); 
-  const [selectedLeadOwner, setSelectedLeadOwner] = useState(""); 
-  const [selectedTeam, setSelectedTeam] = useState(""); 
+  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedLeadOwner, setSelectedLeadOwner] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
   const [dateFilterType, setDateFilterType] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -70,7 +70,7 @@ const AssignedLeads = () => {
   const [leadIdToUnassign, setLeadIdToUnassign] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);
-  
+
   // Comments State
   const [openComments, setOpenComments] = useState(false);
   const [activeCommentLead, setActiveCommentLead] = useState(null);
@@ -187,12 +187,12 @@ const AssignedLeads = () => {
       const token = localStorage.getItem("token");
       const fallbackComment = { text: newComment, postedBy: { username: loggedInUsername }, postedAt: new Date() };
       const res = await axios.post(`${API_BASE}/api/leads/${activeCommentLead._id}/comments`, { text: newComment }, { headers: { Authorization: `Bearer ${token}` } });
-      
+
       const updatedComments = res.data.comments || [...(activeCommentLead.comments || []), fallbackComment];
       setAssignedLeads((prev) => prev.map(lead => lead._id === activeCommentLead._id ? { ...lead, comments: updatedComments } : lead));
       setActiveCommentLead((prev) => ({ ...prev, comments: updatedComments }));
       setNewComment("");
-    } catch (error) { alert("Failed to post comment."); } 
+    } catch (error) { alert("Failed to post comment."); }
     finally { setIsSubmittingComment(false); }
   };
 
@@ -203,11 +203,11 @@ const AssignedLeads = () => {
 
   const getStatusColor = (status) => {
     const s = (status || "").toLowerCase();
-    if (s === "ongoing") return { bg: '#DEEBFF', color: '#0052CC' }; 
-    if (s === "closed") return { bg: '#E3FCEF', color: '#006644' }; 
-    if (s === "dropped") return { bg: '#FFEBE6', color: '#DE350B' }; 
-    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' }; 
-    return { bg: '#DFE1E6', color: '#42526E' }; 
+    if (s === "ongoing") return { bg: '#DEEBFF', color: '#0052CC' };
+    if (s === "closed") return { bg: '#E3FCEF', color: '#006644' };
+    if (s === "dropped") return { bg: '#FFEBE6', color: '#DE350B' };
+    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' };
+    return { bg: '#DFE1E6', color: '#42526E' };
   };
 
   const getDateRange = () => {
@@ -235,7 +235,7 @@ const AssignedLeads = () => {
       const teamMatch = selectedTeam ? (() => {
         const targetTeam = teams.find(t => t._id === selectedTeam);
         if (!targetTeam) return true;
-        const validTeamMembers = [...targetTeam.members.map(m => m.username), targetTeam.manager?.username].filter(Boolean); 
+        const validTeamMembers = [...targetTeam.members.map(m => m.username), targetTeam.manager?.username].filter(Boolean);
         return validTeamMembers.includes(lead.leadOwner);
       })() : true;
 
@@ -247,7 +247,7 @@ const AssignedLeads = () => {
 
     if (sortOrder === "followup_asc" || sortOrder === "followup_desc") {
       filtered.sort((a, b) => {
-        if (!a.followUpDate) return 1; 
+        if (!a.followUpDate) return 1;
         if (!b.followUpDate) return -1;
         const dateA = new Date(a.followUpDate).getTime();
         const dateB = new Date(b.followUpDate).getTime();
@@ -272,51 +272,51 @@ const AssignedLeads = () => {
   }
 
   const handleMarkDropped = async (leadId) => {
-  if (!window.confirm("Are you sure you want to mark this lead as DROPPED?")) return;
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.put(
-      `${API_BASE}/api/leads/update-status/${leadId}`, 
-      { status: "dropped" }, 
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    // Update local state so it moves to the "Dropped Leads" toggle view
-    setAssignedLeads((prev) => 
-      prev.map((lead) => lead._id === leadId ? { ...lead, status: "dropped" } : lead)
-    );
-  } catch (error) { 
-    console.error("Error dropping lead:", error);
-    alert("Failed to drop lead."); 
-  }
-};
+    if (!window.confirm("Are you sure you want to mark this lead as DROPPED?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        `${API_BASE}/api/leads/update-status/${leadId}`,
+        { status: "dropped" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-// NEW: handleUndrop to bring a lead back to the active pipeline
-const handleUndrop = async (leadId) => {
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.put(
-      `${API_BASE}/api/leads/update-status/${leadId}`, 
-      { status: "ongoing" }, 
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    // Update local state so it moves back to the "Active Pipeline" toggle view
-    setAssignedLeads((prev) => 
-      prev.map((lead) => lead._id === leadId ? { ...lead, status: "ongoing" } : lead)
-    );
-  } catch (error) { 
-    console.error("Error undropping lead:", error);
-    alert("Failed to undrop lead."); 
-  }
-};
+      // Update local state so it moves to the "Dropped Leads" toggle view
+      setAssignedLeads((prev) =>
+        prev.map((lead) => lead._id === leadId ? { ...lead, status: "dropped" } : lead)
+      );
+    } catch (error) {
+      console.error("Error dropping lead:", error);
+      alert("Failed to drop lead.");
+    }
+  };
+
+  // NEW: handleUndrop to bring a lead back to the active pipeline
+  const handleUndrop = async (leadId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        `${API_BASE}/api/leads/update-status/${leadId}`,
+        { status: "ongoing" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Update local state so it moves back to the "Active Pipeline" toggle view
+      setAssignedLeads((prev) =>
+        prev.map((lead) => lead._id === leadId ? { ...lead, status: "ongoing" } : lead)
+      );
+    } catch (error) {
+      console.error("Error undropping lead:", error);
+      alert("Failed to undrop lead.");
+    }
+  };
 
 
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="max-w-full mx-4 md:mx-8 p-2 md:p-6 bg-white min-h-screen">
-        
+
         {/* --- SEARCH BAR (With Bottom Padding) --- */}
         <div className="mb-8">
           <TextField
@@ -332,14 +332,14 @@ const handleUndrop = async (leadId) => {
 
         {/* --- TOGGLES & FILTERS --- */}
         <Box className="sticky top-0 z-40 bg-white pb-4 pt-2 mb-6" sx={{ borderBottom: '2px solid #EBECF0' }}>
-          
+
           {/* Top Row: Pipeline Toggle & Sorting */}
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4 border-b border-[#DFE1E6] pb-4">
             <ToggleButtonGroup
               color="primary"
               value={visibilityToggle}
               exclusive
-              onChange={(e, val) => { if(val) { setVisibilityToggle(val); setPage(1); } }}
+              onChange={(e, val) => { if (val) { setVisibilityToggle(val); setPage(1); } }}
               size="small"
               sx={{ backgroundColor: '#FFFFFF', height: '36px' }}
             >
@@ -450,7 +450,7 @@ const handleUndrop = async (leadId) => {
 
                   return (
                     <TableRow key={lead._id} hover sx={{ '&:hover': { backgroundColor: '#FAFBFC' }, '& td': { borderBottom: '1px solid #DFE1E6', paddingY: '10px' }, opacity: lead.status === 'dropped' ? 0.65 : 1 }}>
-                      
+
                       {/* Client Info & Latest Update */}
                       <TableCell sx={{ maxWidth: '300px' }}>
                         <div className="flex items-start gap-3">
@@ -462,7 +462,7 @@ const handleUndrop = async (leadId) => {
                             {latestComment && (
                               <div className="bg-[#EBECF0] px-2 py-1 rounded-[3px] mt-1 inline-block">
                                 <Typography sx={{ fontSize: '11px', color: '#42526E', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                  <span className="font-bold mr-1">{latestComment.postedBy?.username || "Unknown"}:</span> 
+                                  <span className="font-bold mr-1">{latestComment.postedBy?.username || "Unknown"}:</span>
                                   "{latestComment.text}"
                                 </Typography>
                               </div>
@@ -519,72 +519,72 @@ const handleUndrop = async (leadId) => {
                       </TableCell>
 
                       {/* Actions */}
-<TableCell align="right">
-  <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-    
-    {/* Conditional Button: Show 'Drop' for active leads, 'Undrop' for dropped leads */}
-    {lead.status === "dropped" ? (
-      <Button
-        variant="outlined"
-        size="small"
-        onClick={() => handleUndrop(lead._id)}
-        sx={{
-          height: '28px', fontSize: '12px', fontWeight: 600, color: '#006644', 
-          borderColor: '#E3FCEF', backgroundColor: '#E3FCEF', textTransform: 'none',
-          '&:hover': { backgroundColor: '#D3F9E8', borderColor: '#D3F9E8' }
-        }}
-      >
-        Undrop
-      </Button>
-    ) : (
-      <Button
-        variant="outlined"
-        size="small"
-        onClick={() => handleMarkDropped(lead._id)}
-        sx={{
-          height: '28px', fontSize: '12px', fontWeight: 600, color: '#DE350B', 
-          borderColor: '#DFE1E6', textTransform: 'none',
-          '&:hover': { backgroundColor: '#FFEBE6', color: '#BF2600', borderColor: '#FFBDAD' }
-        }}
-      >
-        Drop
-      </Button>
-    )}
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
 
-    <Button
-      variant="outlined"
-      size="small"
-      onClick={() => handleUnassign(lead._id)}
-      sx={{ 
-        height: '28px', fontSize: '12px', fontWeight: 600, color: '#42526E', 
-        borderColor: '#DFE1E6', borderRadius: '3px', textTransform: 'none', 
-        '&:hover': { backgroundColor: '#EBECF0', borderColor: '#DFE1E6' } 
-      }}
-    >
-      Unassign
-    </Button>
+                          {/* Conditional Button: Show 'Drop' for active leads, 'Undrop' for dropped leads */}
+                          {lead.status === "dropped" ? (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleUndrop(lead._id)}
+                              sx={{
+                                height: '28px', fontSize: '12px', fontWeight: 600, color: '#006644',
+                                borderColor: '#E3FCEF', backgroundColor: '#E3FCEF', textTransform: 'none',
+                                '&:hover': { backgroundColor: '#D3F9E8', borderColor: '#D3F9E8' }
+                              }}
+                            >
+                              Undrop
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleMarkDropped(lead._id)}
+                              sx={{
+                                height: '28px', fontSize: '12px', fontWeight: 600, color: '#DE350B',
+                                borderColor: '#DFE1E6', textTransform: 'none',
+                                '&:hover': { backgroundColor: '#FFEBE6', color: '#BF2600', borderColor: '#FFBDAD' }
+                              }}
+                            >
+                              Drop
+                            </Button>
+                          )}
 
-    <IconButton 
-      size="small" 
-      onClick={() => { setActiveCommentLead(lead); setOpenComments(true); }} 
-      sx={{ border: '1px solid #DFE1E6', borderRadius: '3px', padding: '4px' }}
-    >
-      <Badge badgeContent={lead.comments?.length || 0} color="primary">
-        <MessageSquare size={16} color="#42526E" />
-      </Badge>
-    </IconButton>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleUnassign(lead._id)}
+                            sx={{
+                              height: '28px', fontSize: '12px', fontWeight: 600, color: '#42526E',
+                              borderColor: '#DFE1E6', borderRadius: '3px', textTransform: 'none',
+                              '&:hover': { backgroundColor: '#EBECF0', borderColor: '#DFE1E6' }
+                            }}
+                          >
+                            Unassign
+                          </Button>
 
-    <Tooltip title="View Details">
-      <IconButton 
-        onClick={() => handleOpen(lead)} 
-        size="small" 
-        sx={{ border: '1px solid #DFE1E6', borderRadius: '3px', padding: '4px', color: '#42526E' }}
-      >
-        <Launch fontSize="small" />
-      </IconButton>
-    </Tooltip>
-  </Stack>
-</TableCell>                    </TableRow>
+                          <IconButton
+                            size="small"
+                            onClick={() => { setActiveCommentLead(lead); setOpenComments(true); }}
+                            sx={{ border: '1px solid #DFE1E6', borderRadius: '3px', padding: '4px' }}
+                          >
+                            <Badge badgeContent={lead.comments?.length || 0} color="primary">
+                              <MessageSquare size={16} color="#42526E" />
+                            </Badge>
+                          </IconButton>
+
+                          <Tooltip title="View Details">
+                            <IconButton
+                              onClick={() => handleOpen(lead)}
+                              size="small"
+                              sx={{ border: '1px solid #DFE1E6', borderRadius: '3px', padding: '4px', color: '#42526E' }}
+                            >
+                              <Launch fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>                    </TableRow>
                   );
                 })
               )}
@@ -613,7 +613,7 @@ const handleUndrop = async (leadId) => {
               <Typography variant="h6" sx={{ color: '#172B4D', fontWeight: 600, fontSize: '16px' }}>Team Comments</Typography>
               <IconButton onClick={() => setOpenComments(false)} size="small"><X className="w-5 h-5" /></IconButton>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FFFFFF]">
               {activeCommentLead?.comments?.length > 0 ? (
                 activeCommentLead.comments.map((comment, i) => (
@@ -680,10 +680,10 @@ const handleUndrop = async (leadId) => {
                         <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Pitched Amount</Typography><Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#006644' }}>{selectedLead.currencySymbol || "$"}{selectedLead.pitchedAmount?.toLocaleString()}</Typography></div>
                       </div>
                       <div>
-                         <Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600, mb: 1 }}>Original Note</Typography>
-                         <div className="bg-[#FAFBFC] border border-[#DFE1E6] rounded-[3px] p-3">
-                           <Typography sx={{ fontSize: '14px', color: '#172B4D', whiteSpace: 'pre-wrap' }}>{selectedLead.note || "No notes provided."}</Typography>
-                         </div>
+                        <Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600, mb: 1 }}>Original Note</Typography>
+                        <div className="bg-[#FAFBFC] border border-[#DFE1E6] rounded-[3px] p-3">
+                          <Typography sx={{ fontSize: '14px', color: '#172B4D', whiteSpace: 'pre-wrap' }}>{selectedLead.note || "No notes provided."}</Typography>
+                        </div>
                       </div>
                     </Stack>
                   </Box>

@@ -857,7 +857,7 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
       >
         <Item to="/dashboard-admin/add-leads" icon={AssessmentOutlinedIcon} label="Add Leads" />
         <Item to="/dashboard-admin/new-leads" icon={CalendarTodayOutlinedIcon} label="All New Leads" />
-        <Item to="/dashboard-admin/assigned-leads" icon={AssignmentLateOutlinedIcon} label="Assigned Leads" />
+        <Item to="/dashboard-admin/assigned-leads" icon={AssignmentLateOutlinedIcon} label="Transfers" />
         <Item to="/dashboard-admin/closed-leads" icon={EventAvailableOutlinedIcon} label="Closed Leads" />
         <Item to="/dashboard-admin/calendar" icon={CalendarMonthOutlinedIcon} label="Calendar" />
         <Item to="/dashboard-admin/work-reports" icon={AssessmentOutlinedIcon} label="Work Reports" />

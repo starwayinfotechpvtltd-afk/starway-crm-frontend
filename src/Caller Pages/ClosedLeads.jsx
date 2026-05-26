@@ -1,575 +1,324 @@
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import {
-  TextField,
-  Button,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Typography,
-  Box,
-  Avatar,
-  IconButton,
-  Pagination,
-  Stack,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Alert,
-  useTheme,
-  useMediaQuery,
-  Card,
-  CardContent,
-  InputAdornment,
-  Tooltip,
-  Chip,
-  Grid,
-  Divider,
-  Paper,
-  CircularProgress,
+  TextField, Button, Select, MenuItem, FormControl, InputLabel,
+  Typography, Box, Avatar, Pagination, Stack,
+  Chip, Grid, Paper, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, InputAdornment,
+  Card, CardContent, Divider, CircularProgress, Alert
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import {
-  Phone,
-  Mail,
-  Globe,
-  Package,
-  X,
+  Search as SearchIcon,
+  RotateCcw,
   Archive,
   CalendarDays,
   Calendar,
+  MapPin,
+  Package,
+  DollarSign,
+  User as UserIcon,
+  Clock
 } from "lucide-react";
+import dayjs from "dayjs";
 
-// Helper function to generate dynamic colors for avatars
-const stringToColor = (string) => {
-  if (!string) return "#9e9e9e";
-  let hash = 0;
-  let i;
-  for (i = 0; i < string.length; i += 1) {
-    hash = string.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  let color = "#";
-  for (i = 0; i < 3; i += 1) {
-    const value = (hash >> (i * 8)) & 0xff;
-    color += `00${value.toString(16)}`.slice(-2);
-  }
-  return color;
-};
+// --- Cache Keys ---
+const CACHE_KEY_DATA = "crm_closed_leads_data";
+const CACHE_KEY_FILTERS = "crm_closed_leads_filters";
 
 const ClosedLeads = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [closedLeads, setClosedLeads] = useState([]);
+  // --- Initialize State from Session Storage ---
+  const getCachedFilters = () => {
+    const saved = sessionStorage.getItem(CACHE_KEY_FILTERS);
+    return saved ? JSON.parse(saved) : null;
+  };
+
+  const cachedFilters = getCachedFilters();
+
+  const [leads, setLeads] = useState(() => {
+    const saved = sessionStorage.getItem(CACHE_KEY_DATA);
+    return saved ? JSON.parse(saved) : [];
+  });
+  
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Filters & Search
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [customStartDate, setCustomStartDate] = useState("");
-  const [customEndDate, setCustomEndDate] = useState("");
-  const [assignedFilter, setAssignedFilter] = useState("all");
-
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [leadsPerPage] = useState(10);
-
-  // Modal
-  const [selectedLead, setSelectedLead] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Filters
+  const [searchTerm, setSearchTerm] = useState(cachedFilters?.searchTerm || "");
+  const [dateFilter, setDateFilter] = useState(cachedFilters?.dateFilter || "all");
+  const [assignedFilter, setAssignedFilter] = useState(cachedFilters?.assignedFilter || "all");
+  const [page, setPage] = useState(cachedFilters?.page || 1);
+  const rowsPerPage = 10;
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+  const token = localStorage.getItem("token");
+
+  // --- Sync to Session Storage ---
+  useEffect(() => {
+    const filterState = { searchTerm, dateFilter, assignedFilter, page };
+    sessionStorage.setItem(CACHE_KEY_FILTERS, JSON.stringify(filterState));
+    sessionStorage.setItem(CACHE_KEY_DATA, JSON.stringify(leads));
+  }, [leads, searchTerm, dateFilter, assignedFilter, page]);
 
   useEffect(() => {
-    fetchData();
+    if (leads.length === 0) fetchData();
+    else fetchUsers(); // Always fetch users to keep the dropdown fresh
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("token");
-      
-      // Fetch both closed leads and users (for the assignee filter)
       const [leadsRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/leads/closed`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(`${API_BASE}/api/auth/admins-managers`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        axios.get(`${API_BASE}/api/leads/closed`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE}/api/auth/admins-managers`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-
-      const leadsData = Array.isArray(leadsRes.data) ? leadsRes.data : leadsRes.data.leads || [];
-      // Sort by recently updated (closed date)
-      const sortedLeads = leadsData.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-      
-      setClosedLeads(sortedLeads);
+      const data = Array.isArray(leadsRes.data) ? leadsRes.data : leadsRes.data.leads || [];
+      setLeads(data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
       setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setError("Failed to load closed leads data.");
+    } catch (err) {
+      setError("Failed to load historical lead data.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewClick = (lead, e) => {
-    if (e) e.stopPropagation();
-    setSelectedLead(lead);
-    setIsModalOpen(true);
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/auth/admins-managers`, { headers: { Authorization: `Bearer ${token}` } });
+      setUsers(res.data);
+    } catch (e) { console.error("User fetch failed"); }
   };
 
-  const handleClose = () => {
-    setIsModalOpen(false);
-    setSelectedLead(null);
+  const handleReset = () => {
+    setSearchTerm("");
+    setDateFilter("all");
+    setAssignedFilter("all");
+    setPage(1);
+    sessionStorage.removeItem(CACHE_KEY_FILTERS);
   };
-
-  // --- Calculations for Top Cards ---
-  const stats = useMemo(() => {
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    let thisWeek = 0;
-    let thisMonth = 0;
-
-    closedLeads.forEach(lead => {
-      // Use updatedAt as the proxy for when it was closed, fallback to createdAt
-      const closedDate = new Date(lead.updatedAt || lead.createdAt);
-      if (closedDate >= startOfWeek) thisWeek++;
-      if (closedDate >= startOfMonth) thisMonth++;
-    });
-
-    return {
-      total: closedLeads.length,
-      thisWeek,
-      thisMonth
-    };
-  }, [closedLeads]);
 
   // --- Filtering Logic ---
   const filteredLeads = useMemo(() => {
-    return closedLeads.filter((lead) => {
+    return leads.filter((lead) => {
       const matchesSearch = lead.leadName?.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
 
-      if (assignedFilter === "unassigned" && lead.assignedTo) return false;
-      if (assignedFilter === "assigned" && !lead.assignedTo) return false;
-      if (
-        assignedFilter !== "all" &&
-        assignedFilter !== "unassigned" &&
-        assignedFilter !== "assigned"
-      ) {
-        if (lead.assignedTo?._id !== assignedFilter) return false;
-      }
+      if (assignedFilter !== "all" && lead.assignedTo?._id !== assignedFilter) return false;
 
       if (dateFilter !== "all") {
-        const leadDate = new Date(lead.updatedAt || lead.createdAt);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (dateFilter === "today") {
-          if (leadDate < today) return false;
-        } else if (dateFilter === "week") {
-          const startOfWeek = new Date(today);
-          startOfWeek.setDate(today.getDate() - today.getDay());
-          if (leadDate < startOfWeek) return false;
-        } else if (dateFilter === "month") {
-          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-          if (leadDate < startOfMonth) return false;
-        } else if (dateFilter === "custom") {
-          if (customStartDate) {
-            const start = new Date(customStartDate);
-            start.setHours(0, 0, 0, 0);
-            if (leadDate < start) return false;
-          }
-          if (customEndDate) {
-            const end = new Date(customEndDate);
-            end.setHours(23, 59, 59, 999);
-            if (leadDate > end) return false;
-          }
-        }
+        const leadDate = dayjs(lead.updatedAt || lead.createdAt);
+        const today = dayjs().startOf('day');
+        if (dateFilter === "today" && !leadDate.isSame(today, 'day')) return false;
+        if (dateFilter === "week" && leadDate.isBefore(dayjs().startOf('week'))) return false;
+        if (dateFilter === "month" && leadDate.isBefore(dayjs().startOf('month'))) return false;
       }
       return true;
     });
-  }, [closedLeads, searchTerm, dateFilter, customStartDate, customEndDate, assignedFilter]);
+  }, [leads, searchTerm, dateFilter, assignedFilter]);
 
-  // Pagination Logic
-  const indexOfLastLead = page * leadsPerPage;
-  const indexOfFirstLead = indexOfLastLead - leadsPerPage;
-  const currentLeads = filteredLeads.slice(indexOfFirstLead, indexOfLastLead);
+  const stats = useMemo(() => ({
+    total: leads.length,
+    thisMonth: leads.filter(l => dayjs(l.updatedAt).isAfter(dayjs().startOf('month'))).length,
+    thisWeek: leads.filter(l => dayjs(l.updatedAt).isAfter(dayjs().startOf('week'))).length,
+  }), [leads]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm, dateFilter, assignedFilter, customStartDate, customEndDate]);
+  const paginatedLeads = filteredLeads.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
-  // --- Reusable Subcomponents ---
-  const LeadAvatar = ({ name, size = 36 }) => {
-    const safeName = name || "?";
-    const initials = safeName[0].toUpperCase();
-    const bgColor = stringToColor(safeName);
+  if (loading && leads.length === 0) {
     return (
-      <Avatar
-        sx={{
-          bgcolor: bgColor,
-          width: size,
-          height: size,
-          fontSize: size * 0.45,
-          fontWeight: "600",
-        }}
-      >
-        {initials}
-      </Avatar>
-    );
-  };
-
-  const StatCard = ({ title, value, icon: Icon, color, bg }) => (
-    <Card sx={{ borderRadius: 1, border: "1px solid", borderColor: "divider", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ p: 1, borderRadius: 1, bgcolor: bg, color: color, display: "flex" }}>
-          <Icon size={20} />
-        </Box>
-        <Box>
-          <Typography variant="body2" color="text.secondary" fontWeight="medium">
-            {title}
-          </Typography>
-          <Typography variant="h6" fontWeight="bold">
-            {value}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-
-  const LeadDetailItem = ({ title, value, icon: Icon, fullWidth = false }) => (
-    <Grid item xs={12} sm={fullWidth ? 12 : 6}>
-      <Box sx={{ display: "flex", alignItems: "center", p: 1.5, bgcolor: "grey.50", borderRadius: 1, border: '1px solid', borderColor: 'divider', height: "100%" }}>
-        {Icon && <Icon size={18} style={{ color: "#6b7280", marginRight: "12px" }} />}
-        <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight="medium">
-            {title}
-          </Typography>
-          <Typography variant="body2" color="text.primary" fontWeight="500">
-            {value || "N/A"}
-          </Typography>
-        </Box>
-      </Box>
-    </Grid>
-  );
-
-  // --- List Items ---
-  const DesktopLeadRow = ({ lead }) => (
-    <Paper
-      elevation={0}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        p: 1.5,
-        mb: 1,
-        borderRadius: 1, // sm
-        border: "1px solid",
-        borderColor: "divider",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)", // xs shadow
-        transition: "background-color 0.2s",
-        "&:hover": {
-          bgcolor: "grey.50",
-        },
-      }}
-    >
-      <Box display="flex" alignItems="center" gap={2} flex={2} minWidth={200} onClick={(e) => handleViewClick(lead, e)} sx={{ cursor: 'pointer' }}>
-        <LeadAvatar name={lead.leadName} />
-        <Box overflow="hidden">
-          <Typography variant="subtitle2" fontWeight="600" noWrap>
-            {lead.leadName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap display="block">
-            {lead.email}
-          </Typography>
-        </Box>
-      </Box>
-
-      <Box flex={1} minWidth={100}>
-        <Chip label="Closed" color="error" size="small" variant="filled" sx={{ borderRadius: 1, height: 24 }} />
-      </Box>
-
-      <Box flex={1.5} minWidth={150}>
-         <Typography variant="caption" color={lead.assignedTo ? "text.primary" : "text.secondary"}>
-            {lead.assignedTo ? lead.assignedTo.username : "Not Assigned"}
-         </Typography>
-      </Box>
-
-      <Box flex={1} minWidth={100}>
-        <Typography variant="caption" color="text.secondary">
-          {new Date(lead.updatedAt || lead.createdAt).toLocaleDateString()}
-        </Typography>
-      </Box>
-
-      <Box flex={1} minWidth={120} display="flex" justifyContent="flex-end">
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<VisibilityIcon fontSize="small" />}
-          sx={{ borderRadius: 1, textTransform: 'none', height: 32 }}
-          onClick={(e) => handleViewClick(lead, e)}
-        >
-          View Details
-        </Button>
-      </Box>
-    </Paper>
-  );
-
-  const MobileLeadRow = ({ lead }) => (
-    <Paper
-      elevation={0}
-      sx={{
-        mb: 1.5,
-        p: 2,
-        borderRadius: 1, // sm
-        border: "1px solid",
-        borderColor: "divider",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)", // xs
-      }}
-    >
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
-        <Box display="flex" gap={1.5} flex={1}>
-          <LeadAvatar name={lead.leadName} size={40} />
-          <Box>
-            <Typography variant="subtitle2" fontWeight="600">{lead.leadName}</Typography>
-            <Typography variant="caption" color="text.secondary" display="block">{lead.email}</Typography>
-            <Typography variant="caption" color="text.disabled">{new Date(lead.updatedAt || lead.createdAt).toLocaleDateString()}</Typography>
-          </Box>
-        </Box>
-        <Box>
-           <Chip label="Closed" color="error" size="small" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
-        </Box>
-      </Box>
-
-      <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-        Assigned to: <span style={{ fontWeight: 600, color: 'inherit' }}>{lead.assignedTo ? lead.assignedTo.username : "Unassigned"}</span>
-      </Typography>
-
-      <Button 
-        fullWidth
-        variant="outlined" 
-        size="small" 
-        startIcon={<VisibilityIcon />} 
-        onClick={(e) => handleViewClick(lead, e)} 
-        sx={{ textTransform: 'none', borderRadius: 1 }}
-      >
-        View Details
-      </Button>
-    </Paper>
-  );
-
-  if (loading) {
-    return (
-      <Box display="flex" alignItems="center" justifyContent="center" height="100vh">
-        <CircularProgress size={40} />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box display="flex" alignItems="center" justifyContent="center" height="100vh">
-        <Alert severity="error" variant="outlined" sx={{ borderRadius: 1 }}>{error}</Alert>
+      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" height="80vh" gap={2}>
+        <CircularProgress size={40} thickness={4} />
+        <Typography variant="body2" color="text.secondary">Loading archive...</Typography>
       </Box>
     );
   }
 
   return (
-    <Box maxWidth="xl" mx="auto" p={{ xs: 2, md: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: "#f8fafc", minHeight: "100vh" }}>
+      
+      {/* Header */}
+      {/* <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
+          Closed Archive
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#64748b" }}>
+          A read-only repository of successfully processed and closed leads.
+        </Typography>
+      </Box> */}
 
-      {/* Top Stats Cards */}
-      <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} sm={4}>
-          <StatCard title="Total Closed Leads" value={stats.total} icon={Archive} color="#1976d2" bg="#e3f2fd" />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <StatCard title="Closed This Month" value={stats.thisMonth} icon={CalendarDays} color="#2e7d32" bg="#e8f5e9" />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <StatCard title="Closed This Week" value={stats.thisWeek} icon={Calendar} color="#ed6c02" bg="#fff3e0" />
-        </Grid>
+      {/* Stats */}
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {[
+          { label: "Total Closed", value: stats.total, icon: Archive, color: "#2563eb", bg: "#eff6ff" },
+          { label: "This Month", value: stats.thisMonth, icon: CalendarDays, color: "#059669", bg: "#ecfdf5" },
+          { label: "This Week", value: stats.thisWeek, icon: Calendar, color: "#d97706", bg: "#fffbeb" },
+        ].map((stat, i) => (
+          <Grid item xs={12} sm={4} key={i}>
+            <Card variant="outlined" sx={{ borderRadius: "6px", borderColor: "#e2e8f0" }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: "20px !important" }}>
+                <Box sx={{ p: 1.5, borderRadius: "10px", bgcolor: stat.bg, color: stat.color }}>
+                  <stat.icon size={22} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, textTransform: 'uppercase' }}>{stat.label}</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 500, color: "#0f172a" }}>{stat.value}</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Filter & Search Bar */}
-      <Paper elevation={0} sx={{ mb: 3, p: 2, borderRadius: 1, border: "1px solid", borderColor: "divider", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-        <Box display="flex" alignItems="center" gap={1} mb={2}>
-          <FilterListIcon color="action" fontSize="small" />
-          <Typography variant="subtitle2" fontWeight="600" color="text.secondary">
-            Filters & Search
-          </Typography>
-        </Box>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              placeholder="Search by name..."
-              variant="outlined"
-              size="small"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="action" fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Trasnferred To</InputLabel>
-              <Select
-                value={assignedFilter}
-                onChange={(e) => setAssignedFilter(e.target.value)}
-                label="Trasnferred To"
-                sx={{ borderRadius: 1 }}
-              >
-                <MenuItem value="all">All Closed Leads</MenuItem>
-                <Divider />
-                {users.map((u) => (
-                  <MenuItem key={u._id} value={u._id}>
-                    {u.username}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Closed Date</InputLabel>
-              <Select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                label="Closed Date"
-                sx={{ borderRadius: 1 }}
-              >
-                <MenuItem value="all">All Time</MenuItem>
-                <MenuItem value="today">Today</MenuItem>
-                <MenuItem value="week">This Week</MenuItem>
-                <MenuItem value="month">This Month</MenuItem>
-                <MenuItem value="custom">Custom...</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          {dateFilter === "custom" && (
-            <Grid item xs={12} md={3} display="flex" gap={1}>
-              <TextField fullWidth type="date" size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }} value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} />
-              <TextField fullWidth type="date" size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }} value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} />
+      {/* Filters Container */}
+      <Paper variant="outlined" sx={{ mb: 3, borderRadius: "6px", borderColor: "#e2e8f0", overflow: "hidden" }}>
+        <Box sx={{ p: 2.5, bgcolor: "#fff" }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth size="small"
+                placeholder="Search lead name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: "#94a3b8" }} /></InputAdornment>,
+                }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: "4px" } }}
+              />
             </Grid>
-          )}
-        </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Assigned To</InputLabel>
+                <Select
+                  value={assignedFilter}
+                  label="Assigned To"
+                  onChange={(e) => setAssignedFilter(e.target.value)}
+                  sx={{ borderRadius: "4px" }}
+                >
+                  <MenuItem value="all">All Agents</MenuItem>
+                  {users.map((u) => <MenuItem key={u._id} value={u._id}>{u.username}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Timeframe</InputLabel>
+                <Select
+                  value={dateFilter}
+                  label="Timeframe"
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  sx={{ borderRadius: "4px" }}
+                >
+                  <MenuItem value="all">All History</MenuItem>
+                  <MenuItem value="today">Today</MenuItem>
+                  <MenuItem value="week">This Week</MenuItem>
+                  <MenuItem value="month">This Month</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4} md={2}>
+              <Button 
+                fullWidth variant="outlined" color="inherit" 
+                startIcon={<RotateCcw size={16} />}
+                onClick={handleReset}
+                sx={{ borderRadius: "4px", textTransform: 'none', height: "40px", borderColor: "#e2e8f0", color: "#64748b" }}
+              >
+                Reset
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* Table */}
+        <TableContainer>
+          <Table sx={{ minWidth: 1000 }}>
+            <TableHead sx={{ bgcolor: "#f8fafc" }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>LEAD NAME</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>COUNTRY</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>PACKAGES</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>PITCHED AMOUNT</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>TIMELINE</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "12px" }}>CLOSING AGENT</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedLeads.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
+                    <Typography variant="body2" color="text.secondary">No records found matching your criteria.</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedLeads.map((lead) => (
+                  <TableRow key={lead._id} sx={{ '&:hover': { bgcolor: "#f1f5f9" } }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar sx={{ width: 32, height: 32, fontSize: 12, bgcolor: "#e2e8f0", color: "#475569", fontWeight: 700 }}>
+                          {lead.leadName?.charAt(0)}
+                        </Avatar>
+                        <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#0f172a" }}>{lead.leadName}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: "#64748b" }}>
+                        <MapPin size={14} />
+                        <Typography sx={{ fontSize: "13px" }}>{lead.country || "N/A"}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {lead.packages?.length > 0 ? (
+                          lead.packages.map((p, i) => (
+                            <Chip key={i} label={p} size="small" sx={{ height: 20, fontSize: "10px", borderRadius: "4px", bgcolor: "#f1f5f9" }} />
+                          ))
+                        ) : "—"}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#059669" }}>
+                        {lead.currencySymbol || "$"}{lead.pitchedAmount?.toLocaleString() || "0.00"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography sx={{ fontSize: "11px", display: 'flex', alignItems: 'center', gap: 0.5, color: "#64748b" }}>
+                          <Clock size={12} /> Created: {dayjs(lead.createdAt).format('DD MMM YYYY')}
+                        </Typography>
+                        <Typography sx={{ fontSize: "11px", display: 'flex', alignItems: 'center', gap: 0.5, color: "#ef4444", fontWeight: 600 }}>
+                          <Archive size={12} /> Closed: {dayjs(lead.updatedAt).format('DD MMM YYYY')}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <UserIcon size={14} color="#94a3b8" />
+                        <Typography sx={{ fontSize: "13px", color: "#334155" }}>
+                          {lead.assignedTo?.username || "System"}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination */}
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', borderTop: "1px solid #e2e8f0" }}>
+          <Pagination
+            count={Math.ceil(filteredLeads.length / rowsPerPage)}
+            page={page}
+            onChange={(e, v) => setPage(v)}
+            color="primary"
+            size="medium"
+            sx={{ '& .MuiPaginationItem-root': { borderRadius: "8px", fontWeight: 600 } }}
+          />
+        </Box>
       </Paper>
 
-      {/* Leads List View */}
-      <Box mb={4}>
-        {!isMobile && currentLeads.length > 0 && (
-          <Box display="flex" px={1.5} pb={1}>
-            <Typography variant="caption" fontWeight="600" color="text.secondary" flex={2} minWidth={200}>Contact</Typography>
-            <Typography variant="caption" fontWeight="600" color="text.secondary" flex={1} minWidth={100}>Status</Typography>
-            <Typography variant="caption" fontWeight="600" color="text.secondary" flex={1.5} minWidth={150}>Assignee</Typography>
-            <Typography variant="caption" fontWeight="600" color="text.secondary" flex={1} minWidth={100}>Closed Date</Typography>
-            <Typography variant="caption" fontWeight="600" color="text.secondary" flex={1} minWidth={120} align="right" pr={2}>Actions</Typography>
-          </Box>
-        )}
-
-        {currentLeads.length === 0 ? (
-          <Box textAlign="center" py={6} bgcolor="grey.50" borderRadius={1} border="1px dashed" borderColor="divider">
-            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              No closed leads found
-            </Typography>
-            <Typography variant="caption" color="text.disabled">
-              Adjust your filters to see more results.
-            </Typography>
-          </Box>
-        ) : (
-          currentLeads.map((lead) =>
-            isMobile ? (
-              <MobileLeadRow key={lead._id} lead={lead} />
-            ) : (
-              <DesktopLeadRow key={lead._id} lead={lead} />
-            )
-          )
-        )}
-      </Box>
-
-      {/* Pagination */}
-      {filteredLeads.length > 0 && (
-        <Stack alignItems="center" mt={3} mb={2}>
-          <Pagination
-            count={Math.ceil(filteredLeads.length / leadsPerPage)}
-            page={page}
-            onChange={(e, val) => setPage(val)}
-            color="primary"
-            shape="rounded"
-            size="small"
-          />
-        </Stack>
-      )}
-
-      {/* Modern Lead Details Modal */}
-      <Dialog open={isModalOpen && selectedLead !== null} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1, pt: 2 }}>
-          <Typography variant="subtitle1" fontWeight="bold">Lead Details</Typography>
-          <IconButton onClick={handleClose} size="small">
-            <X size={18} />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers sx={{ p: 2 }}>
-          {selectedLead && (
-            <Grid container spacing={1.5}>
-              <Grid item xs={12} display="flex" alignItems="center" gap={2} mb={1}>
-                <LeadAvatar name={selectedLead.leadName} size={48} />
-                <Box>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Typography variant="h6" fontWeight="bold" lineHeight={1}>{selectedLead.leadName}</Typography>
-                    <Chip label="Closed" color="error" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
-                  </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    {selectedLead.designation || "No Designation"}
-                  </Typography>
-                </Box>
-              </Grid>
-              <LeadDetailItem title="Email" value={selectedLead.email} icon={Mail} />
-              <LeadDetailItem title="Phone" value={selectedLead.phoneNumber} icon={Phone} />
-              <LeadDetailItem title="Website" value={selectedLead.website} icon={Globe} />
-              <LeadDetailItem title="Country" value={selectedLead.country} />
-              <LeadDetailItem title="Lead Type" value={selectedLead.leadType} />
-              <LeadDetailItem title="Pitched Amount" value={`${selectedLead.currencySymbol || ""} ${selectedLead.pitchedAmount || 0}`} />
-              
-              <LeadDetailItem 
-                title="Assigned To" 
-                value={selectedLead.assignedTo ? selectedLead.assignedTo.username : "Not Assigned"} 
-              />
-              <LeadDetailItem 
-                title="Assigned By" 
-                value={selectedLead.assignedBy ? selectedLead.assignedBy.username : "Unknown"} 
-              />
-              
-              <LeadDetailItem title="Packages" value={selectedLead.packages?.join(", ") || "None specified"} icon={Package} fullWidth />
-              <LeadDetailItem title="Note" value={selectedLead.note || "No notes available"} fullWidth />
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 1.5, px: 2 }}>
-          <Button onClick={handleClose} variant="contained" disableElevation size="small" sx={{ borderRadius: 1 }}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {error && <Alert severity="error" sx={{ mt: 2, borderRadius: "8px" }}>{error}</Alert>}
     </Box>
   );
 };

@@ -1,4 +1,4 @@
-// import { useState, useEffect, useMemo } from "react";
+// import { useState, useEffect, useMemo, useCallback } from "react";
 // import {
 //   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 //   PieChart, Pie, Cell, Legend,
@@ -7,8 +7,7 @@
 // import {
 //   Inbox, Calendar, AlertCircle,
 //   ClipboardList, CheckCircle, Clock, AlertOctagon, Flame,
-//   MessageSquare, ExternalLink, ChevronDown, ChevronUp, X, Folder,
-//   AlertTriangle,
+//   MessageSquare, ExternalLink, X, AlertTriangle,
 // } from "lucide-react";
 // import { differenceInCalendarDays, format as fnsFormat } from "date-fns";
 
@@ -43,26 +42,19 @@
 // const DATE_PRESETS = buildPresets();
 
 // const getToken = () => localStorage.getItem("token") || "";
-// const authFetch = (url) =>
-//   fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } })
-//     .then(r => (r.ok ? r.json() : []));
-
-// const resolveProjectName = (projectsList, projectId) => {
-//   const pid = (projectId?._id || projectId)?.toString();
-//   const match = projectsList.find(p => p._id?.toString() === pid);
-//   return match?.projectName || match?.title || "Unknown";
+// const authFetch = async (url) => {
+//   const r = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
+//   if (!r.ok) throw new Error(`HTTP ${r.status}`);
+//   return r.json();
 // };
 
 // /**
 //  * Overdue = deadline date has fully passed, meaning:
-//  *   the end-of-day of the deadline < now
-//  *   i.e. midnight starting the NEXT day after the deadline.
-//  *
-//  * Example: deadline = May 15 → overdue at 00:00:00 of May 16, not May 15.
+//  * the end-of-day of the deadline < now
+//  * i.e. midnight starting the NEXT day after the deadline.
 //  */
 // const checkIsOverdue = (deadline, status) => {
 //   if (!deadline || status === "Done") return false;
-//   // Build end-of-deadline-day: start of the day AFTER the deadline
 //   const d = new Date(deadline);
 //   const endOfDeadlineDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
 //   return endOfDeadlineDay <= new Date();
@@ -122,7 +114,7 @@
 
 //       {/* Tab bar skeleton */}
 //       <div className="flex gap-1 bg-gray-200/60 border border-gray-200 rounded-md p-1 w-fit">
-//         {[80, 100, 120, 100].map((w, i) => (
+//         {[80, 100, 120].map((w, i) => (
 //           <div key={i} className="h-8 rounded bg-gray-300 animate-pulse" style={{ width: w }} />
 //         ))}
 //       </div>
@@ -180,75 +172,6 @@
 //   </div>
 // );
 
-// // ── Task Row (for Task List tab) ───────────────────────────────────────────────
-// function TaskRow({ task, onClick }) {
-//   const isOverdue = checkIsOverdue(task.deadline, task.status);
-//   const isDone = task.status === "Done";
-//   const priorityColor = PRIORITY_COLOR[task.priority] || "#94a3b8";
-
-//   return (
-//     <div
-//       onClick={() => onClick(task)}
-//       className={`group border shadow-sm rounded-md p-4 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden
-//         ${isDone ? "bg-emerald-50/60 border-emerald-200 hover:border-emerald-400" : "bg-white border-gray-200 hover:border-indigo-300"}`}
-//     >
-//       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: isDone ? "#16a34a" : priorityColor }} />
-
-//       <div className="flex-1 min-w-0 pl-2">
-//         <div className="flex items-center gap-2 mb-1 flex-wrap">
-//           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{task.projectName}</span>
-//           <span className="text-gray-300">•</span>
-//           <Badge label={task.priority} color={priorityColor} />
-//           {isOverdue && (
-//             <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 uppercase">
-//               Overdue
-//             </span>
-//           )}
-//           {isDone && task.completedAt && (
-//             <span className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-sm border border-emerald-200">
-//               ✓ Completed {fnsFormat(new Date(task.completedAt), "MMM d, yyyy")}
-//             </span>
-//           )}
-//         </div>
-//         <h4 className={`text-base font-semibold truncate ${isDone ? "line-through text-gray-400" : "text-gray-900"}`}>
-//           {task.title}
-//         </h4>
-//         {/* Deadline row */}
-//         <div className="flex items-center gap-3 mt-1 flex-wrap">
-//           {task.deadline && !isDone && (
-//             <span className={`flex items-center gap-1 text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
-//               <Calendar size={12} />
-//               Due {fnsFormat(new Date(task.deadline), "MMM d, yyyy")}
-//             </span>
-//           )}
-//         </div>
-//       </div>
-
-//       <div className="flex items-center gap-4 text-sm text-gray-600 shrink-0">
-//         <div className="flex items-center gap-1.5" title="Comments">
-//           <MessageSquare size={16} className={task.comments?.length ? "text-indigo-500" : "text-gray-400"} />
-//           <span className="font-medium">{task.comments?.length || 0}</span>
-//         </div>
-
-//         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-200">
-//           <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
-//             {task.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-//           </div>
-//           <span className="font-medium truncate max-w-[100px]">{task.assignedTo?.username}</span>
-//         </div>
-
-//         <span className={`px-2.5 py-1 rounded-sm text-xs font-bold border uppercase tracking-wider ${
-//           isDone ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-//           task.status === "In Progress" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-//           "bg-gray-100 text-gray-600 border-gray-200"
-//         }`}>
-//           {task.status}
-//         </span>
-//       </div>
-//     </div>
-//   );
-// }
-
 // // ── Completed/Pending split list ───────────────────────────────────────────────
 // function SplitTaskList({ tasks, onTaskClick, datePreset }) {
 //   const [pendingPage, setPendingPage]     = useState(1);
@@ -258,7 +181,6 @@
 //   const pending   = useMemo(() => tasks.filter(t => t.status !== "Done"), [tasks]);
 //   const completed = useMemo(() => tasks.filter(t => t.status === "Done"), [tasks]);
 
-//   // For "Today" we show tasks completed today; otherwise use all completed in filter window
 //   const pendingTotal   = pending.length;
 //   const completedTotal = completed.length;
 
@@ -343,13 +265,11 @@
 //           {completedSlice.length === 0 ? (
 //             <div className="py-8 text-center text-gray-400 text-sm">No completed tasks in this period</div>
 //           ) : completedSlice.map(t => (
-            
 //             <div key={t._id} onClick={() => onTaskClick(t)}
-//               className="border border-emerald-200 rounded-md p-3 cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all bg-emerald-50/40 relative overflow-hidden">
+//               className="border border-emerald-200 rounded-md p-3 cursor-pointer hover:border-emerald-400 hover:shadow-sm transition-all bg-emerald-50/40 relative overflow-hidden flex flex-col">
 //               <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-md bg-emerald-500" />
-//               {/* add it here */}
-//               <span className="text-xs border border-gray-300 text-gray-500 px-2 py-1 rounded ml-3 mb-4">{t.projectName}</span>
-//               <div className="pl-3 pt-2">
+//               <span className="text-[10px] w-fit border border-gray-300 text-gray-500 px-2 py-0.5 rounded ml-3 mb-2 uppercase font-bold tracking-wider">{t.projectName}</span>
+//               <div className="pl-3">
 //                 <p className="text-sm font-semibold text-gray-700 line-through decoration-emerald-400 truncate">{t.title}</p>
 //                 <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
 //                   <span className="text-xs text-gray-500">{t.assignedTo?.username}</span>
@@ -427,201 +347,15 @@
 //   );
 // }
 
-// // ── Project Report Card (unchanged as requested) ───────────────────────────────
-// function ProjectReportCard({ project, tasks, completions }) {
-//   const [expanded, setExpanded] = useState(false);
-
-//   const pTasks = useMemo(() => tasks.filter(t => {
-//     const pid = (t.projectId?._id || t.projectId)?.toString();
-//     return pid === project._id?.toString();
-//   }), [tasks, project._id]);
-
-//   const pCompletions = useMemo(() => completions.filter(c => {
-//     const pid = (c.projectId?._id || c.projectId)?.toString();
-//     return pid === project._id?.toString();
-//   }), [completions, project._id]);
-
-//   const completedTasksList = pTasks.filter(t => t.status === "Done");
-//   const pendingTasksList   = pTasks.filter(t => t.status !== "Done");
-
-//   const pieData = useMemo(() => {
-//     const map = {};
-//     pCompletions.forEach(c => {
-//       const dev = c.completedBy?.username || "Unknown";
-//       map[dev] = (map[dev] || 0) + 1;
-//     });
-//     return Object.entries(map).map(([name, value]) => ({ name, value }));
-//   }, [pCompletions]);
-
-//   const statusData = useMemo(() => {
-//     const map = {};
-//     pTasks.forEach(t => {
-//       const dev = t.assignedTo?.username || "Unknown";
-//       if (!map[dev]) map[dev] = { name: dev, Done: 0, Pending: 0 };
-//       if (t.status === "Done") map[dev].Done++;
-//       else map[dev].Pending++;
-//     });
-//     return Object.values(map);
-//   }, [pTasks]);
-
-//   const priorityData = useMemo(() => {
-//     const map = {};
-//     pTasks.filter(t => t.status !== "Done").forEach(t => {
-//       const dev = t.assignedTo?.username || "Unknown";
-//       if (!map[dev]) map[dev] = { name: dev, Critical: 0, High: 0, Medium: 0, Low: 0 };
-//       if (t.priority in map[dev]) map[dev][t.priority]++;
-//     });
-//     return Object.values(map);
-//   }, [pTasks]);
-
-//   return (
-//     <div className="bg-white border border-gray-200 shadow-sm rounded-md overflow-hidden">
-//       <div
-//         onClick={() => setExpanded(!expanded)}
-//         className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
-//       >
-//         <div className="flex items-center gap-3">
-//           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-md"><Folder size={24} /></div>
-//           <div>
-//             <h3 className="text-lg font-bold text-gray-900">{project.projectName}</h3>
-//             <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
-//               <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase border ${project.status === "Active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
-//                 {project.status}
-//               </span>
-//               <span>•</span>
-//               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border bg-indigo-50 text-indigo-700 border-indigo-200">
-//                 {completedTasksList.length} / {pTasks.length} Completed
-//               </span>
-//               <span>•</span>
-//               <span>{(project.serviceType || []).join(", ") || "No Services"}</span>
-//             </div>
-//           </div>
-//         </div>
-//         <div className="flex items-center gap-6">
-//           <div className="hidden md:flex flex-col text-right">
-//             <span className="text-xs text-gray-400 font-semibold uppercase">Assigned Team</span>
-//             <span className="text-sm font-medium text-gray-700">
-//               {project.assignedDeveloper?.map(d => d.username).join(", ") || "Unassigned"}
-//             </span>
-//           </div>
-//           <div className="text-gray-400">{expanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}</div>
-//         </div>
-//       </div>
-
-//       <AnimatePresence>
-//         {expanded && (
-//           <motion.div
-//             initial={{ height: 0, opacity: 0 }}
-//             animate={{ height: "auto", opacity: 1 }}
-//             exit={{ height: 0, opacity: 0 }}
-//             className="border-t border-gray-100 bg-gray-50/50"
-//           >
-//             <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-//               <div className="bg-white border border-gray-200 rounded-md p-4 shadow-sm">
-//                 <h4 className="text-sm font-bold text-gray-800 mb-4 text-center">Developer Contribution % (Completed Tasks)</h4>
-//                 {pieData.length === 0 ? <EmptyState message="No completed tasks" /> : (
-//                   <ResponsiveContainer width="100%" height={220}>
-//                     <PieChart>
-//                       <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value"
-//                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-//                         {pieData.map((_, i) => <Cell key={i} fill={DEV_PALETTE[i % DEV_PALETTE.length]} />)}
-//                       </Pie>
-//                       <Tooltip content={<CustomTooltip />} />
-//                     </PieChart>
-//                   </ResponsiveContainer>
-//                 )}
-//               </div>
-
-//               <div className="bg-white border border-gray-200 rounded-md p-4 shadow-sm">
-//                 <h4 className="text-sm font-bold text-gray-800 mb-4 text-center">Pending vs Completed</h4>
-//                 {statusData.length === 0 ? <EmptyState message="No tasks assigned" /> : (
-//                   <ResponsiveContainer width="100%" height={220}>
-//                     <BarChart data={statusData} barCategoryGap="20%">
-//                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-//                       <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-//                       <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-//                       <Tooltip content={<CustomTooltip />} />
-//                       <Legend wrapperStyle={{ fontSize: 12 }} />
-//                       <Bar dataKey="Done" fill="#16a34a" radius={[2,2,0,0]} stackId="a" />
-//                       <Bar dataKey="Pending" fill="#4f46e5" radius={[2,2,0,0]} stackId="a" />
-//                     </BarChart>
-//                   </ResponsiveContainer>
-//                 )}
-//               </div>
-
-//               <div className="bg-white border border-gray-200 rounded-md p-4 shadow-sm">
-//                 <h4 className="text-sm font-bold text-gray-800 mb-4 text-center">Open Tasks by Priority</h4>
-//                 {priorityData.length === 0 ? <EmptyState message="No open tasks" /> : (
-//                   <ResponsiveContainer width="100%" height={220}>
-//                     <BarChart data={priorityData} barCategoryGap="20%">
-//                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-//                       <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-//                       <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-//                       <Tooltip content={<CustomTooltip />} />
-//                       <Legend wrapperStyle={{ fontSize: 12 }} />
-//                       <Bar dataKey="Critical" fill={PRIORITY_COLOR.Critical} stackId="p" />
-//                       <Bar dataKey="High"     fill={PRIORITY_COLOR.High}     stackId="p" />
-//                       <Bar dataKey="Medium"   fill={PRIORITY_COLOR.Medium}   stackId="p" />
-//                       <Bar dataKey="Low"      fill={PRIORITY_COLOR.Low}      stackId="p" radius={[2,2,0,0]} />
-//                     </BarChart>
-//                   </ResponsiveContainer>
-//                 )}
-//               </div>
-
-//               <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-//                 <div className="bg-white border border-gray-200 rounded-md p-4 shadow-sm">
-//                   <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center justify-between">
-//                     Pending Tasks
-//                     <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{pendingTasksList.length}</span>
-//                   </h4>
-//                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-//                     {pendingTasksList.length === 0 ? <p className="text-sm text-gray-400">All caught up!</p>
-//                       : pendingTasksList.map(t => (
-//                       <div key={t._id} className="text-sm border border-gray-100 bg-gray-50 p-3 rounded flex justify-between items-start gap-2">
-//                         <div>
-//                           <p className="font-semibold text-gray-800">{t.title}</p>
-//                           <p className="text-xs text-gray-500 mt-1">Dev: <span className="font-medium text-gray-700">{t.assignedTo?.username}</span></p>
-//                         </div>
-//                         <Badge label={t.priority} color={PRIORITY_COLOR[t.priority] || "#94a3b8"} />
-//                       </div>
-//                     ))}
-//                   </div>
-//                 </div>
-
-//                 <div className="bg-white border border-emerald-200 rounded-md p-4 shadow-sm">
-//                   <h4 className="text-sm font-bold text-emerald-800 mb-3 flex items-center justify-between">
-//                     Completed Tasks
-//                     <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">{completedTasksList.length}</span>
-//                   </h4>
-//                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-//                     {completedTasksList.length === 0 ? <p className="text-sm text-gray-400">No completed tasks yet.</p>
-//                       : completedTasksList.map(t => (
-//                       <div key={t._id} className="text-sm border border-emerald-100 bg-emerald-50/50 p-3 rounded flex justify-between items-start gap-2">
-//                         <div>
-//                           <p className="font-semibold text-emerald-900 line-through decoration-emerald-300">{t.title}</p>
-//                           <p className="text-xs text-emerald-600 mt-1">Completed by: <span className="font-medium text-emerald-800">{t.assignedTo?.username}</span></p>
-//                         </div>
-//                         <CheckCircle size={16} className="text-emerald-500 mt-0.5" />
-//                       </div>
-//                     ))}
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-//           </motion.div>
-//         )}
-//       </AnimatePresence>
-//     </div>
-//   );
-// }
-
 // // ── Main Dashboard ────────────────────────────────────────────────────────────
 // export default function DeveloperReports() {
+//   const currentUserId = localStorage.getItem("userId");
+//   const CACHE_KEY = `dev_reports_cache_${currentUserId}`;
+
 //   const [projects,        setProjects]        = useState([]);
 //   const [allTasks,        setAllTasks]        = useState([]);
 //   const [completions,     setCompletions]     = useState([]);
-//   const [loadingProjects, setLoadingProjects] = useState(true);
-//   const [loadingTasks,    setLoadingTasks]    = useState(false);
+//   const [loading,         setLoading]         = useState(true);
 //   const [error,           setError]           = useState(null);
 
 //   const [selectedProject,  setSelectedProject]  = useState("all");
@@ -634,62 +368,87 @@
 //   const [activeTab,        setActiveTab]        = useState("tasks");
 //   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
 
-//   // ── Fetch projects ─────────────────────────────────────────────────────────
-//   useEffect(() => {
-//     (async () => {
-//       try {
-//         const res = await fetch(PROJECT_ENDPOINT, { headers: { Authorization: `Bearer ${getToken()}` } });
-//         if (!res.ok) throw new Error(`Projects fetch failed (${res.status}).`);
-//         const data = await res.json();
-//         setProjects(Array.isArray(data) ? data : data.projects ?? []);
-//       } catch (e) {
-//         setError(e.message);
-//       } finally {
-//         setLoadingProjects(false);
-//       }
-//     })();
-//   }, []);
+//   // ── Fetch & Cache Data ─────────────────────────────────────────────────────
+//   const fetchReportData = useCallback(async (isSilent = false) => {
+//     if (!isSilent) setLoading(true);
+//     try {
+//       // 1. Fetch Projects
+//       const res = await fetch(PROJECT_ENDPOINT, { headers: { Authorization: `Bearer ${getToken()}` } });
+//       if (!res.ok) throw new Error(`Projects fetch failed (${res.status}).`);
+//       const data = await res.json();
+//       const fetchedProjects = Array.isArray(data) ? data : data.projects ?? [];
 
-//   // ── Fetch tasks + comments + completions ───────────────────────────────────
-//   useEffect(() => {
-//     if (!projects.length) return;
-//     const targets = selectedProject === "all"
-//       ? projects
-//       : projects.filter(p => p._id === selectedProject);
-//     if (!targets.length) return;
+//       let fetchedTasks = [];
+//       let fetchedComps = [];
 
-//     (async () => {
-//       setLoadingTasks(true);
-//       setError(null);
-//       try {
-//         const taskResults = await Promise.all(targets.map(p => authFetch(`${API_BASE}/api/tasks/${p._id}`)));
-//         const rawFlatTasks = taskResults.flat();
+//       // 2. Fetch Tasks and Completions in chunks of 5
+//       for (let i = 0; i < fetchedProjects.length; i += 5) {
+//         const chunk = fetchedProjects.slice(i, i + 5);
+//         await Promise.allSettled(
+//           chunk.map(async (p) => {
+//             try {
+//               const tasksRes = await authFetch(`${API_BASE}/api/tasks/${p._id}`).catch(() => []);
+//               const tasksWithComments = await Promise.all(
+//                 (Array.isArray(tasksRes) ? tasksRes : []).map(async (t) => {
+//                   const pid = (t.projectId?._id || t.projectId)?.toString();
+//                   const commentsRes = await authFetch(`${API_BASE}/api/tasks/${pid}/${t._id}/comments`).catch(() => []);
+//                   return {
+//                     ...t,
+//                     projectName: p.projectName || "Unknown",
+//                     comments: Array.isArray(commentsRes) ? commentsRes : [],
+//                   };
+//                 })
+//               );
+//               fetchedTasks.push(...tasksWithComments);
 
-//         const tasksWithComments = await Promise.all(
-//           rawFlatTasks.map(async t => {
-//             const pid = (t.projectId?._id || t.projectId)?.toString();
-//             const commentsRes = await authFetch(`${API_BASE}/api/tasks/${pid}/${t._id}/comments`).catch(() => []);
-//             return {
-//               ...t,
-//               projectName: resolveProjectName(targets, t.projectId),
-//               comments: Array.isArray(commentsRes) ? commentsRes : [],
-//             };
+//               const compRes = await authFetch(`${API_BASE}/api/tasks/${p._id}/completions`).catch(() => []);
+//               fetchedComps.push(...(Array.isArray(compRes) ? compRes : []));
+//             } catch (e) {
+//               console.error(e);
+//             }
 //           })
 //         );
-
-//         setAllTasks(tasksWithComments);
-
-//         const compResults = await Promise.all(targets.map(p => authFetch(`${API_BASE}/api/tasks/${p._id}/completions`)));
-//         setCompletions(compResults.flat());
-//       } catch (e) {
-//         setError(e.message);
-//       } finally {
-//         setLoadingTasks(false);
 //       }
-//     })();
-//   }, [projects, selectedProject]);
 
-//   // ── Date window ────────────────────────────────────────────────────────────
+//       setProjects(fetchedProjects);
+//       setAllTasks(fetchedTasks);
+//       setCompletions(fetchedComps);
+
+//       // 3. Save to Session Cache
+//       sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+//         projects: fetchedProjects,
+//         allTasks: fetchedTasks,
+//         completions: fetchedComps,
+//         timestamp: Date.now()
+//       }));
+
+//     } catch (e) {
+//       setError(e.message);
+//     } finally {
+//       if (!isSilent) setLoading(false);
+//     }
+//   }, [CACHE_KEY]);
+
+//   useEffect(() => {
+//     const cachedData = sessionStorage.getItem(CACHE_KEY);
+//     if (cachedData) {
+//       try {
+//         const parsed = JSON.parse(cachedData);
+//         setProjects(parsed.projects || []);
+//         setAllTasks(parsed.allTasks || []);
+//         setCompletions(parsed.completions || []);
+//         setLoading(false);
+//         // Silently sync with DB in background
+//         fetchReportData(true);
+//       } catch (e) {
+//         fetchReportData();
+//       }
+//     } else {
+//       fetchReportData();
+//     }
+//   }, [fetchReportData, CACHE_KEY]);
+
+//   // ── Date window logic ──────────────────────────────────────────────────────
 //   const { fromDate, toDate } = useMemo(() => {
 //     if (datePreset === "Custom") {
 //       return {
@@ -701,62 +460,46 @@
 //     return { fromDate: preset?.from ?? null, toDate: preset?.to ?? null };
 //   }, [datePreset, customFrom, customTo]);
 
-//   /**
-//    * Core filter logic.
-//    *
-//    * For PENDING tasks we check createdAt against the date window — a task
-//    * created before the window is still pending "now" so we include it when
-//    * the window doesn't have a lower bound (e.g. "All Time", "Today" means
-//    * "show me what's pending right now regardless of when it was created").
-//    *
-//    * For COMPLETED tasks we gate on completedAt so "Today" = completed today.
-//    *
-//    * The combined list (used for stat cards and charts) applies the rule:
-//    *   - Pending tasks: always included (they're still open), date filter is
-//    *     applied on createdAt only as a secondary refinement when a window
-//    *     is explicitly chosen.
-//    *   - Completed tasks: gated on completedAt so the period makes sense.
-//    *
-//    * Special case "Today": pending means CURRENTLY pending (no date gate on
-//    * pending), completed means completed today.
-//    */
+
+//   // ── Apply Filters to Data ──────────────────────────────────────────────────
 //   const filteredTasks = useMemo(() => {
 //     return allTasks.filter(t => {
+//       // Apply Project Filter directly from frontend cache
+//       const pid = (t.projectId?._id || t.projectId)?.toString();
+//       if (selectedProject !== "all" && pid !== selectedProject) return false;
+
 //       if (selectedDev     !== "all" && t.assignedTo?.username !== selectedDev)  return false;
 //       if (statusFilter    === "complete"   && t.status !== "Done")              return false;
 //       if (statusFilter    === "incomplete" && t.status === "Done")              return false;
 //       if (priorityFilter  !== "all"        && t.priority !== priorityFilter)    return false;
 
-//       // Date window
 //       if (fromDate || toDate) {
 //         if (t.status === "Done") {
-//           // Completed tasks: gate on completedAt
 //           const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
 //           if (fromDate && ref < fromDate) return false;
 //           if (toDate   && ref > toDate)   return false;
-//         } else {
-//           // Pending tasks: always show — they're still open.
-//           // Only apply createdAt gate when NOT a "today/this-week" type preset
-//           // (for those presets we want "tasks pending RIGHT NOW", not "tasks
-//           // created in the window").
-//           // We skip the createdAt gate entirely for pending tasks so the user
-//           // always sees their outstanding work.
 //         }
 //       }
-
 //       return true;
 //     });
-//   }, [allTasks, selectedDev, statusFilter, priorityFilter, fromDate, toDate]);
+//   }, [allTasks, selectedProject, selectedDev, statusFilter, priorityFilter, fromDate, toDate]);
 
-//   const developers = useMemo(
-//     () => [...new Set(allTasks.map(t => t.assignedTo?.username).filter(Boolean))],
-//     [allTasks]
-//   );
+//   // Developers list filtered by selected project
+//   const developers = useMemo(() => {
+//     const relevantTasks = selectedProject === "all" 
+//       ? allTasks 
+//       : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+//     return [...new Set(relevantTasks.map(t => t.assignedTo?.username).filter(Boolean))];
+//   }, [allTasks, selectedProject]);
 
-//   // ── Stats — pending = still open, completed = done in window ──────────────
 //   const stats = useMemo(() => {
-//     const allPending   = allTasks.filter(t => t.status !== "Done");
-//     const allCompleted = allTasks.filter(t => {
+//     // Determine target pool based on project selection
+//     const pool = selectedProject === "all" 
+//       ? allTasks 
+//       : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+
+//     const allPending   = pool.filter(t => t.status !== "Done");
+//     const allCompleted = pool.filter(t => {
 //       if (t.status !== "Done") return false;
 //       if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
 //       if (fromDate || toDate) {
@@ -767,7 +510,6 @@
 //       return true;
 //     });
 
-//     // apply dev filter to pending too
 //     const pending = selectedDev !== "all"
 //       ? allPending.filter(t => t.assignedTo?.username === selectedDev)
 //       : allPending;
@@ -782,21 +524,23 @@
 //       overdue,
 //       critical,
 //     };
-//   }, [allTasks, selectedDev, fromDate, toDate]);
+//   }, [allTasks, selectedProject, selectedDev, fromDate, toDate]);
 
-//   // ── Dev Activity chart data — same window logic ────────────────────────────
 //   const devBarData = useMemo(() => {
+//     const pool = selectedProject === "all" 
+//       ? allTasks 
+//       : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+
 //     const map = {};
-//     // Pending: all currently pending (for chosen dev)
-//     allTasks.filter(t => t.status !== "Done").forEach(t => {
+//     pool.filter(t => t.status !== "Done").forEach(t => {
 //       if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return;
 //       if (priorityFilter !== "all" && t.priority !== priorityFilter) return;
 //       const name = t.assignedTo?.username || "Unknown";
 //       if (!map[name]) map[name] = { name, Done: 0, Pending: 0 };
 //       map[name].Pending++;
 //     });
-//     // Completed: gated on completedAt window
-//     allTasks.filter(t => {
+    
+//     pool.filter(t => {
 //       if (t.status !== "Done") return false;
 //       if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
 //       if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
@@ -812,11 +556,15 @@
 //       map[name].Done++;
 //     });
 //     return Object.values(map).sort((a, b) => (b.Done + b.Pending) - (a.Done + a.Pending));
-//   }, [allTasks, selectedDev, priorityFilter, fromDate, toDate]);
+//   }, [allTasks, selectedProject, selectedDev, priorityFilter, fromDate, toDate]);
 
 //   const devPieData = useMemo(() => {
+//     const pool = selectedProject === "all" 
+//       ? allTasks 
+//       : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+
 //     const map = {};
-//     allTasks.filter(t => {
+//     pool.filter(t => {
 //       if (t.status !== "Done") return false;
 //       if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
 //       if (fromDate || toDate) {
@@ -830,7 +578,7 @@
 //       map[name] = (map[name] || 0) + 1;
 //     });
 //     return Object.entries(map).map(([name, value]) => ({ name, value }));
-//   }, [allTasks, selectedDev, fromDate, toDate]);
+//   }, [allTasks, selectedProject, selectedDev, fromDate, toDate]);
 
 //   const completionBarData = useMemo(() => {
 //     const filtered = completions.filter(c => {
@@ -854,13 +602,16 @@
 //       .sort((a, b) => b.Completed - a.Completed);
 //   }, [completions, fromDate, toDate, selectedProject, selectedDev]);
 
-//   // ── Per-dev cards: pending = currently open, done = in window ─────────────
 //   const devCardData = useMemo(() => {
+//     const pool = selectedProject === "all" 
+//       ? allTasks 
+//       : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+
 //     return developers.map((dev, i) => {
-//       const pendingTasks = allTasks.filter(t =>
+//       const pendingTasks = pool.filter(t =>
 //         t.status !== "Done" && t.assignedTo?.username === dev
 //       );
-//       const doneTasks = allTasks.filter(t => {
+//       const doneTasks = pool.filter(t => {
 //         if (t.status !== "Done" || t.assignedTo?.username !== dev) return false;
 //         if (fromDate || toDate) {
 //           const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
@@ -874,9 +625,11 @@
 //       const pct   = total ? Math.round((doneTasks.length / total) * 100) : 0;
 //       return { dev, i, pendingTasks, doneTasks, overdueCount, total, pct };
 //     });
-//   }, [developers, allTasks, fromDate, toDate]);
+//   }, [developers, allTasks, selectedProject, fromDate, toDate]);
 
-//   if (loadingProjects || loadingTasks) return <PageLoader />;
+
+//   // Show Loader if data is fetching and we have no cached tasks
+//   if (loading && allTasks.length === 0) return <PageLoader />;
 
 //   return (
 //     <div className="min-h-screen bg-[#F6F8FA] text-gray-800 font-sans text-base pb-10 relative">
@@ -997,7 +750,6 @@
 //             { id:"tasks",         label:"Task List" },
 //             { id:"overdue",       label:"Overdue" },
 //             { id:"dev-activity",  label:"Dev Activity" },
-//             { id:"project-chart", label:"Project Charts" },
 //           ].map(tab => (
 //             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
 //               className={"px-4 py-2 rounded text-sm font-bold transition-all " +
@@ -1033,7 +785,7 @@
 //               exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-4 relative z-10">
 //               <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm flex items-center justify-between">
 //                 <h2 className="text-lg font-bold text-gray-800">Overdue Tasks</h2>
-//                 <span className="text-sm font-medium text-red-600 font-bold">{stats.overdue} overdue</span>
+//                 <span className="text-sm font-base text-red-600 font-bold">{stats.overdue} overdue</span>
 //               </div>
 //               <OverdueTaskList tasks={filteredTasks} onTaskClick={setSelectedTaskDetails} />
 //             </motion.div>
@@ -1163,19 +915,6 @@
 //                   </motion.div>
 //                 ))}
 //               </div>
-//             </motion.div>
-//           )}
-
-//           {/* ── Tab: Project Charts (unchanged) ── */}
-//           {activeTab === "project-chart" && (
-//             <motion.div key="project-chart" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-//               exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-6 relative z-10">
-//               {projects.length === 0 ? <EmptyState message="No active projects" />
-//                 : projects
-//                     .filter(p => selectedProject === "all" || p._id === selectedProject)
-//                     .map(project => (
-//                   <ProjectReportCard key={project._id} project={project} tasks={allTasks} completions={completions} />
-//                 ))}
 //             </motion.div>
 //           )}
 
@@ -1324,6 +1063,12 @@
 
 
 
+
+
+
+
+
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -1333,7 +1078,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Inbox, Calendar, AlertCircle,
   ClipboardList, CheckCircle, Clock, AlertOctagon, Flame,
-  MessageSquare, ExternalLink, X, AlertTriangle,
+  MessageSquare, ExternalLink, X, AlertTriangle, Loader2
 } from "lucide-react";
 import { differenceInCalendarDays, format as fnsFormat } from "date-fns";
 
@@ -1374,11 +1119,6 @@ const authFetch = async (url) => {
   return r.json();
 };
 
-/**
- * Overdue = deadline date has fully passed, meaning:
- * the end-of-day of the deadline < now
- * i.e. midnight starting the NEXT day after the deadline.
- */
 const checkIsOverdue = (deadline, status) => {
   if (!deadline || status === "Done") return false;
   const d = new Date(deadline);
@@ -1396,14 +1136,12 @@ const Badge = ({ label, color }) => (
   </span>
 );
 
-// ── Page-level skeleton loader ─────────────────────────────────────────────────
 const SkeletonBlock = ({ h = "h-4", w = "w-full", rounded = "rounded" }) => (
   <div className={`${h} ${w} ${rounded} bg-gray-200 animate-pulse`} />
 );
 
 const PageLoader = () => (
   <div className="min-h-screen bg-[#F6F8FA] font-sans">
-    {/* sticky header skeleton */}
     <div className="border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
       <div className="max-w-[95%] mx-auto flex items-center justify-between">
         <div className="space-y-2">
@@ -1413,9 +1151,7 @@ const PageLoader = () => (
         <SkeletonBlock h="h-5" w="w-28" rounded="rounded-full" />
       </div>
     </div>
-
     <div className="max-w-[95%] mx-auto px-6 py-6 space-y-6">
-      {/* Filter bar skeleton */}
       <div className="bg-white border border-gray-200 rounded-md p-5 flex gap-4 flex-wrap">
         {[140, 140, 110, 110, 130].map((w, i) => (
           <div key={i} className="flex flex-col gap-2">
@@ -1424,8 +1160,6 @@ const PageLoader = () => (
           </div>
         ))}
       </div>
-
-      {/* Stat cards skeleton */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="bg-white border border-gray-200 rounded-md p-4 space-y-3">
@@ -1437,15 +1171,11 @@ const PageLoader = () => (
           </div>
         ))}
       </div>
-
-      {/* Tab bar skeleton */}
       <div className="flex gap-1 bg-gray-200/60 border border-gray-200 rounded-md p-1 w-fit">
         {[80, 100, 120].map((w, i) => (
           <div key={i} className="h-8 rounded bg-gray-300 animate-pulse" style={{ width: w }} />
         ))}
       </div>
-
-      {/* Content skeleton rows */}
       <div className="space-y-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="bg-white border border-gray-200 rounded-md p-4 flex gap-4 items-center">
@@ -1531,7 +1261,6 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Pending */}
       <div className="bg-white border border-gray-200 shadow-sm rounded-md overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
           <div className="flex items-center gap-2">
@@ -1562,7 +1291,6 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
                   <p className="text-sm font-semibold text-gray-800 truncate pt-2">{t.title}</p>
                   <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
                     <span className="text-xs text-gray-500">{t.assignedTo?.username}</span>
-
                     {t.deadline && (
                       <span className={`flex items-center gap-1 text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
                         <Calendar size={11} />
@@ -1578,7 +1306,6 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
         </div>
       </div>
 
-      {/* Completed */}
       <div className="bg-white border border-emerald-200 shadow-sm rounded-md overflow-hidden">
         <div className="px-5 py-4 border-b border-emerald-100 flex items-center justify-between bg-emerald-50/60">
           <div className="flex items-center gap-2">
@@ -1676,7 +1403,6 @@ function OverdueTaskList({ tasks, onTaskClick }) {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function DeveloperReports() {
   const currentUserId = localStorage.getItem("userId");
-  const CACHE_KEY = `dev_reports_cache_${currentUserId}`;
 
   const [projects,        setProjects]        = useState([]);
   const [allTasks,        setAllTasks]        = useState([]);
@@ -1688,15 +1414,39 @@ export default function DeveloperReports() {
   const [selectedDev,      setSelectedDev]      = useState("all");
   const [statusFilter,     setStatusFilter]     = useState("all");
   const [priorityFilter,   setPriorityFilter]   = useState("all");
-  const [datePreset,       setDatePreset]       = useState("All Time");
+  const [datePreset,       setDatePreset]       = useState("Today"); // CHANGED: Default is now "Today"
   const [customFrom,       setCustomFrom]       = useState("");
   const [customTo,         setCustomTo]         = useState("");
   const [activeTab,        setActiveTab]        = useState("tasks");
   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
 
-  // ── Fetch & Cache Data ─────────────────────────────────────────────────────
-  const fetchReportData = useCallback(async (isSilent = false) => {
+  // ── Fetch & Cache Data based on date preset ───────────────────────────────
+  const fetchReportData = useCallback(async (preset, cFrom, cTo, isSilent = false) => {
+    const presetObj = DATE_PRESETS.find(d => d.label === preset);
+    const isCustom = preset === "Custom";
+    const fDate = isCustom ? (cFrom ? new Date(cFrom) : null) : presetObj?.from;
+    const tDate = isCustom ? (cTo ? new Date(cTo) : null) : presetObj?.to;
+
+    // Granular Cache Key based on selected period limits over-fetching
+    const CACHE_KEY = `dev_reports_${currentUserId}_${preset}_${cFrom}_${cTo}`;
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
+
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        setProjects(parsed.projects || []);
+        setAllTasks(parsed.allTasks || []);
+        setCompletions(parsed.completions || []);
+        if (!isSilent) setLoading(false);
+        // Fallthrough to fetch background update silently
+        isSilent = true; 
+      } catch (e) {
+        // Cache corrupted, continue to fetch
+      }
+    }
+
     if (!isSilent) setLoading(true);
+
     try {
       // 1. Fetch Projects
       const res = await fetch(PROJECT_ENDPOINT, { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -1707,27 +1457,35 @@ export default function DeveloperReports() {
       let fetchedTasks = [];
       let fetchedComps = [];
 
-      // 2. Fetch Tasks and Completions in chunks of 5
+      // Query String for timeframe loading from backend
+      const params = new URLSearchParams();
+      if (fDate) params.append("startDate", fDate.toISOString());
+      if (tDate) params.append("endDate", tDate.toISOString());
+      const queryStr = params.toString();
+
+      // 2. Fetch Tasks and Completions in chunks
       for (let i = 0; i < fetchedProjects.length; i += 5) {
         const chunk = fetchedProjects.slice(i, i + 5);
         await Promise.allSettled(
           chunk.map(async (p) => {
             try {
-              const tasksRes = await authFetch(`${API_BASE}/api/tasks/${p._id}`).catch(() => []);
-              const tasksWithComments = await Promise.all(
-                (Array.isArray(tasksRes) ? tasksRes : []).map(async (t) => {
-                  const pid = (t.projectId?._id || t.projectId)?.toString();
-                  const commentsRes = await authFetch(`${API_BASE}/api/tasks/${pid}/${t._id}/comments`).catch(() => []);
-                  return {
-                    ...t,
-                    projectName: p.projectName || "Unknown",
-                    comments: Array.isArray(commentsRes) ? commentsRes : [],
-                  };
-                })
-              );
-              fetchedTasks.push(...tasksWithComments);
+              let tUrl = `${API_BASE}/api/tasks/${p._id}`;
+              let cUrl = `${API_BASE}/api/tasks/${p._id}/completions`;
+              
+              if (queryStr) {
+                tUrl += `?${queryStr}`;
+                cUrl += `?${queryStr}`;
+              }
 
-              const compRes = await authFetch(`${API_BASE}/api/tasks/${p._id}/completions`).catch(() => []);
+              const tasksRes = await authFetch(tUrl).catch(() => []);
+              const processedTasks = (Array.isArray(tasksRes) ? tasksRes : []).map(t => ({
+                ...t,
+                projectName: p.projectName || "Unknown",
+                // Notice: Removed the heavy N+1 Comment Fetch request from the initial load sequence
+              }));
+              fetchedTasks.push(...processedTasks);
+
+              const compRes = await authFetch(cUrl).catch(() => []);
               fetchedComps.push(...(Array.isArray(compRes) ? compRes : []));
             } catch (e) {
               console.error(e);
@@ -1740,7 +1498,7 @@ export default function DeveloperReports() {
       setAllTasks(fetchedTasks);
       setCompletions(fetchedComps);
 
-      // 3. Save to Session Cache
+      // 3. Save to Session Cache strictly for this period
       sessionStorage.setItem(CACHE_KEY, JSON.stringify({
         projects: fetchedProjects,
         allTasks: fetchedTasks,
@@ -1749,32 +1507,37 @@ export default function DeveloperReports() {
       }));
 
     } catch (e) {
-      setError(e.message);
+      if (!isSilent) setError(e.message);
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [CACHE_KEY]);
+  }, [currentUserId]);
 
   useEffect(() => {
-    const cachedData = sessionStorage.getItem(CACHE_KEY);
-    if (cachedData) {
-      try {
-        const parsed = JSON.parse(cachedData);
-        setProjects(parsed.projects || []);
-        setAllTasks(parsed.allTasks || []);
-        setCompletions(parsed.completions || []);
-        setLoading(false);
-        // Silently sync with DB in background
-        fetchReportData(true);
-      } catch (e) {
-        fetchReportData();
-      }
-    } else {
-      fetchReportData();
-    }
-  }, [fetchReportData, CACHE_KEY]);
+    fetchReportData(datePreset, customFrom, customTo);
+  }, [datePreset, customFrom, customTo, fetchReportData]);
 
-  // ── Date window logic ──────────────────────────────────────────────────────
+  // ── Handle Task Details & Lazy Load Comments ────────────────────────────────
+  const handleTaskClick = async (task) => {
+    setSelectedTaskDetails({ ...task, commentsLoading: true });
+    
+    const pid = (task.projectId?._id || task.projectId)?.toString();
+    try {
+      const commentsRes = await authFetch(`${API_BASE}/api/tasks/${pid}/${task._id}/comments`);
+      const comments = Array.isArray(commentsRes) ? commentsRes : [];
+      
+      setSelectedTaskDetails(prev => 
+        prev?._id === task._id ? { ...prev, comments, commentsLoading: false } : prev
+      );
+    } catch (err) {
+      console.error("Failed to fetch comments", err);
+      setSelectedTaskDetails(prev => 
+        prev?._id === task._id ? { ...prev, comments: [], commentsLoading: false } : prev
+      );
+    }
+  };
+
+  // ── Date window logic (Frontend Fallback Check) ───────────────────────────
   const { fromDate, toDate } = useMemo(() => {
     if (datePreset === "Custom") {
       return {
@@ -1790,7 +1553,6 @@ export default function DeveloperReports() {
   // ── Apply Filters to Data ──────────────────────────────────────────────────
   const filteredTasks = useMemo(() => {
     return allTasks.filter(t => {
-      // Apply Project Filter directly from frontend cache
       const pid = (t.projectId?._id || t.projectId)?.toString();
       if (selectedProject !== "all" && pid !== selectedProject) return false;
 
@@ -1810,7 +1572,6 @@ export default function DeveloperReports() {
     });
   }, [allTasks, selectedProject, selectedDev, statusFilter, priorityFilter, fromDate, toDate]);
 
-  // Developers list filtered by selected project
   const developers = useMemo(() => {
     const relevantTasks = selectedProject === "all" 
       ? allTasks 
@@ -1819,7 +1580,6 @@ export default function DeveloperReports() {
   }, [allTasks, selectedProject]);
 
   const stats = useMemo(() => {
-    // Determine target pool based on project selection
     const pool = selectedProject === "all" 
       ? allTasks 
       : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
@@ -1953,8 +1713,6 @@ export default function DeveloperReports() {
     });
   }, [developers, allTasks, selectedProject, fromDate, toDate]);
 
-
-  // Show Loader if data is fetching and we have no cached tasks
   if (loading && allTasks.length === 0) return <PageLoader />;
 
   return (
@@ -1980,7 +1738,6 @@ export default function DeveloperReports() {
       </div>
 
       <div className="max-w-[95%] mx-auto px-6 py-6 space-y-6 relative z-10">
-
         {/* ── Filters ── */}
         <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
           className="bg-white border border-gray-200 shadow-sm rounded-md p-5 relative z-20">
@@ -2089,7 +1846,6 @@ export default function DeveloperReports() {
         </div>
 
         <AnimatePresence mode="wait">
-
           {/* ── Tab: Task List ── */}
           {activeTab === "tasks" && (
             <motion.div key="tasks" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
@@ -2100,7 +1856,7 @@ export default function DeveloperReports() {
               </div>
               {filteredTasks.length === 0
                 ? <EmptyState message="No tasks match your filters" />
-                : <SplitTaskList tasks={filteredTasks} onTaskClick={setSelectedTaskDetails} datePreset={datePreset} />
+                : <SplitTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} datePreset={datePreset} />
               }
             </motion.div>
           )}
@@ -2111,9 +1867,9 @@ export default function DeveloperReports() {
               exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-4 relative z-10">
               <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-800">Overdue Tasks</h2>
-                <span className="text-sm font-medium text-red-600 font-bold">{stats.overdue} overdue</span>
+                <span className="text-sm font-base text-red-600 font-bold">{stats.overdue} overdue</span>
               </div>
-              <OverdueTaskList tasks={filteredTasks} onTaskClick={setSelectedTaskDetails} />
+              <OverdueTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} />
             </motion.div>
           )}
 
@@ -2121,8 +1877,6 @@ export default function DeveloperReports() {
           {activeTab === "dev-activity" && (
             <motion.div key="dev-activity" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
               exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-6 relative z-10">
-
-              {/* Context note about date window */}
               <div className="bg-indigo-50 border border-indigo-200 rounded-md px-4 py-2.5 text-sm text-indigo-700 flex items-center gap-2">
                 <Clock size={14} />
                 <span>
@@ -2130,9 +1884,7 @@ export default function DeveloperReports() {
                   &nbsp;<strong>Pending</strong> counts show all currently open tasks regardless of date.
                 </span>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Completions in period */}
                 <div className="bg-white border border-gray-200 shadow-sm rounded-md p-5">
                   <h3 className="font-bold font-display text-gray-900 mb-1">Completions in Period</h3>
                   <p className="text-sm text-gray-500 mb-5">Tasks marked Done · {datePreset}</p>
@@ -2150,8 +1902,6 @@ export default function DeveloperReports() {
                     </ResponsiveContainer>
                   )}
                 </div>
-
-                {/* Contribution pie */}
                 <div className="bg-white border border-gray-200 shadow-sm rounded-md p-5">
                   <h3 className="font-bold font-display text-gray-900 mb-1">Total Contribution</h3>
                   <p className="text-sm text-gray-500 mb-5">% of Completed Tasks per Developer · {datePreset}</p>
@@ -2168,8 +1918,6 @@ export default function DeveloperReports() {
                   )}
                 </div>
               </div>
-
-              {/* Pending vs Completed stacked bar */}
               <div className="bg-white border border-gray-200 shadow-sm rounded-md p-5">
                 <h3 className="font-bold font-display text-gray-900 mb-1">Task Breakdown</h3>
                 <p className="text-sm text-gray-500 mb-5">
@@ -2189,8 +1937,6 @@ export default function DeveloperReports() {
                   </ResponsiveContainer>
                 )}
               </div>
-
-              {/* Per-dev cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {devCardData.length === 0 && <EmptyState message="No developer data yet" />}
                 {devCardData.map(({ dev, i, pendingTasks, doneTasks, overdueCount, total, pct }) => (
@@ -2208,8 +1954,6 @@ export default function DeveloperReports() {
                         <p className="text-sm text-gray-500">{total} tasks total</p>
                       </div>
                     </div>
-
-                    {/* Progress bar: done / (done + pending) */}
                     <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-600 font-bold mb-1.5">
                         <span>Completion</span>
@@ -2225,7 +1969,6 @@ export default function DeveloperReports() {
                         {doneTasks.length} done in {datePreset} · {pendingTasks.length} still pending
                       </p>
                     </div>
-
                     <div className="grid grid-cols-3 gap-2 text-center">
                       {[
                         { label:"Done",    value:doneTasks.length,    color:"#16a34a", bg:"bg-green-50" },
@@ -2243,7 +1986,6 @@ export default function DeveloperReports() {
               </div>
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
 
@@ -2337,23 +2079,31 @@ export default function DeveloperReports() {
                   <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2 uppercase tracking-wider">
                     <MessageSquare size={16} /> Comments ({selectedTaskDetails.comments?.length || 0})
                   </h4>
-                  <div className="space-y-3">
-                    {(!selectedTaskDetails.comments || selectedTaskDetails.comments.length === 0) ? (
-                      <p className="text-sm text-gray-400 italic">No comments yet.</p>
-                    ) : selectedTaskDetails.comments.map((comment, idx) => (
-                      <div key={idx} className="bg-gray-50 border border-gray-100 p-3 rounded-md">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-bold text-gray-900">
-                            {comment.createdBy?.username || comment.user?.username || "Unknown"}
-                          </span>
-                          <span className="text-xs font-medium text-gray-400">
-                            {comment.createdAt ? fnsFormat(new Date(comment.createdAt), "MMM d, yyyy · h:mm a") : ""}
-                          </span>
+                  
+                  {/* Lazy Loading Comments State */}
+                  {selectedTaskDetails.commentsLoading ? (
+                     <div className="flex items-center gap-2 text-sm text-indigo-600 font-medium py-3">
+                       <Loader2 size={16} className="animate-spin" /> Fetching comments...
+                     </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(!selectedTaskDetails.comments || selectedTaskDetails.comments.length === 0) ? (
+                        <p className="text-sm text-gray-400 italic">No comments yet.</p>
+                      ) : selectedTaskDetails.comments.map((comment, idx) => (
+                        <div key={idx} className="bg-gray-50 border border-gray-100 p-3 rounded-md">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-bold text-gray-900">
+                              {comment.createdBy?.username || comment.user?.username || "Unknown"}
+                            </span>
+                            <span className="text-xs font-medium text-gray-400">
+                              {comment.createdAt ? fnsFormat(new Date(comment.createdAt), "MMM d, yyyy · h:mm a") : ""}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">{comment.text}</p>
                         </div>
-                        <p className="text-sm text-gray-700">{comment.text}</p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
