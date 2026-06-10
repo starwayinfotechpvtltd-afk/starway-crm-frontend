@@ -56,7 +56,7 @@ const Login = () => {
       <div className="hidden lg:flex lg:w-3/5 relative p-6">
         <div
           className="w-full h-full rounded-3xl bg-cover bg-center overflow-hidden shadow-2xl"
-          style={{ backgroundImage: `url('https://i.pinimg.com/1200x/96/e7/13/96e71337821fdab683780f66d4d511c8.jpg')` }}
+          style={{ backgroundImage: `url('https://i.pinimg.com/1200x/60/2c/f7/602cf78a154b03e968844ed954dd972a.jpg')` }}
         >
           {/* Optional Overlay for style */}
           {/* <div className="absolute inset-0 bg-blue-600/10 mix-blend-multiply"></div> */}
