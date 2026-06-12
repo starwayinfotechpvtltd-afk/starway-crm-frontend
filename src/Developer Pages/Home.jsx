@@ -1,18 +1,20 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, Suspense } from "react";
 import {
   ClipboardDocumentCheckIcon,
   ClockIcon,
   ExclamationCircleIcon,
   CheckBadgeIcon,
   PlusIcon,
-  CheckIcon
+  CheckIcon,
+  MagnifyingGlassIcon,
+  EyeIcon,
+  ChatBubbleLeftRightIcon
 } from "@heroicons/react/24/outline";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   Typography,
   Box,
 } from "@mui/material";
@@ -21,6 +23,8 @@ import { motion } from "framer-motion";
 import {
   BarChart,
   Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -29,47 +33,136 @@ import {
   Legend
 } from "recharts";
 import { 
-  isAfter, format, differenceInCalendarDays, startOfMonth, 
-  isToday, isYesterday, isThisWeek, isThisMonth, subMonths, 
-  isWithinInterval, startOfDay, endOfDay 
+  format, differenceInCalendarDays, isToday, isYesterday, 
+  isThisWeek, isThisMonth, subMonths, isWithinInterval, 
+  startOfDay, endOfDay 
 } from "date-fns";
+
+// Lazy load the Kanban Board component to optimize initial asset delivery
+const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
-// ── Framer Motion variants ─────────────────────────────────────────────────────
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
+// ── Design Tokens ─────────────────────────────────────────────────────────────
+const T = {
+  bg: "#F6F8FA",
+  bgCard: "#FFFFFF",
+  bgSidebar: "#F6F8FA",
+  bgInput: "#FFFFFF",
+  border: "#D0D7DE",
+  borderFocus: "#0969DA",
+  accent: "#0969DA",
+  accentDim: "#0969DA15",
+  accentHover: "#0349B6",
+  green: "#1A7F37",
+  greenBg: "#DAFBE1",
+  red: "#D1242F",
+  redBg: "#FFEBE9",
+  blue: "#0969DA",
+  blueBg: "#DDF4FF",
+  orange: "#BF8700",
+  orangeBg: "#FFF8C5",
+  gray: "#656D76",
+  grayBg: "#EAEEF2",
+  textPrimary: "#1F2328",
+  textSecondary: "#656D76",
+  textDisabled: "#8C959F",
+  radius: "8px",
+  radiusSm: "5px",
+  shadow: "0 1px 3px rgba(0,0,0,0.08)",
+  shadowMd: "0 4px 14px rgba(0,0,0,0.1)",
+  font: "'DM Sans', 'Segoe UI', sans-serif"
 };
 
-// ── Skeleton Loaders ───────────────────────────────────────────────────────────
+// ── Framer Motion Variants ───────────────────────────────────────────────────
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 26 } },
+};
+
+// ── Skeleton Loader ───────────────────────────────────────────────────────────
 const SkeletonDashboard = () => (
-  <div className="min-h-screen bg-[#F6F8FA] flex flex-col">
-    <div className="h-16 bg-white border-b border-[#D0D7DE] w-full animate-pulse"></div>
-    <div className="p-8 max-w-[95%] mx-auto space-y-6 w-full flex-1">
+  <div className="min-h-screen bg-[#F6F8FA] flex flex-col font-sans">
+    <div className="h-16 bg-white border-b border-[#D0D7DE] w-full animate-pulse text-center"></div>
+    <div className="p-6 max-w-[95%] mx-auto space-y-6 w-full flex-1">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="bg-white p-5 rounded-lg shadow-sm border border-[#D0D7DE] animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div key={i} className="bg-white p-5 rounded-lg border border-[#D0D7DE] animate-pulse h-24">
+            <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
           </div>
         ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-pulse">
-        <div className="bg-white h-80 rounded-lg border border-[#D0D7DE]"></div>
-        <div className="bg-white h-80 rounded-lg border border-[#D0D7DE]"></div>
-      </div>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-pulse mt-6">
-        <div className="xl:col-span-2 bg-white h-96 rounded-lg border border-[#D0D7DE]"></div>
-        <div className="bg-white h-96 rounded-lg border border-[#D0D7DE]"></div>
       </div>
     </div>
   </div>
 );
+
+// ── Comment Modal ─────────────────────────────────────────────────────────────
+const CommentModal = ({ task, projectId, onClose }) => {
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setPosting(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `${API_BASE}/api/tasks/${projectId}/${task._id}/comments`,
+        { text: text.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPosted(true);
+      setTimeout(onClose, 900);
+    } catch (err) {
+      console.error("Comment error:", err);
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#1F2328]/50 backdrop-blur-sm animate-fadeIn">
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden border border-[#D0D7DE] font-sans">
+        <div className="px-5 py-4 border-b border-[#D0D7DE] flex justify-between items-center bg-[#F6F8FA]">
+          <div>
+            <div className="text-[10px] text-[#656D76] font-bold uppercase tracking-wider">Add Comment</div>
+            <div className="text-xs font-bold text-[#1F2328] mt-1 break-words max-w-[280px]">{task.title}</div>
+          </div>
+          <button onClick={onClose} className="text-[#656D76] hover:text-[#1F2328] text-xl font-bold">&times;</button>
+        </div>
+        {posted ? (
+          <div className="text-center py-8 text-[#1A7F37] font-semibold text-xs">
+            ✓ Comment posted!
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
+            <textarea
+              autoFocus
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Write your comment..."
+              rows={3}
+              className="w-full border border-[#D0D7DE] rounded-md p-2.5 text-xs outline-none focus:border-[#0969DA] resize-none"
+            />
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={onClose} className="px-3 py-1.5 text-xs font-bold text-[#656D76] border border-[#D0D7DE] rounded-md hover:bg-[#F6F8FA] transition-colors">Cancel</button>
+              <button onClick={submit} disabled={!text.trim() || posting} className="px-3 py-1.5 text-xs font-bold text-white bg-[#0969DA] hover:bg-[#0349B6] rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                {posting && <div className="btn-spinner" />}
+                {posting ? "Posting..." : "Post"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ── Task Creation Modal ────────────────────────────────────────────────────────
 const AddTaskModal = ({ open, onClose, projects, onSuccess, currentUserId, currentUsername }) => {
@@ -107,27 +200,27 @@ const AddTaskModal = ({ open, onClose, projects, onSuccess, currentUserId, curre
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden font-sans">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#1F2328]/50 backdrop-blur-sm">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-[#D0D7DE] font-sans">
         <div className="px-5 py-4 border-b border-[#D0D7DE] flex justify-between items-center bg-[#F6F8FA]">
-          <h2 className="text-lg font-bold text-[#1F2328]">Create New Task</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-xl font-bold">&times;</button>
+          <h2 className="text-xs font-bold text-[#1F2328] uppercase tracking-wider">Create New Task</h2>
+          <button onClick={onClose} className="text-[#656D76] hover:text-[#1F2328] text-xl font-bold">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#656D76] uppercase tracking-wider mb-1">Project</label>
-            <select required value={form.projectId} onChange={e => setForm({...form, projectId: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2.5 text-sm outline-none focus:border-[#0969DA] bg-white">
+            <label className="block text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Project</label>
+            <select required value={form.projectId} onChange={e => setForm({...form, projectId: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2 text-xs outline-none focus:border-[#0969DA] bg-white text-[#1F2328] font-medium">
                {projects.map(p => <option key={p._id} value={p._id}>{p.projectName}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-[#656D76] uppercase tracking-wider mb-1">Title</label>
-            <input required autoFocus value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2.5 text-sm outline-none focus:border-[#0969DA]" placeholder="What needs to be done?" />
+            <label className="block text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Title</label>
+            <input required autoFocus value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2 text-xs outline-none focus:border-[#0969DA]" placeholder="What needs to be done?" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-[#656D76] uppercase tracking-wider mb-1">Priority</label>
-              <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2.5 text-sm outline-none focus:border-[#0969DA] bg-white">
+              <label className="block text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Priority</label>
+              <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2 text-xs outline-none focus:border-[#0969DA] bg-white text-[#1F2328] font-medium">
                  <option value="Low">Low</option>
                  <option value="Medium">Medium</option>
                  <option value="High">High</option>
@@ -135,18 +228,18 @@ const AddTaskModal = ({ open, onClose, projects, onSuccess, currentUserId, curre
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-[#656D76] uppercase tracking-wider mb-1">Deadline</label>
-              <input required type="date" min={new Date().toISOString().split('T')[0]} value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2.5 text-sm outline-none focus:border-[#0969DA]" />
+              <label className="block text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Deadline</label>
+              <input required type="date" min={new Date().toISOString().split('T')[0]} value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2 text-xs outline-none focus:border-[#0969DA]" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-[#656D76] uppercase tracking-wider mb-1">Description</label>
-            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2.5 text-sm outline-none focus:border-[#0969DA]" rows="3" placeholder="Add context or criteria..."></textarea>
+            <label className="block text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Description</label>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full border border-[#D0D7DE] rounded-md p-2 text-xs outline-none focus:border-[#0969DA] resize-none" rows="3" placeholder="Add context or criteria..."></textarea>
           </div>
           <div className="pt-3 flex justify-end gap-3 border-t border-[#D0D7DE] mt-4">
-             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-[#656D76] border border-[#D0D7DE] rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-             <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-bold text-white bg-[#0969DA] rounded-md hover:bg-[#0349B6] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-                {submitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
+             <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold text-[#656D76] border border-[#D0D7DE] rounded-md hover:bg-[#F6F8FA] transition-colors">Cancel</button>
+             <button type="submit" disabled={submitting} className="px-4 py-2 text-xs font-bold text-white bg-[#0969DA] rounded-md hover:bg-[#0349B6] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                {submitting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {submitting ? 'Creating...' : 'Create Task'}
              </button>
           </div>
@@ -167,6 +260,10 @@ function App() {
   const [globalCustomDates, setGlobalCustomDates] = useState({ start: "", end: "" });
   const [globalProjectFilter, setGlobalProjectFilter] = useState("All");
 
+  // Inline List Searches
+  const [pendingSearchQuery, setPendingSearchQuery] = useState("");
+  const [completedSearchQuery, setCompletedSearchQuery] = useState("");
+
   // Core Data States
   const [totalActiveProjectsCount, setTotalActiveProjectsCount] = useState(0);
   const [projectsData, setProjectsData] = useState([]);
@@ -177,16 +274,20 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [completingTaskId, setCompletingTaskId] = useState(null);
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
-  const [pendingVisibleCount, setPendingVisibleCount] = useState(10);
   const [completedVisibleCount, setCompletedVisibleCount] = useState(10);
 
-  // Detail Modal States
+  // Detail & Comment Modals
   const [selectedCompletedTask, setSelectedCompletedTask] = useState(null);
   const [openTaskDialog, setOpenTaskDialog] = useState(false);
+  const [commentTask, setCommentTask] = useState(null);
+
+  // Kanban States
+  const [kanbanProject, setKanbanProject] = useState(null);
+  const [kanbanOpen, setKanbanOpen] = useState(false);
+  const [openingKanbanId, setOpeningKanbanId] = useState(null);
 
   // Reset pagination when filters change
   useEffect(() => { 
-    setPendingVisibleCount(10); 
     setCompletedVisibleCount(10);
   }, [globalTimeFilter, globalProjectFilter, globalCustomDates]);
 
@@ -198,7 +299,6 @@ function App() {
       if (!token) return;
       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
-      // THE FIX: ONE SINGLE PARALLEL REQUEST
       const [dashRes, totalRes] = await Promise.allSettled([
         axios.get(`${API_BASE}/api/reports/dashboard`, authHeader),
         axios.get(`${API_BASE}/api/newproject/projects/total-active`, authHeader)
@@ -228,7 +328,6 @@ function App() {
         allCompletedList.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
       }
 
-      // Update State
       setProjectsData(fetchedProjects);
       setTotalActiveProjectsCount(activeCount);
       setPendingTasks(allPending);
@@ -251,7 +350,6 @@ function App() {
   }, [currentUserId, CACHE_KEY]);
 
   useEffect(() => {
-    // Attempt to load from cache first for instant UI response
     const cachedData = sessionStorage.getItem(CACHE_KEY);
     if (cachedData) {
       try {
@@ -261,7 +359,6 @@ function App() {
         setPendingTasks(parsed.pendingTasks || []);
         setAllCompletions(parsed.allCompletions || []);
         setLoading(false);
-        // Silently fetch to sync any background updates
         fetchDashboardData(true); 
       } catch (e) {
         fetchDashboardData();
@@ -271,11 +368,25 @@ function App() {
     }
   }, [fetchDashboardData, CACHE_KEY]);
 
+  // ── Kanban Action ────────────────────────────────────────────────────────────
+  const handleOpenKanban = useCallback((pId) => {
+    setOpeningKanbanId(pId);
+    const targetProject = projectsData.find(p => p._id === pId);
+    
+    setTimeout(() => {
+      if (targetProject) {
+        setKanbanProject(targetProject);
+        setKanbanOpen(true);
+      }
+      setOpeningKanbanId(null);
+    }, 450);
+  }, [projectsData]);
+
   // ── Optimistic Actions ───────────────────────────────────────────────────────
   const handleCompleteTask = async (taskId, projectId) => {
     setCompletingTaskId(taskId);
     
-    // 1. Optimistic UI Update (Instant)
+    // Optimistic UI Update (Instant response)
     const taskToComplete = pendingTasks.find(t => t._id === taskId);
     if (taskToComplete) {
       const mockCompletion = {
@@ -291,7 +402,6 @@ function App() {
       setAllCompletions(prev => [mockCompletion, ...prev]);
     }
 
-    // 2. Background API Sync
     try {
       const token = localStorage.getItem("token");
       await axios.post(`${API_BASE}/api/tasks/${projectId}/${taskId}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
@@ -338,12 +448,17 @@ function App() {
     }
   }, [globalTimeFilter, globalCustomDates]);
 
-  // Apply Global Filters across all data arrays
+  // Apply Global Filters + Search across all data arrays
   const globallyFilteredCompletions = useMemo(() => {
     let list = allCompletions;
     if (globalProjectFilter !== "All") list = list.filter(c => c._projectId === globalProjectFilter);
-    return list.filter(c => isDateInRange(c.completedAt));
-  }, [allCompletions, globalProjectFilter, isDateInRange]);
+    list = list.filter(c => isDateInRange(c.completedAt));
+    if (completedSearchQuery.trim()) {
+      const query = completedSearchQuery.toLowerCase();
+      list = list.filter(c => (c.taskTitle || c.title || "").toLowerCase().includes(query));
+    }
+    return list;
+  }, [allCompletions, globalProjectFilter, isDateInRange, completedSearchQuery]);
 
   const globallyFilteredPending = useMemo(() => {
     let list = pendingTasks;
@@ -356,8 +471,12 @@ function App() {
         (t.deadline && differenceInCalendarDays(new Date(t.deadline), new Date()) < 0) 
       );
     }
+    if (pendingSearchQuery.trim()) {
+      const query = pendingSearchQuery.toLowerCase();
+      list = list.filter(t => (t.title || "").toLowerCase().includes(query));
+    }
     return list;
-  }, [pendingTasks, globalProjectFilter, globalTimeFilter, isDateInRange]);
+  }, [pendingTasks, globalProjectFilter, globalTimeFilter, isDateInRange, pendingSearchQuery]);
 
   const globallyFilteredOverdue = useMemo(() => {
     return globallyFilteredPending.filter(t => t.deadline && differenceInCalendarDays(new Date(t.deadline), new Date()) < 0);
@@ -395,7 +514,7 @@ function App() {
     }));
   }, [globallyFilteredCompletions]);
 
-  // UI Helper
+  // UI Helpers
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'Critical': return 'text-[#D1242F] bg-[#FFEBE9] border-[#FF8182]';
@@ -413,22 +532,22 @@ function App() {
       {/* ── Global Top Navbar ── */}
       <nav className="sticky top-15 z-[50] bg-white border-b border-[#D0D7DE] shadow-sm px-6 py-3 flex flex-col sm:flex-row gap-4 justify-between items-center w-full">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#0969DA] text-white flex items-center justify-center font-bold text-sm">
+          <div className="w-8 h-8 rounded-full bg-[#0969DA] text-white flex items-center justify-center font-bold text-xs">
             {username.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h1 className="text-sm font-bold leading-tight">Developer Home</h1>
-            <p className="text-[10px] text-[#656D76] uppercase tracking-wider font-semibold">Welcome back, {username}</p>
+            <h1 className="text-xs font-bold leading-tight text-[#1F2328]">Developer Workspace</h1>
+            <p className="text-[9px] text-[#656D76] uppercase tracking-wider font-bold">Active Assignment: {username}</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 bg-[#F6F8FA] p-1.5 rounded-lg border border-[#D0D7DE]">
+        <div className="flex flex-wrap items-center gap-3 bg-[#F6F8FA] p-1.5 rounded-lg border border-[#D0D7DE]">
           <div className="flex items-center gap-2 px-2 border-r border-[#D0D7DE]">
-            <ClockIcon className="w-4 h-4 text-[#656D76]" />
+            <ClockIcon className="w-3.5 h-3.5 text-[#656D76]" />
             <select 
               value={globalTimeFilter} 
               onChange={e => setGlobalTimeFilter(e.target.value)} 
-              className="bg-transparent border-none text-xs font-bold text-[#1F2328] outline-none cursor-pointer py-1"
+              className="bg-transparent border-none text-[11px] font-bold text-[#1F2328] outline-none cursor-pointer py-1"
             >
               <option value="Today">Today</option>
               <option value="Yesterday">Yesterday</option>
@@ -441,19 +560,19 @@ function App() {
           </div>
 
           {globalTimeFilter === "Custom" && (
-            <div className="flex items-center gap-2 px-2 border-r border-[#D0D7DE]">
-              <input type="date" value={globalCustomDates.start} onChange={e => setGlobalCustomDates({...globalCustomDates, start: e.target.value})} className="border border-[#D0D7DE] bg-white rounded text-[10px] px-1 py-1 outline-none font-semibold" />
+            <div className="flex items-center gap-2 px-2 border-r border-[#D0D7DE] animate-fadeIn">
+              <input type="date" value={globalCustomDates.start} onChange={e => setGlobalCustomDates({...globalCustomDates, start: e.target.value})} className="border border-[#D0D7DE] bg-white rounded text-[10px] px-1 py-1 outline-none font-semibold text-[#1F2328]" />
               <span className="text-[10px] text-[#656D76] font-bold">to</span>
-              <input type="date" value={globalCustomDates.end} onChange={e => setGlobalCustomDates({...globalCustomDates, end: e.target.value})} className="border border-[#D0D7DE] bg-white rounded text-[10px] px-1 py-1 outline-none font-semibold" />
+              <input type="date" value={globalCustomDates.end} onChange={e => setGlobalCustomDates({...globalCustomDates, end: e.target.value})} className="border border-[#D0D7DE] bg-white rounded text-[10px] px-1 py-1 outline-none font-semibold text-[#1F2328]" />
             </div>
           )}
 
           <div className="flex items-center gap-2 px-2">
-            <ClipboardDocumentCheckIcon className="w-4 h-4 text-[#656D76]" />
+            <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-[#656D76]" />
             <select 
               value={globalProjectFilter} 
               onChange={e => setGlobalProjectFilter(e.target.value)} 
-              className="bg-transparent border-none text-xs font-bold text-[#1F2328] outline-none cursor-pointer py-1 max-w-[200px]"
+              className="bg-transparent border-none text-[11px] font-bold text-[#1F2328] outline-none cursor-pointer py-1 max-w-[180px]"
             >
               <option value="All">All Projects</option>
               {projectsData.map(p => <option key={p._id} value={p._id}>{p.projectName}</option>)}
@@ -471,156 +590,183 @@ function App() {
         currentUsername={username}
       />
 
-      <main className="max-w-[95%] mx-auto py-8 sm:px-6 lg:px-8 space-y-6 w-full flex-1">
+      <main className="max-w-[95%] mx-auto py-6 sm:px-6 lg:px-8 space-y-6 w-full flex-1">
         
-        {/* --- Top Metrics Grid --- */}
+        {/* --- Metrics Overview Grid --- */}
         <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg shadow-sm border border-[#D0D7DE] flex items-center justify-between">
+          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg border border-[#D0D7DE] flex items-center justify-between shadow-sm hover:shadow transition-shadow">
             <div>
               <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Active Projects</p>
-              <p className="text-2xl font-base text-[#1F2328] mt-1">{totalActiveProjectsCount}</p>
+              <p className="text-2xl font-bold text-[#1F2328] mt-1">{totalActiveProjectsCount}</p>
             </div>
-            <div className="p-3 bg-blue-50 rounded-lg"><ClipboardDocumentCheckIcon className="h-6 w-6 text-[#0969DA]" /></div>
+            <div className="p-3 bg-blue-50 rounded-lg"><ClipboardDocumentCheckIcon className="h-5 w-5 text-[#0969DA]" /></div>
           </motion.div>
-          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg shadow-sm border border-[#D0D7DE] flex items-center justify-between">
+          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg border border-[#D0D7DE] flex items-center justify-between shadow-sm hover:shadow transition-shadow">
             <div>
-              <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Pending (Filtered)</p>
-              <p className="text-2xl font-base text-[#0969DA] mt-1">{globallyFilteredPending.length}</p>
+              <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Pending Tasks</p>
+              <p className="text-2xl font-bold text-[#0969DA] mt-1">{globallyFilteredPending.length}</p>
             </div>
-            <div className="p-3 bg-blue-50 rounded-lg"><ClockIcon className="h-6 w-6 text-[#0969DA]" /></div>
+            <div className="p-3 bg-blue-50 rounded-lg"><ClockIcon className="h-5 w-5 text-[#0969DA]" /></div>
           </motion.div>
-          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg shadow-sm border border-[#D0D7DE] flex items-center justify-between">
+          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg border border-[#D0D7DE] flex items-center justify-between shadow-sm hover:shadow transition-shadow">
             <div>
               <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Overdue</p>
-              <p className="text-2xl font-base text-[#D1242F] mt-1">{globallyFilteredOverdue.length}</p>
+              <p className="text-2xl font-bold text-[#D1242F] mt-1">{globallyFilteredOverdue.length}</p>
             </div>
-            <div className="p-3 bg-red-50 rounded-lg"><ExclamationCircleIcon className="h-6 w-6 text-[#D1242F]" /></div>
+            <div className="p-3 bg-red-50 rounded-lg"><ExclamationCircleIcon className="h-5 w-5 text-[#D1242F]" /></div>
           </motion.div>
-          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg shadow-sm border border-[#D0D7DE] flex items-center justify-between">
+          <motion.div variants={itemVariants} className="bg-white p-5 rounded-lg border border-[#D0D7DE] flex items-center justify-between shadow-sm hover:shadow transition-shadow">
             <div>
-              <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Completed (Filtered)</p>
-              <p className="text-2xl font-base text-[#1A7F37] mt-1">{globallyFilteredCompletions.length}</p>
+              <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Completed Tasks</p>
+              <p className="text-2xl font-bold text-[#1A7F37] mt-1">{globallyFilteredCompletions.length}</p>
             </div>
-            <div className="p-3 bg-green-50 rounded-lg"><CheckBadgeIcon className="h-6 w-6 text-[#1A7F37]" /></div>
+            <div className="p-3 bg-green-50 rounded-lg"><CheckBadgeIcon className="h-5 w-5 text-[#1A7F37]" /></div>
           </motion.div>
         </motion.div>
 
-        {/* --- Bar Charts Section --- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* --- Primary Workspace: Pending Workspace Docket & Completions History --- */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           
-          <div className="bg-white rounded-lg shadow-sm border border-[#D0D7DE] p-5">
-            <h3 className="text-sm font-bold text-[#1F2328] mb-4 uppercase tracking-wider">Completed vs Pending (Filtered)</h3>
-            <div className="h-64 w-full">
-              {projectBarData.length === 0 ? (
-                <div className="h-full w-full flex items-center justify-center text-sm font-semibold text-[#656D76]">No data for selected filters.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={projectBarData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#656D76' }} dy={10} tickFormatter={(v) => v.length > 12 ? v.substring(0,12)+"..." : v} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#656D76' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: '#F6F8FA' }} contentStyle={{ borderRadius: '8px', border: '1px solid #D0D7DE', fontWeight: 600 }} />
-                    <Legend wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
-                    <Bar dataKey="Completed" fill="#1A7F37" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    <Bar dataKey="Pending" fill="#0969DA" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-[#D0D7DE] p-5">
-            <h3 className="text-sm font-bold text-[#1F2328] mb-4 uppercase tracking-wider">Completed Grouped by Priority</h3>
-            <div className="h-64 w-full">
-              {globallyFilteredCompletions.length === 0 ? (
-                <div className="h-full w-full flex items-center justify-center text-sm font-semibold text-[#656D76]">No completed tasks found.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={priorityBarData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis dataKey="priority" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#656D76' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#656D76' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: '#F6F8FA' }} contentStyle={{ borderRadius: '8px', border: '1px solid #D0D7DE', fontWeight: 600 }} />
-                    <Bar dataKey="Completed" fill="#BF8700" radius={[4, 4, 0, 0]} maxBarSize={60} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-[#D0D7DE] p-5">
-             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
-                <h3 className="text-sm font-bold text-[#1F2328] uppercase tracking-wider">Daily Completions Timeline (Filtered)</h3>
-             </div>
-             <div className="h-64 w-full">
-               {dailyCompletionData.length === 0 ? (
-                 <div className="h-full w-full flex items-center justify-center text-sm font-semibold text-[#656D76]">
-                    No completed tasks found in this date range.
-                 </div>
-               ) : (
-                 <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={dailyCompletionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#656D76' }} dy={10} />
-                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#656D76' }} allowDecimals={false} />
-                     <RechartsTooltip cursor={{ fill: '#F6F8FA' }} contentStyle={{ borderRadius: '8px', border: '1px solid #D0D7DE', fontWeight: 600 }} />
-                     <Bar dataKey="Completed" fill="#8250DF" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                   </BarChart>
-                 </ResponsiveContainer>
-               )}
-             </div>
-          </div>
-        </motion.div>
-
-        {/* --- Layout: Completed Tasks & Action Center --- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          
-          <div className="xl:col-span-2 bg-white rounded-lg shadow-sm border border-[#D0D7DE] overflow-hidden flex flex-col">
+          {/* Unified Action Work Board System */}
+          <div className="xl:col-span-2 bg-white rounded-lg border border-[#D0D7DE] overflow-hidden flex flex-col shadow-sm">
             <div className="px-5 py-4 border-b border-[#D0D7DE] bg-[#F6F8FA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h3 className="text-sm font-bold text-[#1F2328] uppercase tracking-wider">Completed History (Filtered)</h3>
+              <div>
+                <h3 className="text-xs font-bold text-[#1F2328] uppercase tracking-wider">My Pending Tasks</h3>
+                <span className="text-[10px] text-[#656D76] font-semibold">{globallyFilteredPending.length} Tasks Scheduled</span>
+              </div>
+              
+              <div className="flex gap-2 items-center w-full sm:w-auto">
+                {/* Board Inline Search */}
+                <div className="relative flex-1 sm:flex-initial">
+                  <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 w-4 h-4 text-[#8C959F]" />
+                  <input
+                    type="text"
+                    value={pendingSearchQuery}
+                    onChange={e => setPendingSearchQuery(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="w-full bg-white border border-[#D0D7DE] rounded-md py-1.5 pl-8 pr-3 text-xs outline-none focus:border-[#0969DA] font-medium"
+                  />
+                </div>
+                <button onClick={() => setAddTaskModalOpen(true)} className="flex items-center gap-1.5 bg-[#0969DA] hover:bg-[#0349B6] text-white text-xs font-bold py-2 px-3 rounded-md transition-colors shadow-sm flex-shrink-0">
+                  <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} /> Add Task
+                </button>
+              </div>
             </div>
-            <div className="p-0 max-h-[450px] overflow-y-auto custom-scrollbar flex-1">
+
+            {/* Task Workspace List */}
+            <div className="p-4 bg-[#F8F9FA] flex-1 min-h-[420px] overflow-y-auto max-h-[420px] custom-scrollbar">
+              {globallyFilteredPending.length === 0 ? (
+                <div className="text-center py-20 text-xs text-[#8C959F] font-medium">No pending tasks found. All caught up! 🎉</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {globallyFilteredPending.map(task => {
+                    const isOverdue = task.deadline && differenceInCalendarDays(new Date(task.deadline), new Date()) < 0;
+                    const isCompleting = completingTaskId === task._id;
+                    const isKanbanLoading = openingKanbanId === task._projectId;
+
+                    return (
+                      <div key={task._id} className={`p-4 bg-[#FCFDFE] border border-[#D0D7DE] rounded-md shadow-sm hover:border-[#0969DA]/40 transition-colors relative flex flex-col justify-between ${isOverdue ? "border-l-4 border-l-[#D1242F]" : ""}`}>
+                        <div>
+                          <div className="flex justify-between items-start gap-2 mb-1.5">
+                            <span className="text-xs font-bold text-[#1F2328] leading-tight block break-words">{task.title}</span>
+                            <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                              {task.priority}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-[#656D76] font-bold block truncate mb-4">{task._projectName}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center pt-3 border-t border-[#EAEEF2] mt-auto">
+                          <div className="flex gap-2">
+                            <button 
+                              disabled={isCompleting}
+                              onClick={() => handleCompleteTask(task._id, task._projectId)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-[#1A7F37] bg-[#DAFBE1] border border-[#4AC26B]/30 hover:bg-[#c1f5cc] px-2.5 py-1 rounded transition-colors"
+                            >
+                              {isCompleting ? <div className="btn-spinner" /> : <CheckIcon className="w-3 h-3 text-[#1A7F37]" strokeWidth={3} />}
+                              Mark As Done
+                            </button>
+                            
+                            <button onClick={() => setCommentTask(task)} className="p-1 text-[#656D76] hover:text-[#0969DA] bg-gray-50 hover:bg-blue-50 rounded border border-[#D0D7DE] transition-colors">
+                              <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {task.deadline && (
+                              <span className={`text-[9px] font-bold flex items-center ${isOverdue ? 'text-[#D1242F]' : 'text-[#656D76]'}`}>
+                                {isOverdue ? 'Overdue' : format(new Date(task.deadline), "MMM d")}
+                              </span>
+                            )}
+                            <button 
+                              disabled={isKanbanLoading}
+                              onClick={() => handleOpenKanban(task._projectId)}
+                              className="text-[10px] text-[#0969DA] hover:underline flex items-center gap-0.5 font-bold cursor-pointer"
+                            >
+                              {isKanbanLoading && <div className="btn-spinner" />}
+                              View Kanban
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Completed History List */}
+          <div className="bg-white rounded-lg border border-[#D0D7DE] overflow-hidden flex flex-col shadow-sm">
+            <div className="px-5 py-4 border-b border-[#D0D7DE] bg-[#F6F8FA] flex flex-col gap-3 flex-shrink-0">
+              <h3 className="text-xs font-bold text-[#1F2328] uppercase tracking-wider">Completed History ({globallyFilteredCompletions.length})</h3>
+              
+              {/* Completed Inline Search */}
+              <div className="relative w-full">
+                <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 w-4 h-4 text-[#8C959F]" />
+                <input
+                  type="text"
+                  value={completedSearchQuery}
+                  onChange={e => setCompletedSearchQuery(e.target.value)}
+                  placeholder="Search completions..."
+                  className="w-full bg-white border border-[#D0D7DE] rounded-md py-1.5 pl-8 pr-3 text-xs outline-none focus:border-[#0969DA] font-medium"
+                />
+              </div>
+            </div>
+            
+            <div className="max-h-[420px] overflow-y-auto custom-scrollbar flex-1 divide-y divide-[#EAEEF2]">
               {globallyFilteredCompletions.length === 0 ? (
-                <div className="p-8 text-center text-sm text-[#656D76] font-medium">No completed tasks match your filters.</div>
+                <div className="p-8 text-center text-xs text-[#656D76] font-medium">No completions found.</div>
               ) : (
                 <>
-                  <ul className="divide-y divide-gray-100">
-                    {globallyFilteredCompletions.slice(0, completedVisibleCount).map((task) => (
-                      <li 
-                        key={task._id || task.taskId} 
-                        className="p-4 hover:bg-[#F6F8FA] transition-colors cursor-pointer" 
-                        onClick={() => { setSelectedCompletedTask(task); setOpenTaskDialog(true); }}
-                      >
-                        <div className="flex justify-between items-start mb-1.5">
-                          <div>
-                            <p className="text-sm font-bold text-[#1F2328] leading-tight">{task.taskTitle || task.title}</p>
-                            <p className="text-[10px] text-[#656D76] mt-1 uppercase tracking-wider font-semibold">
-                              {projectsData.find(p => p._id === task._projectId)?.projectName || "Unknown Project"}
-                            </p>
-                          </div>
-                          <span className="flex-shrink-0 text-[10px] bg-green-100 text-green-800 border border-green-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            Completed
-                          </span>
+                  {globallyFilteredCompletions.slice(0, completedVisibleCount).map((task) => (
+                    <div 
+                      key={task._id || task.taskId} 
+                      className="p-4 hover:bg-[#F6F8FA] transition-colors cursor-pointer flex justify-between items-start gap-4" 
+                      onClick={() => { setSelectedCompletedTask(task); setOpenTaskDialog(true); }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
+                        <p className="text-[9px] text-[#656D76] mt-0.5 uppercase tracking-wider font-bold truncate">
+                          {projectsData.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
+                        </p>
+                        <div className="flex gap-4 items-center mt-3 text-[10px] text-[#656D76] font-medium">
+                          <span className="flex items-center"><ClockIcon className="w-3.5 h-3.5 mr-1" />Done {format(new Date(task.completedAt), "MMM d")}</span>
                         </div>
-                        <div className="flex justify-between items-center mt-3">
-                          <div className="text-[11px] text-[#656D76] font-medium flex items-center">
-                             <ClockIcon className="w-3 h-3 mr-1" /> 
-                             Done on {format(new Date(task.completedAt), "MMM d, yyyy h:mm a")}
-                          </div>
-                          <div className="text-[11px] font-bold text-[#1F2328]">
-                             By: {task.completedBy?.username || username}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                      
+                      <button className="flex items-center gap-1 border border-[#D0D7DE] bg-white hover:bg-gray-50 text-[10px] font-bold text-[#656D76] py-1 px-2 rounded transition-colors flex-shrink-0">
+                        <EyeIcon className="w-3 h-3" /> View
+                      </button>
+                    </div>
+                  ))}
                   {completedVisibleCount < globallyFilteredCompletions.length && (
-                    <div className="p-3 text-center border-t border-[#D0D7DE]">
+                    <div className="p-3 text-center border-t border-[#D0D7DE] bg-[#F6F8FA]">
                       <button 
                         onClick={() => setCompletedVisibleCount(prev => prev + 10)}
                         className="text-xs font-bold text-[#0969DA] hover:underline"
                       >
-                        Load More Completed Tasks...
+                        Load More Completed
                       </button>
                     </div>
                   )}
@@ -628,74 +774,76 @@ function App() {
               )}
             </div>
           </div>
+        </motion.div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-[#D0D7DE] overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-[#D0D7DE] bg-[#F6F8FA] flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-[#1F2328] uppercase tracking-wider">Action Center (Filtered)</h3>
-                <span className="bg-[#DDF4FF] text-[#0969DA] border border-[#54AEFF] text-[10px] py-0.5 px-2 rounded-full font-bold uppercase">{globallyFilteredPending.length} pending</span>
-              </div>
-              <button onClick={() => setAddTaskModalOpen(true)} className="w-full flex items-center justify-center gap-2 bg-[#0969DA] hover:bg-[#0349B6] text-white text-sm font-bold py-2 rounded-md transition-colors">
-                <PlusIcon className="w-4 h-4 text-white font-bold" strokeWidth={3} /> Add New Task
-              </button>
-            </div>
-            <div className="p-0 max-h-[385px] overflow-y-auto custom-scrollbar flex-1">
-              {globallyFilteredPending.length === 0 ? (
-                <div className="p-8 text-center text-sm text-[#656D76] font-medium">You're all caught up for this period! 🎉</div>
+        {/* --- Visual Analysis Row (Repositioned to the footer block) --- */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <div className="bg-white rounded-lg border border-[#D0D7DE] p-5 shadow-sm">
+            <h3 className="text-xs font-bold text-[#1F2328] mb-4 uppercase tracking-wider">Completed vs Pending Assignments</h3>
+            <div className="h-64 w-full">
+              {projectBarData.length === 0 ? (
+                <div className="h-full w-full flex items-center justify-center text-xs font-semibold text-[#656D76]">No data matches current operations.</div>
               ) : (
-                <>
-                  <ul className="divide-y divide-gray-100">
-                    {globallyFilteredPending.slice(0, pendingVisibleCount).map((task) => {
-                      const isOverdue = task.deadline && differenceInCalendarDays(new Date(task.deadline), new Date()) < 0;
-                      const isCompleting = completingTaskId === task._id;
-                      
-                      return (
-                        <li key={task._id} className={`p-4 hover:bg-[#F6F8FA] transition-colors ${isOverdue ? 'border-l-4 border-l-[#D1242F]' : ''}`}>
-                          <div className="flex justify-between items-start mb-1.5">
-                            <div>
-                              <p className="text-sm font-bold text-[#1F2328] leading-tight">{task.title}</p>
-                              <p className="text-[10px] text-[#656D76] mt-1 uppercase tracking-wider font-semibold">{task._projectName}</p>
-                            </div>
-                            <span className={`flex-shrink-0 text-[10px] border px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
-                              {task.priority}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center mt-3">
-                            <button 
-                              disabled={isCompleting}
-                              onClick={() => handleCompleteTask(task._id, task._projectId)}
-                              className="flex items-center justify-center gap-1 min-w-[90px] text-[11px] font-bold text-[#1A7F37] bg-[#DAFBE1] hover:bg-[#c1f5cc] px-2 py-1.5 border border-[#4AC26B] rounded-md transition-colors disabled:opacity-50"
-                            >
-                              {isCompleting ? (
-                                <div className="w-3 h-3 border-2 border-[#1A7F37] border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <><CheckIcon className="w-3.5 h-3.5" strokeWidth={3} /> Mark Done</>
-                              )}
-                            </button>
-                            {task.deadline && (
-                              <span className={`text-[10px] font-bold flex items-center ${isOverdue ? 'text-[#D1242F]' : 'text-[#656D76]'}`}>
-                                <ClockIcon className="w-3 h-3 mr-1" />
-                                {isOverdue ? 'Overdue' : format(new Date(task.deadline), "MMM d")}
-                              </span>
-                            )}
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                  {pendingVisibleCount < globallyFilteredPending.length && (
-                    <div className="p-3 text-center border-t border-[#D0D7DE]">
-                      <button 
-                        onClick={() => setPendingVisibleCount(prev => prev + 10)}
-                        className="text-xs font-bold text-[#0969DA] hover:underline"
-                      >
-                        Load More Pending Tasks...
-                      </button>
-                    </div>
-                  )}
-                </>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={projectBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAEEF2" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} tickFormatter={(v) => v.length > 12 ? v.substring(0,11)+"..." : v} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
+                    <RechartsTooltip cursor={{ fill: '#F6F8FA' }} contentStyle={{ borderRadius: '6px', border: '1px solid #D0D7DE', fontSize: '11px', fontFamily: "'DM Sans', sans-serif" }} />
+                    <Legend wrapperStyle={{ fontSize: '11px', pt: 10 }} />
+                    <Bar dataKey="Completed" fill="#1A7F37" radius={[3, 3, 0, 0]} maxBarSize={30} />
+                    <Bar dataKey="Pending" fill="#0969DA" radius={[3, 3, 0, 0]} maxBarSize={30} />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-[#D0D7DE] p-5 shadow-sm">
+            <h3 className="text-xs font-bold text-[#1F2328] mb-4 uppercase tracking-wider">Completed Tasks Sorted By Priority</h3>
+            <div className="h-64 w-full">
+              {globallyFilteredCompletions.length === 0 ? (
+                <div className="h-full w-full flex items-center justify-center text-xs font-semibold text-[#656D76]">No tasks completed within current filters.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={priorityBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAEEF2" />
+                    <XAxis dataKey="priority" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
+                    <RechartsTooltip cursor={{ fill: '#F6F8FA' }} contentStyle={{ borderRadius: '6px', border: '1px solid #D0D7DE', fontSize: '11px', fontFamily: "'DM Sans', sans-serif" }} />
+                    <Bar dataKey="Completed" fill="#BF8700" radius={[3, 3, 0, 0]} maxBarSize={45} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 bg-white rounded-lg border border-[#D0D7DE] p-5 shadow-sm">
+             <h3 className="text-xs font-bold text-[#1F2328] mb-4 uppercase tracking-wider">Daily Completions Progress Tracker</h3>
+             <div className="h-64 w-full">
+               {dailyCompletionData.length === 0 ? (
+                 <div className="h-full w-full flex items-center justify-center text-xs font-semibold text-[#656D76]">
+                    No completed tasks listed in this date range.
+                 </div>
+               ) : (
+                 <ResponsiveContainer width="100%" height="100%">
+                   <AreaChart data={dailyCompletionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                     <defs>
+                       <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                         <stop offset="5%" stopColor="#8250DF" stopOpacity={0.4}/>
+                         <stop offset="95%" stopColor="#8250DF" stopOpacity={0}/>
+                       </linearGradient>
+                     </defs>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAEEF2" />
+                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
+                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
+                     <RechartsTooltip cursor={{ fill: '#F6F8FA' }} contentStyle={{ borderRadius: '6px', border: '1px solid #D0D7DE', fontSize: '11px', fontFamily: "'DM Sans', sans-serif" }} />
+                     <Area type="monotone" dataKey="Completed" stroke="#8250DF" fillOpacity={1} fill="url(#colorCompleted)" strokeWidth={2} />
+                   </AreaChart>
+                 </ResponsiveContainer>
+               )}
+             </div>
           </div>
         </motion.div>
 
@@ -703,64 +851,115 @@ function App() {
 
       {/* --- Completed Task Details Modal --- */}
       {selectedCompletedTask && (
-        <Dialog open={openTaskDialog} onClose={() => setOpenTaskDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '8px' } }}>
-          <DialogTitle sx={{ bgcolor: "#F6F8FA", py: 2, borderBottom: '1px solid #D0D7DE' }}>
-            <Typography variant="h6" component="span" sx={{ fontWeight: 700, color: '#1F2328', fontFamily: "'DM Sans', sans-serif" }}>
-              Completed Task Details
+        <Dialog open={openTaskDialog} onClose={() => setOpenTaskDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '8px', border: '1px solid #D0D7DE', boxShadow: '0 8px 30px rgba(0,0,0,0.12)' } }}>
+          <DialogTitle sx={{ bgcolor: "#F6F8FA", py: 2, px: 3, borderBottom: '1px solid #D0D7DE' }}>
+            <Typography variant="span" sx={{ fontSize: '0.85rem', fontWeight: 800, color: '#1F2328', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: T.font }}>
+              Completed Task Profile
             </Typography>
           </DialogTitle>
-          <DialogContent sx={{ py: 3, fontFamily: "'DM Sans', sans-serif" }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <DialogContent sx={{ py: 3, px: 3, fontFamily: T.font }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               <div>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Task Title</Typography>
-                <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#1F2328' }}>
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5, fontFamily: T.font }}>Task Title</Typography>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#1F2328', fontFamily: T.font }}>
                   {selectedCompletedTask.taskTitle || selectedCompletedTask.title}
                 </Typography>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Project</Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#0969DA' }}>
-                    {projectsData.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "Unknown Project"}
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5, fontFamily: T.font }}>Project Space</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#0969DA', fontFamily: T.font }}>
+                    {projectsData.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Completed At</Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#1F2328' }}>
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5, fontFamily: T.font }}>Completions Metric</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#1F2328', fontFamily: T.font }}>
                     {format(new Date(selectedCompletedTask.completedAt), "MMM d, yyyy 'at' h:mm a")}
                   </Typography>
                 </Box>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Completed By</Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#1F2328' }}>
-                    {selectedCompletedTask.completedBy?.username || "System/Unknown"}
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5, fontFamily: T.font }}>Completed By</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#1F2328', fontFamily: T.font }}>
+                    {selectedCompletedTask.completedBy?.username || "System Owner"}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Originally Assigned By</Typography>
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#1F2328' }}>
-                    {selectedCompletedTask.assignedBy?.username || "System/Unknown"}
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5, fontFamily: T.font }}>Originally Assigned By</Typography>
+                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#1F2328', fontFamily: T.font }}>
+                    {selectedCompletedTask.assignedBy?.username || "System Assignment"}
                   </Typography>
                 </Box>
               </div>
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: '1px solid #D0D7DE', bgcolor: "#F6F8FA" }}>
-            <Button onClick={() => setOpenTaskDialog(false)} variant="outlined" sx={{ textTransform: 'none', borderRadius: '6px', color: '#1F2328', borderColor: '#D0D7DE', fontWeight: 600 }}>
-              Close Details
-            </Button>
+          <DialogActions sx={{ p: 2, borderTop: '1px solid #D0D7DE', bgcolor: "#F6F8FA", px: 3 }}>
+            <button onClick={() => setOpenTaskDialog(false)} className="border border-[#D0D7DE] bg-white hover:bg-gray-50 text-xs font-bold text-[#1F2328] py-1.5 px-4 rounded transition-colors">
+              Close Overview
+            </button>
           </DialogActions>
         </Dialog>
       )}
 
+      {/* Comment Trigger Modal */}
+      {commentTask && (
+        <CommentModal
+          task={commentTask}
+          projectId={commentTask._projectId}
+          onClose={() => setCommentTask(null)}
+        />
+      )}
+
+      {/* Lazy-Loaded Fullscreen Kanban Integration */}
+      {kanbanProject && (
+        <Suspense fallback={
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center"
+          }}>
+            <div style={{
+              background: T.bgCard, padding: "20px 30px", borderRadius: T.radius,
+              boxShadow: T.shadowMd, fontFamily: T.font, display: "flex", alignItems: "center", gap: 10
+            }}>
+              <span className="btn-spinner" style={{ color: T.accent }} />
+              <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Loading Kanban Board...</span>
+            </div>
+          </div>
+        }>
+          <ProjectKanban
+            open={kanbanOpen}
+            onClose={() => {
+              setKanbanOpen(false);
+              setKanbanProject(null);
+              fetchDashboardData(true);
+            }}
+            project={kanbanProject}
+          />
+        </Suspense>
+      )}
+
       {/* Scoped Custom Scrollbar Styles */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #D0D7DE; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .btn-spinner {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border: 2px solid currentColor;
+          border-right-color: transparent;
+          border-radius: 50%;
+          animation: spin 0.75s linear infinite;
+        }
       `}</style>
     </div>
   );
