@@ -432,8 +432,8 @@ const styles = `
     /* Neumorphic bottom elevation instead of a hard border */
     box-shadow: 0 4px 10px -2px rgba(209, 220, 235, 0.6);
     border: none;
-    padding: 0 32px;
-    height: 60px;
+    padding: 20px 32px;
+    height: 70px;
     display: flex;
     align-items: center;
     justify-content: space-between;
