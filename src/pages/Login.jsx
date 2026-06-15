@@ -200,30 +200,33 @@ import assets from "../assets/assets";
 
 // 1. Define the array of background images outside the component
 const backgroundImages = [
-  "https://i.pinimg.com/736x/a2/ba/47/a2ba478f5dc260c9c7206d9e135d5a6c.jpg",
-  "https://i.pinimg.com/1200x/68/52/10/685210205681ae1390baac25521b9184.jpg",
-  "https://i.pinimg.com/736x/b1/70/a4/b170a4c25b928ff9ebac7e652edb4bff.jpg",
-  "https://i.pinimg.com/736x/93/7a/f2/937af278f6b91e6a72b5e934d8886edc.jpg",
-  "https://i.pinimg.com/736x/8d/ad/ab/8dadab433935be93e3422117decad7a7.jpg",
-  "https://i.pinimg.com/736x/37/af/93/37af9339454a9acccf68980ae4e544a1.jpg",
-  "https://i.pinimg.com/736x/b7/d9/68/b7d9686ada317477f56ef48b2f76d7e8.jpg",
-  "https://i.pinimg.com/736x/8e/fd/d8/8efdd801910211cafea0f3842943ae64.jpg",
-  "https://i.pinimg.com/736x/d3/55/b7/d355b7f8720d0d828c9300c692084635.jpg",
-  "https://i.pinimg.com/736x/1a/d6/fd/1ad6fdd1cd2cc7cc574b6ba59ce70dce.jpg",
-  "https://i.pinimg.com/736x/3a/52/88/3a52887de4cec028c22ee9b591e9bc9a.jpg",
-  "https://i.pinimg.com/736x/ee/d0/df/eed0df9f1d32e0561fe6a8d56a44bb56.jpg",
-  "https://i.pinimg.com/1200x/4f/ba/e6/4fbae630fa98ac8f20b55f95a45ce770.jpg",
-  "https://i.pinimg.com/736x/de/9d/8f/de9d8f36a9b24a669c084aa28bfda48b.jpg",
-  "https://i.pinimg.com/1200x/88/57/78/885778d4dc8e891f9dc98dbe5a09ec01.jpg",
-  "https://i.pinimg.com/736x/b7/2d/48/b72d4887d9564504091f4a234da3abc2.jpg",
-  "https://i.pinimg.com/1200x/07/01/d5/0701d55514550cd3fcd9570f08854eb0.jpg",
-  "https://i.pinimg.com/736x/9e/cb/68/9ecb68509f8d029e59c364b788604458.jpg",
-  "https://i.pinimg.com/736x/3a/94/53/3a94531d37d3dba6c43d6f510bec5cee.jpg",
-  "https://i.pinimg.com/736x/d7/24/17/d72417b4f80d6d8774c19e932026cfc5.jpg",
-  "https://i.pinimg.com/736x/4a/8d/55/4a8d55e2afed93ab20767ffe3b9ee843.jpg",
-  "https://i.pinimg.com/474x/47/10/50/4710507c2047c8d66ec10cd024964161.jpg",
-  "https://i.pinimg.com/736x/73/ff/17/73ff1722e96eb74d73af415bb69876b1.jpg"
+"https://res.cloudinary.com/dvcuarakg/image/upload/v1781502796/cat_cute_kitty_wallpaper_lockscreen_papel_de_parede_j8s6dt.jpg"
 ];
+
+
+  // "https://i.pinimg.com/736x/a2/ba/47/a2ba478f5dc260c9c7206d9e135d5a6c.jpg",
+  // "https://i.pinimg.com/1200x/68/52/10/685210205681ae1390baac25521b9184.jpg",
+  // "https://i.pinimg.com/736x/b1/70/a4/b170a4c25b928ff9ebac7e652edb4bff.jpg",
+  // "https://i.pinimg.com/736x/93/7a/f2/937af278f6b91e6a72b5e934d8886edc.jpg",
+  // "https://i.pinimg.com/736x/8d/ad/ab/8dadab433935be93e3422117decad7a7.jpg",
+  // "https://i.pinimg.com/736x/37/af/93/37af9339454a9acccf68980ae4e544a1.jpg",
+  // "https://i.pinimg.com/736x/b7/d9/68/b7d9686ada317477f56ef48b2f76d7e8.jpg",
+  // "https://i.pinimg.com/736x/8e/fd/d8/8efdd801910211cafea0f3842943ae64.jpg",
+  // "https://i.pinimg.com/736x/d3/55/b7/d355b7f8720d0d828c9300c692084635.jpg",
+  // "https://i.pinimg.com/736x/1a/d6/fd/1ad6fdd1cd2cc7cc574b6ba59ce70dce.jpg",
+  // "https://i.pinimg.com/736x/3a/52/88/3a52887de4cec028c22ee9b591e9bc9a.jpg",
+  // "https://i.pinimg.com/736x/ee/d0/df/eed0df9f1d32e0561fe6a8d56a44bb56.jpg",
+  // "https://i.pinimg.com/1200x/4f/ba/e6/4fbae630fa98ac8f20b55f95a45ce770.jpg",
+  // "https://i.pinimg.com/736x/de/9d/8f/de9d8f36a9b24a669c084aa28bfda48b.jpg",
+  // "https://i.pinimg.com/1200x/88/57/78/885778d4dc8e891f9dc98dbe5a09ec01.jpg",
+  // "https://i.pinimg.com/736x/b7/2d/48/b72d4887d9564504091f4a234da3abc2.jpg",
+  // "https://i.pinimg.com/1200x/07/01/d5/0701d55514550cd3fcd9570f08854eb0.jpg",
+  // "https://i.pinimg.com/736x/9e/cb/68/9ecb68509f8d029e59c364b788604458.jpg",
+  // "https://i.pinimg.com/736x/3a/94/53/3a94531d37d3dba6c43d6f510bec5cee.jpg",
+  // "https://i.pinimg.com/736x/d7/24/17/d72417b4f80d6d8774c19e932026cfc5.jpg",
+  // "https://i.pinimg.com/736x/4a/8d/55/4a8d55e2afed93ab20767ffe3b9ee843.jpg",
+  // "https://i.pinimg.com/474x/47/10/50/4710507c2047c8d66ec10cd024964161.jpg",
+  // "https://i.pinimg.com/736x/73/ff/17/73ff1722e96eb74d73af415bb69876b1.jpg"
 
 const Login = () => {
   // 2. Select a random image from the array on initial component mount
