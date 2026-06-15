@@ -200,7 +200,7 @@ const Login = () => {
           >
             {/* Thumbnail — a miniature version of the card icon */}
             <div
-              className="w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center border border-white/40"
+              className="w-16 h-16 rounded-sm shadow-2xl flex items-center justify-center border border-white/40"
               style={{
                 background: "rgba(255,255,255,0.88)",
                 backdropFilter: "blur(12px)",
@@ -240,7 +240,7 @@ const Login = () => {
           // Declaring it here as a fallback to keep layout stable during entry.
           transformOrigin: "center bottom",
         }}
-        className="w-full max-w-[420px] bg-white/90 backdrop-blur-md shadow-2xl rounded-[2rem] p-8 md:p-10 flex flex-col items-center border border-white/50"
+        className="w-full max-w-[420px] bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl p-8 md:p-10 flex flex-col items-center border border-white/50"
       >
 
         {/* ── macOS Traffic-Light Dots ─────────────────────────────────────
