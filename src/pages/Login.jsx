@@ -177,7 +177,7 @@ const Login = () => {
     <div
       className="flex min-h-screen items-center justify-center bg-cover bg-center p-4 overflow-hidden"
       style={{
-        backgroundImage:  `url('/login-bg.png')`,
+        backgroundImage:  `url('/login-bg.webp')`,
         fontFamily:       "'Montserrat', sans-serif",
         fontWeight:       500,
       }}
