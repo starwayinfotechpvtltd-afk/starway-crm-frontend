@@ -115,224 +115,336 @@ const Teams = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] text-[#172B4D] p-10 font-sans relative" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+    <div className="w-full min-h-screen neu-base p-4 sm:p-6 md:p-8 montserrat-regular text-[#1F2328] relative">
       
-      {/* Jira-style Header */}
-      <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center relative z-10">
+      {/* ── Header ── */}
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 relative z-10">
         <div>
-          <nav className="text-sm text-[#6B778C] mb-2 flex items-center gap-2">
+          <nav className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 flex items-center gap-2">
             <span>Projects</span> 
             <span>/</span>
             <span>CRM Settings</span>
           </nav>
-          <h1 className="text-[24px] font-medium text-[#172B4D] tracking-tight">Teams</h1>
+          <h1 className="text-2xl font-bold text-[#1F2328]">Teams Management</h1>
         </div>
         
-        {/* ADDED z-20 to ensure it punches through any invisible wrappers */}
         <button
           type="button"
           onClick={openCreateModal}
-          className="relative z-20 bg-[#0052CC] hover:bg-[#0047B3] text-white text-sm font-medium px-4 py-2 rounded-[3px] transition-colors cursor-pointer shadow-sm"
+          className="neu-btn-primary px-6 py-3 rounded-lg text-white font-bold text-sm tracking-wide neu-action-btn relative z-20 flex items-center gap-2"
         >
-          Create team
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Create New Team
         </button>
       </div>
 
-      {/* Jira-style Data Table */}
-      <div className="max-w-6xl mx-auto relative z-0">
+      {/* ── Data Table ── */}
+      <div className="max-w-7xl mx-auto relative z-0">
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0052CC]"></div>
+          <div className="neu-flat rounded-xl p-12 flex justify-center items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0969DA]"></div>
           </div>
         ) : teams.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[#DFE1E6] rounded-[3px] bg-[#FAFBFC]">
-            <p className="text-[#42526E] text-sm font-medium">No teams have been created yet.</p>
+          <div className="neu-flat rounded-xl p-16 flex flex-col items-center justify-center text-center">
+            <div className="neu-pressed-sm p-5 rounded-full mb-4">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#656D76" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+            <p className="text-lg font-bold text-[#1F2328] mb-1">No Teams Found</p>
+            <p className="text-sm font-medium text-[#656D76]">Create your first team to get started.</p>
           </div>
         ) : (
-          <div className="border border-[#DFE1E6] rounded-[3px] overflow-hidden bg-white">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-[#FAFBFC] border-b border-[#DFE1E6]">
-                <tr>
-                  <th className="py-3 px-4 text-xs font-bold text-[#5E6C84] uppercase tracking-wider w-1/4">Team Name</th>
-                  <th className="py-3 px-4 text-xs font-bold text-[#5E6C84] uppercase tracking-wider w-1/4">Manager</th>
-                  <th className="py-3 px-4 text-xs font-bold text-[#5E6C84] uppercase tracking-wider w-2/4">Members (Callers)</th>
-                  <th className="py-3 px-4 text-xs font-bold text-[#5E6C84] uppercase tracking-wider text-right w-32">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#DFE1E6]">
-                {teams.map((team) => (
-                  <tr key={team._id} className="hover:bg-[#FAFBFC] transition-colors group">
-                    <td className="py-3 px-4 text-sm font-medium text-[#172B4D]">
-                      {team.teamName}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-[#DFE1E6] text-[#172B4D] flex items-center justify-center text-xs font-bold">
-                          {team.manager?.username?.charAt(0).toUpperCase() || "?"}
-                        </div>
-                        <span className="text-sm text-[#42526E]">{team.manager?.username || "Unassigned"}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {team.members.map((member) => (
-                          <span key={member._id} className="inline-flex items-center bg-[#EBECF0] text-[#172B4D] text-xs px-2 py-0.5 rounded-[3px] font-medium">
-                            {member.username}
-                          </span>
-                        ))}
-                        {team.members.length === 0 && (
-                          <span className="text-xs text-[#6B778C] italic">No members</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          type="button"
-                          onClick={() => openEditModal(team)}
-                          className="text-[#42526E] hover:text-[#0052CC] text-sm font-medium px-2 py-1 rounded hover:bg-[#EBECF0] cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => deleteTeam(team._id)}
-                          className="text-[#DE350B] hover:text-[#BF2600] text-sm font-medium px-2 py-1 rounded hover:bg-[#FFEBE6] cursor-pointer"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+          <div className="neu-flat rounded-xl overflow-hidden p-2 sm:p-4">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                  <tr>
+                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Team Name</th>
+                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Manager</th>
+                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Members (Callers)</th>
+                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {teams.map((team) => (
+                    <tr key={team._id} className="border-b border-[#D1DCEB]/30 last:border-0 hover:bg-[#D1DCEB]/10 transition-colors group">
+                      <td className="p-4 text-sm font-bold text-[#1F2328]">
+                        {team.teamName}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full neu-flat-sm text-[#0969DA] flex items-center justify-center text-xs font-bold shrink-0">
+                            {team.manager?.username?.charAt(0).toUpperCase() || "?"}
+                          </div>
+                          <span className="text-sm font-medium text-[#1F2328]">{team.manager?.username || "Unassigned"}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-2">
+                          {team.members.map((member) => (
+                            <span key={member._id} className="neu-pressed-sm text-[#1F2328] text-xs px-3 py-1.5 rounded-md font-bold">
+                              {member.username}
+                            </span>
+                          ))}
+                          {team.members.length === 0 && (
+                            <span className="text-xs font-medium text-[#656D76] italic neu-pressed-sm px-3 py-1.5 rounded-md">No members</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <button 
+                            type="button"
+                            onClick={() => openEditModal(team)}
+                            className="neu-flat-sm neu-action-btn text-[#0969DA] text-xs font-bold px-4 py-2 rounded-lg"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => deleteTeam(team._id)}
+                            className="neu-flat-sm neu-action-btn text-[#D1242F] text-xs font-bold px-4 py-2 rounded-lg"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Jira-style Dialog (Modal) - RESTRUCTURED FOR BULLETPROOF CLICKS */}
+      {/* ── Modal ── */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[9999]">
-            {/* Layer 1: Backdrop */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeModal}
-              className="fixed inset-0 bg-[#091E42]/50 z-[9998] cursor-pointer"
+              className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer"
             />
             
-            {/* Layer 2: Centering Container (Pointer Events None prevents it from blocking clicks) */}
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none p-4">
-              
-              {/* Layer 3: Modal Content (Pointer Events Auto re-enables clicks) */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.15 }}
-                onClick={(e) => e.stopPropagation()} // Prevents clicks inside modal from triggering backdrop
-                className="relative w-full max-w-[500px] bg-white rounded-[3px] shadow-[0_8px_16px_-4px_rgba(9,30,66,0.25)] flex flex-col pointer-events-auto"
-              >
-                {/* Header */}
-                <div className="px-6 py-5 flex justify-between items-center">
-                  <h2 className="text-[20px] font-medium text-[#172B4D]">
-                    {editingTeamId ? "Edit team" : "Create team"}
-                  </h2>
-                  <button 
-                    type="button"
-                    onClick={closeModal} 
-                    className="text-[#6B778C] hover:text-[#172B4D] hover:bg-[#EBECF0] p-1 rounded transition-colors cursor-pointer"
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                </div>
+            {/* Modal Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-lg p-6 sm:p-8 flex flex-col relative z-10"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#D1DCEB]/50">
+                <h2 className="text-xl font-bold text-[#1F2328]">
+                  {editingTeamId ? "Edit Team" : "Create New Team"}
+                </h2>
+                <button 
+                  type="button"
+                  onClick={closeModal} 
+                  className="neu-flat-sm neu-action-btn rounded-lg p-2.5 text-[#656D76] hover:text-[#D1242F]"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
 
-                {/* Form Body */}
-                <form onSubmit={handleSubmit} className="flex flex-col max-h-[80vh]">
-                  <div className="px-6 py-2 overflow-y-auto space-y-5">
-                    
-                    {/* Name Input */}
-                    <div>
-                      <label className="block text-sm font-semibold text-[#6B778C] mb-1">Team name <span className="text-[#DE350B]">*</span></label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 bg-[#FAFBFC] border border-[#DFE1E6] rounded-[3px] text-sm text-[#172B4D] focus:bg-white focus:border-[#4C9AFF] focus:ring-1 focus:ring-[#4C9AFF] outline-none transition-colors relative z-10"
-                        value={formData.teamName}
-                        onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
-                      />
-                    </div>
+              {/* Form Body */}
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 max-h-[70vh]">
+                <div className="overflow-y-auto custom-scrollbar pr-2 space-y-6">
+                  
+                  {/* Name Input */}
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
+                      Team Name <span className="text-[#D1242F]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Alpha Squad"
+                      className="w-full neu-pressed rounded-md p-3.5 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20"
+                      value={formData.teamName}
+                      onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
+                    />
+                  </div>
 
-                    {/* Manager Select */}
-                    <div>
-                      <label className="block text-sm font-semibold text-[#6B778C] mb-1">Manager <span className="text-[#DE350B]">*</span></label>
+                  {/* Manager Select */}
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
+                      Manager <span className="text-[#D1242F]">*</span>
+                    </label>
+                    <div className="relative">
                       <select
                         required
-                        className="w-full px-3 py-2 bg-[#FAFBFC] border border-[#DFE1E6] rounded-[3px] text-sm text-[#172B4D] focus:bg-white focus:border-[#4C9AFF] focus:ring-1 focus:ring-[#4C9AFF] outline-none transition-colors cursor-pointer appearance-none relative z-10"
+                        className="w-full neu-pressed rounded-md p-3.5 pr-10 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent relative z-20"
                         value={formData.managerId}
                         onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
                       >
-                        <option value="" disabled>Select manager...</option>
+                        <option value="" disabled>Select a manager...</option>
                         {managers.map((m) => (
                           <option key={m._id} value={m._id}>{m.username}</option>
                         ))}
                       </select>
-                    </div>
-
-                    {/* Callers Multi-select Checklist */}
-                    <div>
-                      <label className="block text-sm font-semibold text-[#6B778C] mb-1">Members</label>
-                      <div className="border border-[#DFE1E6] rounded-[3px] max-h-48 overflow-y-auto bg-white relative z-10">
-                        {callers.map((caller) => {
-                          const isChecked = formData.memberIds.includes(caller._id);
-                          return (
-                            <label 
-                              key={caller._id} 
-                              className="flex items-center px-3 py-2 hover:bg-[#FAFBFC] cursor-pointer border-b border-[#DFE1E6] last:border-0"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleCheckboxChange(caller._id)}
-                                className="w-4 h-4 text-[#0052CC] border-[#DFE1E6] rounded-[3px] focus:ring-[#0052CC] cursor-pointer"
-                              />
-                              <span className="ml-3 text-sm text-[#172B4D]">{caller.username}</span>
-                            </label>
-                          );
-                        })}
-                        {callers.length === 0 && (
-                          <div className="p-3 text-sm text-[#6B778C]">No callers available</div>
-                        )}
+                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-30">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656D76" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
                       </div>
                     </div>
                   </div>
 
-                  {/* Footer Actions */}
-                  <div className="px-6 py-5 flex justify-end gap-2 border-t border-[#DFE1E6] mt-4">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className="px-4 py-2 text-sm font-medium text-[#42526E] hover:bg-gray-100 bg-transparent rounded-[3px] transition-colors cursor-pointer relative z-10"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-4 py-2 text-sm font-medium text-white bg-[#0052CC] hover:bg-[#0047B3] rounded-[3px] transition-colors cursor-pointer disabled:opacity-50 relative z-10"
-                    >
-                      {isSubmitting ? "Saving..." : editingTeamId ? "Update" : "Create"}
-                    </button>
+                  {/* Callers Multi-select Checklist */}
+                  <div className="relative z-10 pb-2">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
+                      Members (Callers)
+                    </label>
+                    <div className="neu-pressed rounded-xl p-3 max-h-56 overflow-y-auto custom-scrollbar space-y-2">
+                      {callers.map((caller) => {
+                        const isChecked = formData.memberIds.includes(caller._id);
+                        return (
+                          <label 
+                            key={caller._id} 
+                            className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition-all duration-200 relative z-20 ${
+                              isChecked ? "neu-flat bg-[#F0F4F8]" : "hover:bg-[#D1DCEB]/20"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleCheckboxChange(caller._id)}
+                              className="w-4 h-4 accent-[#0969DA] cursor-pointer relative z-30"
+                            />
+                            <span className={`ml-3 text-sm transition-colors ${isChecked ? "font-bold text-[#0969DA]" : "font-medium text-[#1F2328]"}`}>
+                              {caller.username}
+                            </span>
+                          </label>
+                        );
+                      })}
+                      {callers.length === 0 && (
+                        <div className="p-4 text-center text-sm font-medium text-[#656D76] italic">No callers available</div>
+                      )}
+                    </div>
                   </div>
-                </form>
-              </motion.div>
-            </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-[#D1DCEB]/50 relative z-20">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="neu-flat neu-action-btn px-6 py-3 rounded-lg text-sm font-bold text-[#656D76]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="neu-btn-primary px-8 py-3 rounded-lg text-sm font-bold text-white neu-action-btn disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "Saving..." : editingTeamId ? "Update Team" : "Create Team"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {/* Neumorphic CSS Rules & Bug Fixes */}
+      <style>{`
+        :root {
+          --neu-bg: #F0F4F8; 
+          --neu-light: #FFFFFF;
+          --neu-dark: #D1DCEB;
+        }
+        .neu-base { background-color: var(--neu-bg); }
+        .neu-flat {
+          background-color: var(--neu-bg);
+          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
+        }
+        .neu-flat-sm {
+          background-color: var(--neu-bg);
+          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+        }
+        .neu-pressed {
+          background-color: var(--neu-bg);
+          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
+        }
+        .neu-pressed-sm {
+          background-color: var(--neu-bg);
+          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
+        }
+        
+        /* Force Input Clickability and Text Selection globally over any wrapper rules */
+        input, textarea, select {
+          position: relative;
+          z-index: 20;
+          pointer-events: auto !important;
+          user-select: text !important;
+          -webkit-user-select: text !important;
+        }
+        
+        select {
+          cursor: pointer !important;
+          -moz-appearance: none; 
+          -webkit-appearance: none; 
+          appearance: none;
+        }
+
+        /* Fixed Interactive Buttons to Ensure Clickability */
+        .neu-action-btn { 
+          cursor: pointer; 
+          transition: all 0.2s ease; 
+          position: relative;
+          z-index: 20;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .neu-action-btn:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important;
+        }
+        .neu-btn-primary {
+          background-color: #0969DA;
+          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
+          border: none;
+          position: relative;
+          z-index: 20;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .neu-btn-primary:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Prevent SVG Icons from intercepting parent button clicks */
+        button svg {
+          pointer-events: none !important;
+        }
+
+        input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
+          -webkit-text-fill-color: #1F2328 !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
+      `}</style>
     </div>
   );
 };

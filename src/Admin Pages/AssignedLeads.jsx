@@ -1,48 +1,31 @@
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import {
-  Typography,
-  Avatar,
-  Button,
-  Select,
-  MenuItem,
-  FormControl,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Pagination,
-  TextField,
-  IconButton,
-  Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Box,
-  Stack,
-  InputLabel,
-  Tooltip,
-  Badge,
-  ToggleButton,
-  ToggleButtonGroup,
-  Modal
-} from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { Launch } from "@mui/icons-material";
-import { ShieldAlert, X, MessageSquare, Calendar as CalendarIcon, Send } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  X, 
+  MessageSquare, 
+  Calendar as CalendarIcon, 
+  Send, 
+  Search, 
+  ChevronDown, 
+  ChevronLeft, 
+  ChevronRight, 
+  Eye, 
+  UserMinus,
+  RefreshCcw,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  Phone,
+  Mail,
+  Globe
+} from "lucide-react";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 
 dayjs.extend(isBetween);
 
-const AssignedLeads = () => {
+export default function AssignedLeads() {
   const [isLoading, setIsLoading] = useState(true);
   const [assignedLeads, setAssignedLeads] = useState([]);
   const [users, setUsers] = useState([]);
@@ -60,8 +43,8 @@ const AssignedLeads = () => {
   const [selectedLeadOwner, setSelectedLeadOwner] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
   const [dateFilterType, setDateFilterType] = useState("");
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Modal & Pagination State
   const [selectedLead, setSelectedLead] = useState(null);
@@ -198,16 +181,30 @@ const AssignedLeads = () => {
 
   const handleOpen = (lead) => { setSelectedLead(lead); setOpen(true); };
   const handleClose = () => { setSelectedLead(null); setOpen(false); };
-  const handleChangePage = (event, newPage) => { setPage(newPage); };
-  const handleChangeRowsPerPage = (event) => { setRowsPerPage(parseInt(event.target.value, 10)); setPage(1); };
 
-  const getStatusColor = (status) => {
-    const s = (status || "").toLowerCase();
-    if (s === "ongoing") return { bg: '#DEEBFF', color: '#0052CC' };
-    if (s === "closed") return { bg: '#E3FCEF', color: '#006644' };
-    if (s === "dropped") return { bg: '#FFEBE6', color: '#DE350B' };
-    if (s.includes("hot") || s.includes("urgent")) return { bg: '#FFEBE6', color: '#DE350B' };
-    return { bg: '#DFE1E6', color: '#42526E' };
+  const handleMarkDropped = async (leadId) => {
+    if (!window.confirm("Are you sure you want to mark this lead as DROPPED?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `${API_BASE}/api/leads/update-status/${leadId}`,
+        { status: "dropped" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAssignedLeads((prev) => prev.map((lead) => lead._id === leadId ? { ...lead, status: "dropped" } : lead));
+    } catch (error) { alert("Failed to drop lead."); }
+  };
+
+  const handleUndrop = async (leadId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `${API_BASE}/api/leads/update-status/${leadId}`,
+        { status: "ongoing" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAssignedLeads((prev) => prev.map((lead) => lead._id === leadId ? { ...lead, status: "ongoing" } : lead));
+    } catch (error) { alert("Failed to undrop lead."); }
   };
 
   const getDateRange = () => {
@@ -216,7 +213,7 @@ const AssignedLeads = () => {
       case "today": return { start: today.startOf("day"), end: today.endOf("day") };
       case "thisMonth": return { start: today.startOf("month"), end: today.endOf("month") };
       case "lastMonth": return { start: today.subtract(1, "month").startOf("month"), end: today.subtract(1, "month").endOf("month") };
-      case "custom": return startDate && endDate ? { start: startDate.startOf("day"), end: endDate.endOf("day") } : null;
+      case "custom": return startDate && endDate ? { start: dayjs(startDate).startOf("day"), end: dayjs(endDate).endOf("day") } : null;
       default: return null;
     }
   };
@@ -261,454 +258,611 @@ const AssignedLeads = () => {
   }, [assignedLeads, searchTerm, selectedStatus, selectedUser, selectedLeadOwner, selectedTeam, dateFilterType, startDate, endDate, visibilityToggle, sortOrder, teams]);
 
   const paginatedLeads = processedLeads.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const totalPages = Math.ceil(processedLeads.length / rowsPerPage) || 1;
+
+  const getStatusColor = (status) => {
+    const s = (status || "").toLowerCase();
+    if (s === "ongoing") return { text: '#0969DA', bg: 'rgba(9, 105, 218, 0.1)' };
+    if (s === "closed") return { text: '#1A7F37', bg: 'rgba(26, 127, 55, 0.1)' };
+    if (s === "dropped") return { text: '#D1242F', bg: 'rgba(209, 36, 47, 0.1)' };
+    if (s.includes("hot") || s.includes("urgent")) return { text: '#D1242F', bg: 'rgba(209, 36, 47, 0.1)' };
+    return { text: '#656D76', bg: 'rgba(101, 109, 118, 0.1)' };
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white font-sans">
-        <div className="w-10 h-10 border-4 border-[#EBECF0] border-t-[#0052CC] rounded-full animate-spin"></div>
-        <p className="mt-4 text-[#5E6C84] text-sm font-medium animate-pulse">Loading assigned leads...</p>
+      <div className="h-screen w-full flex items-center justify-center neu-base">
+        <div className="neu-flat rounded-2xl p-10 flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-[#D1DCEB] border-t-[#0969DA] rounded-full animate-spin mb-4"></div>
+          <p className="text-sm font-bold text-[#656D76] animate-pulse uppercase tracking-wider">Loading Data...</p>
+        </div>
       </div>
     );
   }
 
-  const handleMarkDropped = async (leadId) => {
-    if (!window.confirm("Are you sure you want to mark this lead as DROPPED?")) return;
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.put(
-        `${API_BASE}/api/leads/update-status/${leadId}`,
-        { status: "dropped" },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Update local state so it moves to the "Dropped Leads" toggle view
-      setAssignedLeads((prev) =>
-        prev.map((lead) => lead._id === leadId ? { ...lead, status: "dropped" } : lead)
-      );
-    } catch (error) {
-      console.error("Error dropping lead:", error);
-      alert("Failed to drop lead.");
-    }
-  };
-
-  // NEW: handleUndrop to bring a lead back to the active pipeline
-  const handleUndrop = async (leadId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.put(
-        `${API_BASE}/api/leads/update-status/${leadId}`,
-        { status: "ongoing" },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Update local state so it moves back to the "Active Pipeline" toggle view
-      setAssignedLeads((prev) =>
-        prev.map((lead) => lead._id === leadId ? { ...lead, status: "ongoing" } : lead)
-      );
-    } catch (error) {
-      console.error("Error undropping lead:", error);
-      alert("Failed to undrop lead.");
-    }
-  };
-
-
-
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className="max-w-full mx-4 md:mx-8 p-2 md:p-6 bg-white min-h-screen">
-
-        {/* --- SEARCH BAR (With Bottom Padding) --- */}
-        <div className="mb-8">
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search by lead name or email..."
-            variant="outlined"
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-            sx={{ backgroundColor: '#FFFFFF', '& .MuiOutlinedInput-root': { borderRadius: '3px' } }}
-          />
+    <div className="h-screen w-full overflow-hidden flex flex-col neu-base p-4 sm:p-6 montserrat-regular text-[#1F2328]">
+      
+      {/* ── Header & Filters (Fixed at Top) ── */}
+      <div className="shrink-0 flex flex-col gap-4 mb-4 z-20">
+        
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl montserrat-medium text-[#1F2328]">What your sales team has been up to?</h1>
+          <div className="neu-pressed-sm rounded-md px-3.5 py-1.5 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full inline-block bg-[#0969DA]" />
+            <span className="text-xs font-bold text-[#656D76]">{processedLeads.length} leads found</span>
+          </div>
         </div>
 
-        {/* --- TOGGLES & FILTERS --- */}
-        <Box className="sticky top-0 z-40 bg-white pb-4 pt-2 mb-6" sx={{ borderBottom: '2px solid #EBECF0' }}>
+        <div className="neu-flat rounded-xl p-5 flex flex-col gap-5">
+          
+          {/* Top Row: Search, Toggle & Sort */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#D1DCEB]/50 pb-4">
+            
+            <div className="relative w-full md:w-1/3 z-20">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none">
+                <Search size={16} />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by lead name or email..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className="w-full neu-pressed rounded-md py-2.5 pl-10 pr-4 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20"
+              />
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-4 relative z-20">
+              {/* Pipeline Toggle */}
+              <div className="neu-pressed rounded-md p-1 flex items-center">
+                {[
+                  { id: "active", label: "Active Pipeline" },
+                  { id: "dropped", label: "Dropped" },
+                  { id: "all", label: "All Leads" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => { setVisibilityToggle(tab.id); setPage(1); }}
+                    className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all neu-action-btn ${
+                      visibilityToggle === tab.id ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* Top Row: Pipeline Toggle & Sorting */}
-          <div className="flex flex-wrap justify-between items-center gap-4 mb-4 border-b border-[#DFE1E6] pb-4">
-            <ToggleButtonGroup
-              color="primary"
-              value={visibilityToggle}
-              exclusive
-              onChange={(e, val) => { if (val) { setVisibilityToggle(val); setPage(1); } }}
-              size="small"
-              sx={{ backgroundColor: '#FFFFFF', height: '36px' }}
-            >
-              <ToggleButton value="active" sx={{ textTransform: 'none', px: 3, fontWeight: 600 }}>Active Pipeline</ToggleButton>
-              <ToggleButton value="dropped" sx={{ textTransform: 'none', px: 3, fontWeight: 600 }}>Dropped Leads</ToggleButton>
-              <ToggleButton value="all" sx={{ textTransform: 'none', px: 3, fontWeight: 600 }}>All Leads</ToggleButton>
-            </ToggleButtonGroup>
-
-            <FormControl size="small" sx={{ minWidth: 200, backgroundColor: '#FFFFFF' }}>
-              <Select value={sortOrder} onChange={(e) => { setSortOrder(e.target.value); setPage(1); }} displayEmpty sx={{ borderRadius: '3px', fontSize: '13px', fontWeight: 500 }}>
-                <MenuItem value="newest"><em>Sort: Newest First</em></MenuItem>
-                <MenuItem value="followup_asc">Follow-up: Nearest to Farthest</MenuItem>
-                <MenuItem value="followup_desc">Follow-up: Farthest to Nearest</MenuItem>
-              </Select>
-            </FormControl>
+              {/* Sort Order */}
+              <div className="relative">
+                <select 
+                  value={sortOrder} 
+                  onChange={(e) => { setSortOrder(e.target.value); setPage(1); }} 
+                  className="w-full neu-pressed rounded-md p-2.5 pr-8 text-xs font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent"
+                >
+                  <option value="newest">Sort: Newest First</option>
+                  <option value="followup_asc">Follow-up: Nearest to Farthest</option>
+                  <option value="followup_desc">Follow-up: Farthest to Nearest</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none" />
+              </div>
+            </div>
           </div>
 
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Filter by Team</InputLabel>
-                <Select value={selectedTeam} onChange={(e) => { setSelectedTeam(e.target.value); setPage(1); }} label="Filter by Team" sx={{ borderRadius: '3px' }}>
-                  <MenuItem value=""><em>All Teams</em></MenuItem>
-                  {teams.map((team) => <MenuItem key={team._id} value={team._id}>{team.teamName}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
+          {/* Bottom Row: Dropdowns */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 relative z-20">
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Filter by Team</label>
+              <select value={selectedTeam} onChange={(e) => { setSelectedTeam(e.target.value); setPage(1); }} className="w-full neu-pressed rounded-md p-2.5 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="">All Teams</option>
+                {teams.map((team) => <option key={team._id} value={team._id}>{team.teamName}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 bottom-3 text-[#656D76] pointer-events-none" />
+            </div>
 
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Filter by Caller</InputLabel>
-                <Select value={selectedLeadOwner} onChange={(e) => { setSelectedLeadOwner(e.target.value); setPage(1); }} label="Filter by Caller" sx={{ borderRadius: '3px' }}>
-                  <MenuItem value=""><em>All Callers</em></MenuItem>
-                  {uniqueLeadOwners.map((owner, idx) => <MenuItem key={idx} value={owner}>{owner}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Filter by Caller</label>
+              <select value={selectedLeadOwner} onChange={(e) => { setSelectedLeadOwner(e.target.value); setPage(1); }} className="w-full neu-pressed rounded-md p-2.5 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="">All Callers</option>
+                {uniqueLeadOwners.map((owner, idx) => <option key={idx} value={owner}>{owner}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 bottom-3 text-[#656D76] pointer-events-none" />
+            </div>
 
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Transferred To</InputLabel>
-                <Select value={selectedUser} onChange={(e) => { setSelectedUser(e.target.value); setPage(1); }} label="Transferred To" sx={{ borderRadius: '3px' }}>
-                  <MenuItem value=""><em>All Assignees</em></MenuItem>
-                  {users.map((user) => <MenuItem key={user._id} value={user._id}>{user.username}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Transferred To</label>
+              <select value={selectedUser} onChange={(e) => { setSelectedUser(e.target.value); setPage(1); }} className="w-full neu-pressed rounded-md p-2.5 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="">All Assignees</option>
+                {users.map((user) => <option key={user._id} value={user._id}>{user.username}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 bottom-3 text-[#656D76] pointer-events-none" />
+            </div>
 
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select value={selectedStatus} onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }} label="Status" sx={{ borderRadius: '3px' }}>
-                  <MenuItem value="all"><em>All Sub-Statuses</em></MenuItem>
-                  <MenuItem value="ongoing">Ongoing</MenuItem>
-                  <MenuItem value="closed">Closed</MenuItem>
-                  <MenuItem value="dropped">Dropped</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Status</label>
+              <select value={selectedStatus} onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }} className="w-full neu-pressed rounded-md p-2.5 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="all">All Sub-Statuses</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="closed">Closed</option>
+                <option value="dropped">Dropped</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 bottom-3 text-[#656D76] pointer-events-none" />
+            </div>
 
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Assignment Date</InputLabel>
-                <Select value={dateFilterType} onChange={(e) => { setDateFilterType(e.target.value); setPage(1); }} label="Assignment Date" sx={{ borderRadius: '3px' }}>
-                  <MenuItem value=""><em>All Time</em></MenuItem>
-                  <MenuItem value="today">Today</MenuItem>
-                  <MenuItem value="thisMonth">This Month</MenuItem>
-                  <MenuItem value="lastMonth">Last Month</MenuItem>
-                  <MenuItem value="custom">Custom Range...</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Assignment Date</label>
+              <select value={dateFilterType} onChange={(e) => { setDateFilterType(e.target.value); setPage(1); }} className="w-full neu-pressed rounded-md p-2.5 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="thisMonth">This Month</option>
+                <option value="lastMonth">Last Month</option>
+                <option value="custom">Custom Range...</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 bottom-3 text-[#656D76] pointer-events-none" />
+            </div>
 
             {dateFilterType === "custom" && (
-              <>
-                <Grid item xs={6} sm={3} md={1}>
-                  <DatePicker label="Start" value={startDate} onChange={(newValue) => setStartDate(newValue)} slotProps={{ textField: { size: "small", fullWidth: true, sx: { borderRadius: '3px' } } }} />
-                </Grid>
-                <Grid item xs={6} sm={3} md={1}>
-                  <DatePicker label="End" value={endDate} onChange={(newValue) => setEndDate(newValue)} slotProps={{ textField: { size: "small", fullWidth: true, sx: { borderRadius: '3px' } } }} />
-                </Grid>
-              </>
+              <div className="col-span-2 md:col-span-5 flex gap-4 mt-2">
+                <div className="relative flex-1 max-w-[200px]">
+                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Start Date</label>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full neu-pressed rounded-md p-2 text-xs font-medium text-[#1F2328] outline-none cursor-pointer" />
+                </div>
+                <div className="relative flex-1 max-w-[200px]">
+                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">End Date</label>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full neu-pressed rounded-md p-2 text-xs font-medium text-[#1F2328] outline-none cursor-pointer" />
+                </div>
+              </div>
             )}
-          </Grid>
-        </Box>
+          </div>
+        </div>
+      </div>
 
-        {/* --- JIRA-STYLE LIST (TABLE) --- */}
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #DFE1E6', borderRadius: '3px' }}>
-          <Table size="small" sx={{ minWidth: 1000 }} aria-label="assigned leads list">
-            <TableHead sx={{ backgroundColor: '#F4F5F7' }}>
-              <TableRow>
-                <TableCell sx={{ color: '#5E6C84', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', paddingY: '12px' }}>Client Info</TableCell>
-                <TableCell sx={{ color: '#5E6C84', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>Transferred To</TableCell>
-                <TableCell sx={{ color: '#5E6C84', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>Follow-up</TableCell>
-                <TableCell sx={{ color: '#5E6C84', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>Status</TableCell>
-                <TableCell sx={{ color: '#5E6C84', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>Pitched Amount</TableCell>
-                <TableCell align="right" sx={{ color: '#5E6C84', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+      {/* ── Table Container (Flexible Height, Internal Scroll) ── */}
+      <div className="flex-1 min-h-0 relative z-10 flex flex-col neu-flat rounded-xl p-2 sm:p-4 mb-4">
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead className="sticky top-0 z-20 bg-[#F0F4F8]">
+              <tr>
+                <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80">Client Info & Latest Update</th>
+                <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80">Transferred To</th>
+                <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80">Follow-up</th>
+                <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80">Status</th>
+                <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80">Pitched Amt</th>
+                <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
               {paginatedLeads.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8, color: '#5E6C84' }}>No assigned leads match your current filters.</TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={6} className="py-12 text-center">
+                    <p className="text-sm font-bold text-[#656D76]">No assigned leads match your current filters.</p>
+                  </td>
+                </tr>
               ) : (
                 paginatedLeads.map((lead) => {
                   const latestComment = lead.comments && lead.comments.length > 0 ? lead.comments[lead.comments.length - 1] : null;
+                  const sColor = getStatusColor(lead.status);
 
                   return (
-                    <TableRow key={lead._id} hover sx={{ '&:hover': { backgroundColor: '#FAFBFC' }, '& td': { borderBottom: '1px solid #DFE1E6', paddingY: '10px' }, opacity: lead.status === 'dropped' ? 0.65 : 1 }}>
-
-                      {/* Client Info & Latest Update */}
-                      <TableCell sx={{ maxWidth: '300px' }}>
+                    <tr key={lead._id} className={`border-b border-[#D1DCEB]/30 last:border-0 hover:bg-[#D1DCEB]/10 transition-colors ${lead.status === 'dropped' ? 'opacity-60' : 'opacity-100'}`}>
+                      
+                      <td className="p-3 max-w-[300px]">
                         <div className="flex items-start gap-3">
-                          <Avatar sx={{ bgcolor: '#0052CC', width: 32, height: 32, fontSize: '14px', fontWeight: 'bold' }}>{lead.leadName?.charAt(0).toUpperCase() || "?"}</Avatar>
-                          <div className="flex flex-col">
-                            <Typography variant="body2" sx={{ color: '#172B4D', fontWeight: 600 }}>{lead.leadName || "N/A"}</Typography>
-                            <Typography variant="caption" sx={{ color: '#5E6C84' }}>{lead.email} • Caller: {lead.leadOwner}</Typography>
-                            {/* Latest Comment Snippet */}
+                          <div className="w-8 h-8 rounded-full neu-btn-primary flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
+                            {lead.leadName?.charAt(0).toUpperCase() || "?"}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <p className="text-sm font-bold text-[#1F2328] truncate">{lead.leadName || "N/A"}</p>
+                            <p className="text-[10px] font-bold text-[#656D76] truncate">{lead.email} • Caller: {lead.leadOwner}</p>
                             {latestComment && (
-                              <div className="bg-[#EBECF0] px-2 py-1 rounded-[3px] mt-1 inline-block">
-                                <Typography sx={{ fontSize: '11px', color: '#42526E', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                  <span className="font-bold mr-1">{latestComment.postedBy?.username || "Unknown"}:</span>
+                              <div className="mt-1.5 neu-pressed-sm rounded-md px-2 py-1 max-w-full overflow-hidden text-ellipsis">
+                                <p className="text-[10px] text-[#656D76] truncate italic font-medium">
+                                  <span className="font-bold text-[#1F2328] mr-1">{latestComment.postedBy?.username || "Unknown"}:</span>
                                   "{latestComment.text}"
-                                </Typography>
+                                </p>
                               </div>
                             )}
                           </div>
                         </div>
-                      </TableCell>
+                      </td>
 
-                      {/* Transferred To */}
-                      <TableCell>
+                      <td className="p-3">
                         {lead.assignedTo ? (
                           <div className="flex items-center gap-2">
-                            <Avatar sx={{ width: 24, height: 24, fontSize: '12px', bgcolor: '#FFAB00' }}>{lead.assignedTo.username.charAt(0).toUpperCase()}</Avatar>
-                            <Typography variant="body2" sx={{ color: '#172B4D' }}>{lead.assignedTo.username}</Typography>
+                            <div className="w-6 h-6 rounded-full neu-flat-sm text-[#BF8700] flex items-center justify-center text-[10px] font-bold shrink-0">
+                              {lead.assignedTo.username.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-bold text-[#1F2328]">{lead.assignedTo.username}</span>
                           </div>
-                        ) : (<Typography variant="body2" sx={{ color: '#7A869A', fontStyle: 'italic' }}>Unassigned</Typography>)}
-                      </TableCell>
+                        ) : (
+                          <span className="text-xs font-bold text-[#656D76] italic neu-pressed-sm px-2 py-1 rounded-md">Unassigned</span>
+                        )}
+                      </td>
 
-                      {/* Follow-up Date */}
-                      <TableCell>
+                      <td className="p-3">
                         {lead.followUpDate ? (
-                          <div className="flex items-center gap-1 text-[#0052CC] bg-[#DEEBFF] px-2 py-1 rounded-[3px] inline-flex">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#0969DA] bg-[#0969DA]/10 px-2 py-1 rounded-md w-fit">
                             <CalendarIcon size={12} />
-                            <Typography sx={{ fontSize: '11px', fontWeight: 600 }}>{dayjs(lead.followUpDate).format('MMM DD, YYYY')}</Typography>
+                            {dayjs(lead.followUpDate).format('MMM DD, YYYY')}
                           </div>
-                        ) : (<Typography sx={{ fontSize: '12px', color: '#7A869A' }}>No Date Set</Typography>)}
-                      </TableCell>
+                        ) : (
+                          <span className="text-[10px] font-bold text-[#656D76]">No Date Set</span>
+                        )}
+                      </td>
 
-                      {/* Status Dropdown */}
-                      <TableCell>
-                        <Select
-                          value={lead.status || "ongoing"}
-                          onChange={(e) => handleStatusChange(lead._id, e.target.value)}
-                          size="small"
-                          sx={{
-                            height: "24px", fontSize: "11px", fontWeight: 700, borderRadius: "3px",
-                            backgroundColor: getStatusColor(lead.status).bg, color: getStatusColor(lead.status).color,
-                            '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                            '& .MuiSelect-select': { paddingRight: '24px !important', paddingLeft: '8px' },
-                            '& .MuiSvgIcon-root': { color: getStatusColor(lead.status).color }
-                          }}
-                        >
-                          <MenuItem value="ongoing" sx={{ fontSize: '12px', fontWeight: 600 }}>ONGOING</MenuItem>
-                          <MenuItem value="closed" sx={{ fontSize: '12px', fontWeight: 600 }}>CLOSED</MenuItem>
-                          <MenuItem value="dropped" sx={{ fontSize: '12px', fontWeight: 600 }}>DROPPED</MenuItem>
-                        </Select>
-                      </TableCell>
+                      <td className="p-3">
+                        <div className="relative w-28">
+                          <select
+                            value={lead.status || "ongoing"}
+                            onChange={(e) => handleStatusChange(lead._id, e.target.value)}
+                            className="w-full neu-pressed-sm rounded-md p-1.5 pr-6 text-[10px] font-bold uppercase tracking-wider outline-none cursor-pointer appearance-none bg-transparent"
+                            style={{ color: sColor.text }}
+                          >
+                            <option value="ongoing">ONGOING</option>
+                            <option value="closed">CLOSED</option>
+                            <option value="dropped">DROPPED</option>
+                          </select>
+                          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: sColor.text }} />
+                        </div>
+                      </td>
 
-                      {/* Pitched Amount */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#006644' }}>
+                      <td className="p-3">
+                        <span className="text-sm font-bold text-[#1A7F37] bg-[#1A7F37]/10 px-2 py-1 rounded-md">
                           {lead.currencySymbol} {lead.pitchedAmount?.toLocaleString() || 0}
-                        </Typography>
-                      </TableCell>
+                        </span>
+                      </td>
 
-                      {/* Actions */}
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-
-                          {/* Conditional Button: Show 'Drop' for active leads, 'Undrop' for dropped leads */}
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          
                           {lead.status === "dropped" ? (
-                            <Button
-                              variant="outlined"
-                              size="small"
+                            <button
+                              type="button"
                               onClick={() => handleUndrop(lead._id)}
-                              sx={{
-                                height: '28px', fontSize: '12px', fontWeight: 600, color: '#006644',
-                                borderColor: '#E3FCEF', backgroundColor: '#E3FCEF', textTransform: 'none',
-                                '&:hover': { backgroundColor: '#D3F9E8', borderColor: '#D3F9E8' }
-                              }}
+                              className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 text-[10px] font-bold text-[#1A7F37] border border-[#1A7F37]/30"
                             >
                               Undrop
-                            </Button>
+                            </button>
                           ) : (
-                            <Button
-                              variant="outlined"
-                              size="small"
+                            <button
+                              type="button"
                               onClick={() => handleMarkDropped(lead._id)}
-                              sx={{
-                                height: '28px', fontSize: '12px', fontWeight: 600, color: '#DE350B',
-                                borderColor: '#DFE1E6', textTransform: 'none',
-                                '&:hover': { backgroundColor: '#FFEBE6', color: '#BF2600', borderColor: '#FFBDAD' }
-                              }}
+                              className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 text-[10px] font-bold text-[#D1242F] border border-[#D1242F]/30"
                             >
                               Drop
-                            </Button>
+                            </button>
                           )}
 
-                          <Button
-                            variant="outlined"
-                            size="small"
+                          <button
+                            type="button"
                             onClick={() => handleUnassign(lead._id)}
-                            sx={{
-                              height: '28px', fontSize: '12px', fontWeight: 600, color: '#42526E',
-                              borderColor: '#DFE1E6', borderRadius: '3px', textTransform: 'none',
-                              '&:hover': { backgroundColor: '#EBECF0', borderColor: '#DFE1E6' }
-                            }}
+                            className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 text-[10px] font-bold text-[#656D76]"
                           >
-                            Unassign
-                          </Button>
+                            <UserMinus size={14} className="pointer-events-none" />
+                          </button>
 
-                          <IconButton
-                            size="small"
+                          <button
+                            type="button"
                             onClick={() => { setActiveCommentLead(lead); setOpenComments(true); }}
-                            sx={{ border: '1px solid #DFE1E6', borderRadius: '3px', padding: '4px' }}
+                            className="neu-flat-sm neu-action-btn rounded-md p-1.5 text-[#0969DA] relative"
                           >
-                            <Badge badgeContent={lead.comments?.length || 0} color="primary">
-                              <MessageSquare size={16} color="#42526E" />
-                            </Badge>
-                          </IconButton>
+                            <MessageSquare size={14} className="pointer-events-none" />
+                            {(lead.comments?.length || 0) > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-[#D1242F] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                                {lead.comments.length}
+                              </span>
+                            )}
+                          </button>
 
-                          <Tooltip title="View Details">
-                            <IconButton
-                              onClick={() => handleOpen(lead)}
-                              size="small"
-                              sx={{ border: '1px solid #DFE1E6', borderRadius: '3px', padding: '4px', color: '#42526E' }}
-                            >
-                              <Launch fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>                    </TableRow>
+                          <button
+                            type="button"
+                            onClick={() => handleOpen(lead)}
+                            className="neu-flat-sm neu-action-btn rounded-md p-1.5 text-[#656D76]"
+                          >
+                            <Eye size={14} className="pointer-events-none" />
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
                   );
                 })
               )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-        <Stack direction="row" justifyContent="flex-end" alignItems="center" className="mt-4 gap-4">
-          <FormControl size="small" variant="standard">
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography variant="caption" sx={{ color: '#5E6C84' }}>Rows per page:</Typography>
-              <Select value={rowsPerPage} onChange={handleChangeRowsPerPage} disableUnderline sx={{ fontSize: '14px', color: '#172B4D', fontWeight: 500 }}>
-                <MenuItem value={10}>10</MenuItem>
-                <MenuItem value={15}>15</MenuItem>
-                <MenuItem value={30}>30</MenuItem>
-              </Select>
-            </Stack>
-          </FormControl>
-          <Pagination count={Math.ceil(processedLeads.length / rowsPerPage) || 1} page={page} onChange={handleChangePage} shape="rounded" size="small" sx={{ '& .MuiPaginationItem-root': { borderRadius: '3px', color: '#42526E' }, '& .Mui-selected': { backgroundColor: '#0052CC !important', color: 'white' } }} />
-        </Stack>
-
-        {/* --- COMMENTS DIALOG --- */}
-        <Modal open={openComments} onClose={() => setOpenComments(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#091E42]/50">
-          <div className="bg-white rounded-[3px] shadow-xl w-full max-w-lg flex flex-col h-[600px]">
-            <div className="px-6 py-4 border-b border-[#DFE1E6] flex justify-between items-center bg-[#FAFBFC]">
-              <Typography variant="h6" sx={{ color: '#172B4D', fontWeight: 600, fontSize: '16px' }}>Team Comments</Typography>
-              <IconButton onClick={() => setOpenComments(false)} size="small"><X className="w-5 h-5" /></IconButton>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FFFFFF]">
-              {activeCommentLead?.comments?.length > 0 ? (
-                activeCommentLead.comments.map((comment, i) => (
-                  <div key={i} className="bg-[#FAFBFC] border border-[#DFE1E6] p-3 rounded-[3px]">
-                    <div className="flex justify-between items-center mb-1">
-                      <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#172B4D' }}>{comment.postedBy?.username || "Unknown"}</Typography>
-                      <Typography sx={{ fontSize: '11px', color: '#6B778C' }}>{dayjs(comment.postedAt).format('MMM DD, HH:mm')}</Typography>
-                    </div>
-                    <Typography sx={{ fontSize: '14px', color: '#172B4D', whiteSpace: 'pre-wrap' }}>{comment.text}</Typography>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-[#6B778C] mt-10 text-sm">No comments on this lead yet.</div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-[#DFE1E6] bg-[#FAFBFC]">
-              <div className="flex gap-2">
-                <TextField fullWidth size="small" placeholder="Type a comment..." multiline maxRows={3} value={newComment} onChange={(e) => setNewComment(e.target.value)} sx={{ backgroundColor: '#FFFFFF' }} />
-                <Button variant="contained" disabled={isSubmittingComment || !newComment.trim()} onClick={handleAddComment} sx={{ backgroundColor: '#0052CC', minWidth: '48px', px: 0 }}>
-                  <Send size={16} />
-                </Button>
-              </div>
-            </div>
+      {/* ── Footer Pagination (Fixed at Bottom) ── */}
+      <div className="shrink-0 flex justify-between items-center relative z-20">
+        <div className="flex items-center gap-3">
+          <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Rows per page</label>
+          <div className="relative">
+            <select
+              value={rowsPerPage}
+              onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }}
+              className="neu-pressed rounded-md p-2 pr-8 text-xs font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent"
+            >
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={30}>30</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none" />
           </div>
-        </Modal>
+        </div>
 
-        {/* --- LEAD DETAILS MODAL --- */}
-        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '3px', backgroundColor: '#F4F5F7' } }}>
-          <DialogTitle sx={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid #DFE1E6', color: '#172B4D', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            Assigned Lead Details: {selectedLead?.leadName}
-            <IconButton onClick={handleClose} size="small" sx={{ color: '#42526E' }}><X className="w-5 h-5" /></IconButton>
-          </DialogTitle>
-          <DialogContent className="max-h-[80vh] overflow-y-auto mt-4 px-6 pb-6">
-            {selectedLead && (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ backgroundColor: '#FFFFFF', p: 3, borderRadius: '3px', border: '1px solid #DFE1E6', height: '100%' }}>
-                    <Typography variant="caption" sx={{ color: '#5E6C84', fontWeight: 600, textTransform: 'uppercase', mb: 2, display: 'block' }}>Contact Information</Typography>
-                    <Stack spacing={2}>
-                      <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Name</Typography><Typography sx={{ fontSize: '14px', color: '#172B4D' }}>{selectedLead.leadName}</Typography></div>
-                      <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Email</Typography><Typography sx={{ fontSize: '14px', color: '#172B4D' }}>{selectedLead.email}</Typography></div>
-                      <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Phone</Typography><Typography sx={{ fontSize: '14px', color: '#172B4D' }}>{selectedLead.phoneNumber}</Typography></div>
-                      <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Website</Typography><Typography sx={{ fontSize: '14px', color: '#0052CC', cursor: 'pointer' }}>{selectedLead.website || "N/A"}</Typography></div>
-                      <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Country</Typography><Typography sx={{ fontSize: '14px', color: '#172B4D' }}>{selectedLead.country}</Typography></div>
-                    </Stack>
-                  </Box>
-                </Grid>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 flex items-center gap-1 text-xs font-bold text-[#656D76] disabled:opacity-40"
+          >
+            <ChevronLeft size={14} className="pointer-events-none" /> Prev
+          </button>
+          <span className="text-xs font-bold text-[#1F2328] neu-pressed-sm px-3 py-1.5 rounded-md">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 flex items-center gap-1 text-xs font-bold text-[#656D76] disabled:opacity-40"
+          >
+             Next <ChevronRight size={14} className="pointer-events-none" />
+          </button>
+        </div>
+      </div>
 
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ backgroundColor: '#FFFFFF', p: 3, borderRadius: '3px', border: '1px solid #DFE1E6', height: '100%' }}>
-                    <Typography variant="caption" sx={{ color: '#5E6C84', fontWeight: 600, textTransform: 'uppercase', mb: 2, display: 'block' }}>Strategy & Follow-up</Typography>
-                    <Stack spacing={3}>
-                      <div>
-                        <Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600, mb: 1 }}>Follow-up Date</Typography>
-                        <DatePicker
-                          value={selectedLead.followUpDate ? dayjs(selectedLead.followUpDate) : null}
-                          onChange={(newValue) => handleUpdateFollowUp(selectedLead._id, newValue ? newValue.toISOString() : null)}
-                          slotProps={{ textField: { size: "small", fullWidth: true, sx: { backgroundColor: '#FAFBFC' } } }}
+
+      {/* ── MODALS ── */}
+
+      {/* 1. Comments Modal */}
+      <AnimatePresence>
+        {openComments && activeCommentLead && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenComments(false)} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-lg flex flex-col h-[600px] relative z-10"
+            >
+              <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
+                <h2 className="text-xl font-bold text-[#1F2328]">Team Comments</h2>
+                <button type="button" onClick={() => setOpenComments(false)} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]">
+                  <X size={18} className="pointer-events-none" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
+                {activeCommentLead.comments?.length > 0 ? (
+                  activeCommentLead.comments.map((comment, i) => (
+                    <div key={i} className="neu-pressed rounded-xl p-4">
+                      <div className="flex justify-between items-center mb-2 border-b border-[#D1DCEB]/30 pb-2">
+                        <span className="text-xs font-bold text-[#1F2328]">{comment.postedBy?.username || "Unknown"}</span>
+                        <span className="text-[10px] font-bold text-[#656D76]">{dayjs(comment.postedAt).format('MMM DD, HH:mm')}</span>
+                      </div>
+                      <p className="text-sm font-medium text-[#1F2328] whitespace-pre-wrap">{comment.text}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-[#656D76] mt-10 text-sm font-bold italic">No comments on this lead yet.</p>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-[#D1DCEB]/50 shrink-0">
+                <div className="flex gap-3 relative z-20">
+                  <textarea
+                    rows="2"
+                    placeholder="Type a comment..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="flex-1 neu-pressed rounded-lg p-3 text-sm font-medium text-[#1F2328] outline-none resize-none custom-scrollbar relative z-20"
+                  />
+                  <button
+                    type="button"
+                    disabled={isSubmittingComment || !newComment.trim()}
+                    onClick={handleAddComment}
+                    className="neu-btn-primary rounded-lg px-5 flex items-center justify-center text-white disabled:opacity-50 neu-action-btn"
+                  >
+                    <Send size={18} className="pointer-events-none" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Lead Details Modal */}
+      <AnimatePresence>
+        {open && selectedLead && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col relative z-10"
+            >
+              <div className="p-6 sm:p-8 border-b border-[#D1DCEB]/50 flex justify-between items-start shrink-0">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#1F2328] mb-1">Assigned Lead Details</h2>
+                  <p className="text-sm font-bold text-[#0969DA]">{selectedLead.leadName}</p>
+                </div>
+                <button type="button" onClick={handleClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]">
+                  <X size={20} className="pointer-events-none" />
+                </button>
+              </div>
+
+              <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                  
+                  {/* Left Column */}
+                  <div className="neu-pressed rounded-xl p-6 h-fit">
+                    <h3 className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-4 border-b border-[#D1DCEB]/50 pb-2">Contact Information</h3>
+                    <div className="space-y-4">
+                      <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Name</p><p className="text-sm font-bold text-[#1F2328]">{selectedLead.leadName}</p></div>
+                      <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Email</p><p className="text-sm font-bold text-[#1F2328]">{selectedLead.email}</p></div>
+                      <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Phone</p><p className="text-sm font-bold text-[#1F2328]">{selectedLead.phoneNumber}</p></div>
+                      <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Website</p><p className="text-sm font-bold text-[#0969DA] hover:underline cursor-pointer">{selectedLead.website || "N/A"}</p></div>
+                      <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Country</p><p className="text-sm font-bold text-[#1F2328]">{selectedLead.country}</p></div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="neu-pressed rounded-xl p-6 h-fit">
+                    <h3 className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-4 border-b border-[#D1DCEB]/50 pb-2">Strategy & Follow-up</h3>
+                    <div className="space-y-5">
+                      
+                      <div className="relative z-20">
+                        <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Follow-up Date</label>
+                        <input
+                          type="date"
+                          value={selectedLead.followUpDate ? dayjs(selectedLead.followUpDate).format('YYYY-MM-DD') : ""}
+                          onChange={(e) => handleUpdateFollowUp(selectedLead._id, e.target.value)}
+                          className="w-full neu-pressed-sm rounded-md p-2.5 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20"
                         />
                       </div>
+
                       <div className="grid grid-cols-2 gap-4">
-                        <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Transferred To</Typography><Typography sx={{ fontSize: '14px', color: '#172B4D' }}>{selectedLead.assignedTo?.username || "N/A"}</Typography></div>
-                        <div><Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600 }}>Pitched Amount</Typography><Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#006644' }}>{selectedLead.currencySymbol || "$"}{selectedLead.pitchedAmount?.toLocaleString()}</Typography></div>
-                      </div>
-                      <div>
-                        <Typography sx={{ fontSize: '11px', color: '#6B778C', textTransform: 'uppercase', fontWeight: 600, mb: 1 }}>Original Note</Typography>
-                        <div className="bg-[#FAFBFC] border border-[#DFE1E6] rounded-[3px] p-3">
-                          <Typography sx={{ fontSize: '14px', color: '#172B4D', whiteSpace: 'pre-wrap' }}>{selectedLead.note || "No notes provided."}</Typography>
+                        <div>
+                           <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Transferred To</p>
+                           <p className="text-sm font-bold text-[#1F2328]">{selectedLead.assignedTo?.username || "N/A"}</p>
+                        </div>
+                        <div>
+                           <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Pitched Amount</p>
+                           <p className="text-lg font-bold text-[#1A7F37]">{selectedLead.currencySymbol || "$"}{selectedLead.pitchedAmount?.toLocaleString()}</p>
                         </div>
                       </div>
-                    </Stack>
-                  </Box>
-                </Grid>
-              </Grid>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ backgroundColor: '#FFFFFF', borderTop: '1px solid #DFE1E6', padding: '16px' }}>
-            <Button onClick={handleClose} sx={{ color: '#42526E', '&:hover': { backgroundColor: '#EBECF0' }, textTransform: 'none', fontWeight: 500 }}>Close Details</Button>
-          </DialogActions>
-        </Dialog>
 
-        {/* --- CONFIRM UNASSIGN MODAL --- */}
-        <Dialog open={confirmOpen} onClose={handleConfirmClose} PaperProps={{ sx: { borderRadius: "3px" } }}>
-          <DialogTitle sx={{ backgroundColor: '#F4F5F7', borderBottom: '1px solid #DFE1E6', color: '#172B4D', fontWeight: 600 }}>Unassign Lead</DialogTitle>
-          <DialogContent sx={{ mt: 3 }}><Typography variant="body2" sx={{ color: '#42526E' }}>Are you sure you want to unassign this lead? They will be removed from this view and returned to the main pool.</Typography></DialogContent>
-          <DialogActions sx={{ borderTop: '1px solid #DFE1E6', padding: '16px' }}>
-            <Button onClick={handleConfirmClose} sx={{ color: '#42526E', '&:hover': { backgroundColor: '#EBECF0' } }}>Cancel</Button>
-            <Button onClick={handleUnassignConfirm} variant="contained" sx={{ backgroundColor: '#DE350B', borderRadius: '3px', '&:hover': { backgroundColor: '#BF2600' }, disableElevation: true }}>Unassign Lead</Button>
-          </DialogActions>
-        </Dialog>
+                      <div>
+                        <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2">Original Note</p>
+                        <div className="neu-flat-sm rounded-xl p-4 text-sm font-medium text-[#1F2328] whitespace-pre-wrap leading-relaxed max-h-[150px] overflow-y-auto custom-scrollbar">
+                          {selectedLead.note || <span className="italic text-[#656D76]">No notes provided.</span>}
+                        </div>
+                      </div>
 
-      </div>
-    </LocalizationProvider>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 sm:p-8 border-t border-[#D1DCEB]/50 flex justify-end shrink-0">
+                <button type="button" onClick={handleClose} className="neu-btn-primary px-8 py-2.5 rounded-lg text-sm font-bold text-white neu-action-btn flex items-center gap-2">
+                  <CheckCircle size={16} className="pointer-events-none" /> Close Details
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Confirm Unassign Modal */}
+      <AnimatePresence>
+        {confirmOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleConfirmClose} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-sm flex flex-col relative z-10 p-8 text-center items-center"
+            >
+              <div className="neu-pressed-sm p-4 rounded-full text-[#D1242F] mb-4">
+                <AlertTriangle size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-[#1F2328] mb-2">Unassign Lead?</h2>
+              <p className="text-sm font-medium text-[#656D76] mb-8">
+                Are you sure? They will be removed from this view and returned to the main unassigned pool.
+              </p>
+              
+              <div className="flex gap-4 w-full">
+                <button type="button" onClick={handleConfirmClose} className="flex-1 neu-flat neu-action-btn rounded-lg py-3 text-sm font-bold text-[#656D76]">
+                  Cancel
+                </button>
+                <button type="button" onClick={handleUnassignConfirm} className="flex-1 neu-flat neu-action-btn border border-[#D1242F]/30 rounded-lg py-3 text-sm font-bold text-[#D1242F]">
+                  Unassign Lead
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+
+      {/* Neumorphic CSS Rules & Bug Fixes */}
+      <style>{`
+        :root {
+          --neu-bg: #F0F4F8; 
+          --neu-light: #FFFFFF;
+          --neu-dark: #D1DCEB;
+        }
+        .neu-base { background-color: var(--neu-bg); }
+        .neu-flat {
+          background-color: var(--neu-bg);
+          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
+        }
+        .neu-flat-sm {
+          background-color: var(--neu-bg);
+          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+        }
+        .neu-pressed {
+          background-color: var(--neu-bg);
+          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
+        }
+        .neu-pressed-sm {
+          background-color: var(--neu-bg);
+          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
+        }
+        
+        /* Force Input Clickability and Text Selection globally */
+        input, textarea, select {
+          position: relative;
+          z-index: 20;
+          pointer-events: auto !important;
+          user-select: text !important;
+          -webkit-user-select: text !important;
+        }
+        
+        select {
+          cursor: pointer !important;
+          -moz-appearance: none; 
+          -webkit-appearance: none; 
+          appearance: none;
+        }
+
+        /* Fixed Interactive Buttons to Ensure Clickability */
+        .neu-action-btn { 
+          cursor: pointer; 
+          transition: all 0.2s ease; 
+          position: relative;
+          z-index: 20;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .neu-action-btn:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important;
+        }
+        .neu-btn-primary {
+          background-color: #0969DA;
+          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
+          border: none;
+          position: relative;
+          z-index: 20;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .neu-btn-primary:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Prevent SVG Icons from intercepting clicks */
+        button svg {
+          pointer-events: none !important;
+        }
+
+        input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
+          -webkit-text-fill-color: #1F2328 !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 4px 0;}
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
+      `}</style>
+    </div>
   );
-};
-
-export default AssignedLeads;
+}

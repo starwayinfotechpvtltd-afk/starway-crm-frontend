@@ -1,2610 +1,25 @@
-// import React, { useState, useEffect, useRef } from "react";
-// import {
-//   Card,
-//   CardContent,
-//   Typography,
-//   Button,
-//   Box,
-//   TextField,
-//   InputAdornment,
-//   Dialog,
-//   DialogTitle,
-//   DialogContent,
-//   DialogActions,
-//   Grid,
-//   FormControl,
-//   Select,
-//   MenuItem,
-//   Switch,
-//   Dialog as MUIDialog,
-//   DialogActions as MUIDialogActions,
-//   DialogContent as MUIDialogContent,
-//   DialogContentText as MUIDialogContentText,
-//   DialogTitle as MUIDialogTitle,
-//   Tooltip,
-//   IconButton,
-//   Pagination,
-//   Snackbar,
-//   Alert,
-//   useMediaQuery,
-//   useTheme,
-//   Drawer,
-//   Stack,
-//   Avatar,
-//   Divider,
-// } from "@mui/material";
-// import {
-//   Search,
-//   Edit,
-//   FilterList,
-//   Close as CloseIcon,
-// } from "@mui/icons-material";
-// import FolderIcon from "@mui/icons-material/Folder";
-// import VisibilityIcon from "@mui/icons-material/Visibility";
-// import DeleteIcon from "@mui/icons-material/Delete";
-// import { Send, MessageSquare } from "lucide-react";
-// import { format } from "date-fns";
-// import { CircularProgress } from "@mui/material";
-// import axios from "axios";
-// import ProjectKanban from "../Admin Pages/Components/Projectkanban";
-// import { TableChart as KanbanIcon } from "@mui/icons-material";
-
-// const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-// const J = {
-//   blue: "#0052CC",
-//   blueDark: "#0747A6",
-//   blueLight: "#DEEBFF",
-//   green: "#006644",
-//   greenBg: "#E3FCEF",
-//   red: "#BF2600",
-//   redBg: "#FFEBE6",
-//   border: "#DFE1E6",
-//   borderFocus: "#4C9AFF",
-//   bgPage: "#F4F5F7",
-//   bgSurface: "#FFFFFF",
-//   bgHover: "#EBECF0",
-//   bgSubtle: "#F4F5F7",
-//   textPrimary: "#172B4D",
-//   textSecondary: "#5E6C84",
-//   textDisabled: "#A5ADBA",
-//   fontFamily:
-//     "'Atlassian Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-//   radius: "3px",
-//   shadowCard: "0 1px 3px rgba(9, 30, 66, 0.13)",
-// };
-
-// const statusConfig = {
-//   Active: { bg: J.greenBg, color: J.green, label: "ACTIVE" },
-//   Closed: { bg: J.redBg, color: J.red, label: "CLOSED" },
-// };
-
-// // ── Normalize assignedDeveloper to always be an array ────────────────────────
-// const normalizeDevelopers = (assignedDeveloper) => {
-//   if (!assignedDeveloper) return [];
-//   if (Array.isArray(assignedDeveloper))
-//     return assignedDeveloper.filter((d) => d && d.username);
-//   if (assignedDeveloper.username) return [assignedDeveloper];
-//   return [];
-// };
-
-// const getDevNamesString = (assignedDeveloper) =>
-//   normalizeDevelopers(assignedDeveloper)
-//     .map((d) => d.username)
-//     .join(", ") || "—";
-
-// // ── Avatar colour from name ──────────────────────────────────────────────────
-// const AVATAR_PALETTE = [
-//   "#0052CC", "#00875A", "#FF5630", "#FF991F", "#6554C0", "#00B8D9",
-// ];
-// const stringToColor = (s) => {
-//   if (!s) return AVATAR_PALETTE[0];
-//   let h = 0;
-//   for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
-//   return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
-// };
-
-// // ── DevCell — compact stacked avatars + truncated name, tooltip for all ──────
-// const DevCell = ({ assignedDeveloper }) => {
-//   const devs = normalizeDevelopers(assignedDeveloper);
-
-//   if (devs.length === 0)
-//     return (
-//       <Typography sx={{ fontSize: "0.8rem", color: J.textSecondary }}>
-//         —
-//       </Typography>
-//     );
-
-//   const MAX_AVATARS = 2;
-//   const shown = devs.slice(0, MAX_AVATARS);
-//   const overflow = devs.length - MAX_AVATARS;
-//   const tooltipLabel = devs.map((d) => d.username).join(", ");
-
-//   const labelText =
-//     devs.length === 1
-//       ? devs[0].username
-//       : `${devs[0].username.split(" ")[0]} +${devs.length - 1}`;
-
-//   return (
-//     <Tooltip title={tooltipLabel} arrow placement="top">
-//       <Box
-//         sx={{
-//           display: "flex",
-//           alignItems: "center",
-//           gap: "6px",
-//           minWidth: 0,
-//           maxWidth: "100%",
-//           cursor: "default",
-//           overflow: "hidden",
-//         }}
-//       >
-//         <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-//           {shown.map((dev, i) => (
-//             <Avatar
-//               key={dev.id || i}
-//               sx={{
-//                 width: 22,
-//                 height: 22,
-//                 fontSize: "0.62rem",
-//                 fontWeight: 700,
-//                 bgcolor: stringToColor(dev.username),
-//                 border: `1.5px solid ${J.bgSurface}`,
-//                 ml: i > 0 ? "-7px" : 0,
-//                 zIndex: shown.length - i,
-//               }}
-//             >
-//               {dev.username.charAt(0).toUpperCase()}
-//             </Avatar>
-//           ))}
-//           {overflow > 0 && (
-//             <Avatar
-//               sx={{
-//                 width: 22,
-//                 height: 22,
-//                 fontSize: "0.58rem",
-//                 fontWeight: 700,
-//                 bgcolor: J.bgHover,
-//                 color: J.textSecondary,
-//                 border: `1.5px solid ${J.bgSurface}`,
-//                 ml: "-7px",
-//                 zIndex: 0,
-//               }}
-//             >
-//               +{overflow}
-//             </Avatar>
-//           )}
-//         </Box>
-
-//         <Typography
-//           sx={{
-//             fontSize: "0.8rem",
-//             color: J.textPrimary,
-//             whiteSpace: "nowrap",
-//             overflow: "hidden",
-//             textOverflow: "ellipsis",
-//             minWidth: 0,
-//           }}
-//         >
-//           {labelText}
-//         </Typography>
-//       </Box>
-//     </Tooltip>
-//   );
-// };
-
-// // ── Status badge ─────────────────────────────────────────────────────────────
-// const StatusBadge = ({ status }) => {
-//   const cfg = statusConfig[status] || statusConfig.Active;
-//   return (
-//     <Box
-//       sx={{
-//         display: "inline-flex",
-//         alignItems: "center",
-//         px: 1,
-//         py: 0.25,
-//         borderRadius: J.radius,
-//         bgcolor: cfg.bg,
-//         color: cfg.color,
-//         fontWeight: 700,
-//         fontSize: "0.7rem",
-//         letterSpacing: "0.04em",
-//         lineHeight: 1.6,
-//         whiteSpace: "nowrap",
-//         userSelect: "none",
-//       }}
-//     >
-//       {cfg.label}
-//     </Box>
-//   );
-// };
-
-// // ── Jira chip ─────────────────────────────────────────────────────────────────
-// const JiraChip = ({ label, color = "blue" }) => {
-//   const palette = {
-//     blue: { bg: J.blueLight, text: J.blue },
-//     green: { bg: J.greenBg, text: J.green },
-//     gray: { bg: J.bgSubtle, text: J.textSecondary },
-//   };
-//   const c = palette[color] || palette.blue;
-//   return (
-//     <Box
-//       sx={{
-//         display: "inline-block",
-//         px: 0.75,
-//         py: 0.25,
-//         borderRadius: J.radius,
-//         bgcolor: c.bg,
-//         color: c.text,
-//         fontSize: "0.72rem",
-//         fontWeight: 500,
-//         lineHeight: 1.5,
-//         whiteSpace: "nowrap",
-//       }}
-//     >
-//       {label}
-//     </Box>
-//   );
-// };
-
-// // ── Mobile card ───────────────────────────────────────────────────────────────
-// const MobileProjectCard = ({
-//   project,
-//   onView,
-//   onDelete,
-//   onToggleUpSale,
-//   onUpsaleInfo,
-//   onKanban,
-// }) => (
-//   <Card
-//     sx={{
-//       mb: 1,
-//       borderRadius: J.radius,
-//       boxShadow: J.shadowCard,
-//       border: `1px solid ${J.border}`,
-//       bgcolor: J.bgSurface,
-//     }}
-//   >
-//     <CardContent sx={{ p: "12px 16px", "&:last-child": { pb: "12px" } }}>
-//       <Box
-//         sx={{
-//           display: "flex",
-//           alignItems: "flex-start",
-//           justifyContent: "space-between",
-//           mb: 1,
-//         }}
-//       >
-//         <Box
-//           sx={{
-//             display: "flex",
-//             alignItems: "center",
-//             gap: 1,
-//             minWidth: 0,
-//           }}
-//         >
-//           <FolderIcon sx={{ color: J.blue, fontSize: 18, flexShrink: 0 }} />
-//           <Typography
-//             sx={{
-//               fontWeight: 600,
-//               fontSize: "0.875rem",
-//               color: J.textPrimary,
-//               lineHeight: 1.3,
-//               overflow: "hidden",
-//               textOverflow: "ellipsis",
-//               whiteSpace: "nowrap",
-//             }}
-//           >
-//             {project.projectName}
-//           </Typography>
-//         </Box>
-//         <StatusBadge status={project.status} />
-//       </Box>
-
-//       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 1 }}>
-//         {project.serviceType.map((s, i) => (
-//           <JiraChip key={i} label={s} color="blue" />
-//         ))}
-//         <JiraChip label={project.subscriptionType} color="gray" />
-//       </Box>
-
-//       <Typography sx={{ fontSize: "0.8rem", color: J.textSecondary, mb: 1 }}>
-//         Assigned:{" "}
-//         <span style={{ color: J.textPrimary, fontWeight: 500 }}>
-//           {getDevNamesString(project.assignedDeveloper)}
-//         </span>
-//       </Typography>
-
-//       <Divider sx={{ my: 1, borderColor: J.border }} />
-
-//       <Box
-//         sx={{
-//           display: "flex",
-//           alignItems: "center",
-//           justifyContent: "space-between",
-//         }}
-//       >
-//         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-//           <Typography sx={{ fontSize: "0.8rem", color: J.textSecondary }}>
-//             Up-Sale
-//           </Typography>
-//           <Switch
-//             checked={project.upSale}
-//             onChange={() => onToggleUpSale(project._id, project.upSale)}
-//             size="small"
-//             sx={{
-//               "& .MuiSwitch-switchBase.Mui-checked": { color: J.blue },
-//               "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-//                 bgcolor: J.blue,
-//               },
-//             }}
-//           />
-//           {project.upSale && (
-//             <Button
-//               size="small"
-//               onClick={() => onUpsaleInfo(project._id)}
-//               sx={{
-//                 color: J.blue,
-//                 fontSize: "0.75rem",
-//                 textTransform: "none",
-//                 p: 0,
-//                 minWidth: 0,
-//               }}
-//             >
-//               + Info
-//             </Button>
-//           )}
-//         </Box>
-//         <IconButton
-//           size="small"
-//           onClick={() => onKanban(project)}
-//           sx={{ color: J.purple, p: "4px" }}
-//         >
-//           <KanbanIcon sx={{ fontSize: 16 }} />
-//         </IconButton>
-//         <Box sx={{ display: "flex", gap: 0.5 }}>
-//           <IconButton
-//             size="small"
-//             onClick={() => onView(project)}
-//             sx={{ color: J.blue, p: "4px" }}
-//           >
-//             <VisibilityIcon sx={{ fontSize: 16 }} />
-//           </IconButton>
-//           <IconButton
-//             size="small"
-//             onClick={() => onDelete(project._id)}
-//             sx={{ color: J.red, p: "4px" }}
-//           >
-//             <DeleteIcon sx={{ fontSize: 16 }} />
-//           </IconButton>
-//         </Box>
-//       </Box>
-//     </CardContent>
-//   </Card>
-// );
-
-// // ── Filter drawer ─────────────────────────────────────────────────────────────
-// const FilterDrawer = ({
-//   open,
-//   onClose,
-//   subscriptionFilter,
-//   createdByFilter,
-//   assignedToFilter,
-//   serviceTypeFilter,
-//   onSubscriptionChange,
-//   onCreatedByChange,
-//   onAssignedToChange,
-//   onServiceTypeChange,
-//   subscriptionTypes,
-//   createdByValues,
-//   assignedToValues,
-//   serviceTypeValues,
-// }) => (
-//   <Drawer
-//     anchor="right"
-//     open={open}
-//     onClose={onClose}
-//     PaperProps={{
-//       sx: { width: 280, borderLeft: `1px solid ${J.border}` },
-//     }}
-//   >
-//     <Box
-//       sx={{
-//         display: "flex",
-//         justifyContent: "space-between",
-//         alignItems: "center",
-//         px: 2,
-//         py: 1.5,
-//         borderBottom: `1px solid ${J.border}`,
-//         bgcolor: J.bgPage,
-//       }}
-//     >
-//       <Typography
-//         sx={{ fontWeight: 600, fontSize: "0.875rem", color: J.textPrimary }}
-//       >
-//         Filters
-//       </Typography>
-//       <IconButton onClick={onClose} size="small">
-//         <CloseIcon sx={{ fontSize: 18 }} />
-//       </IconButton>
-//     </Box>
-//     <Stack spacing={0} divider={<Divider sx={{ borderColor: J.border }} />}>
-//       {[
-//         {
-//           label: "Subscription",
-//           value: subscriptionFilter,
-//           onChange: onSubscriptionChange,
-//           options: subscriptionTypes,
-//         },
-//         {
-//           label: "Created By",
-//           value: createdByFilter,
-//           onChange: onCreatedByChange,
-//           options: createdByValues,
-//         },
-//         {
-//           label: "Assigned To",
-//           value: assignedToFilter,
-//           onChange: onAssignedToChange,
-//           options: assignedToValues,
-//         },
-//         {
-//           label: "Service Type",
-//           value: serviceTypeFilter,
-//           onChange: onServiceTypeChange,
-//           options: serviceTypeValues,
-//         },
-//       ].map(({ label, value, onChange, options }) => (
-//         <Box key={label} sx={{ px: 2, py: 1.5 }}>
-//           <Typography
-//             sx={{
-//               fontSize: "0.75rem",
-//               fontWeight: 600,
-//               color: J.textSecondary,
-//               mb: 0.75,
-//               textTransform: "uppercase",
-//               letterSpacing: "0.04em",
-//             }}
-//           >
-//             {label}
-//           </Typography>
-//           <FormControl fullWidth size="small">
-//             <Select
-//               value={value}
-//               onChange={onChange}
-//               displayEmpty
-//               sx={{
-//                 fontSize: "0.875rem",
-//                 borderRadius: J.radius,
-//                 "& .MuiOutlinedInput-notchedOutline": {
-//                   borderColor: J.border,
-//                 },
-//                 "&:hover .MuiOutlinedInput-notchedOutline": {
-//                   borderColor: J.borderFocus,
-//                 },
-//               }}
-//             >
-//               <MenuItem value="" sx={{ fontSize: "0.875rem" }}>
-//                 All
-//               </MenuItem>
-//               {options.map((o) => (
-//                 <MenuItem key={o} value={o} sx={{ fontSize: "0.875rem" }}>
-//                   {o}
-//                 </MenuItem>
-//               ))}
-//             </Select>
-//           </FormControl>
-//         </Box>
-//       ))}
-//     </Stack>
-//   </Drawer>
-// );
-
-// // ── Shared MUI field styles ───────────────────────────────────────────────────
-// const jiraField = {
-//   "& .MuiOutlinedInput-root": {
-//     borderRadius: J.radius,
-//     fontSize: "0.875rem",
-//     "& fieldset": { borderColor: J.border },
-//     "&:hover fieldset": { borderColor: J.borderFocus },
-//     "&.Mui-focused fieldset": { borderColor: J.blue },
-//   },
-//   "& .MuiInputLabel-root": { fontSize: "0.875rem", color: J.textSecondary },
-//   "& .MuiInputLabel-root.Mui-focused": { color: J.blue },
-// };
-
-// const jiraFilledField = {
-//   "& .MuiFilledInput-root": {
-//     borderRadius: J.radius,
-//     bgcolor: J.bgSubtle,
-//     fontSize: "0.875rem",
-//     "&:before, &:after": { display: "none" },
-//     "&:hover": { bgcolor: "#EBECF0" },
-//   },
-// };
-
-// const labelSx = {
-//   fontSize: "0.8rem",
-//   fontWeight: 600,
-//   color: J.textSecondary,
-//   mb: 0.5,
-//   display: "block",
-//   textTransform: "uppercase",
-//   letterSpacing: "0.04em",
-// };
-
-// // ── Grid column widths ────────────────────────────────────────────────────────
-// const COLS = "minmax(160px,2fr) 155px minmax(110px,1.2fr) 110px 120px 130px 96px";
-
-// // ── Main component ────────────────────────────────────────────────────────────
-// const ProjectList = () => {
-//   const [isLoading, setIsLoading] = useState(true);
-//   const [kanbanOpen, setKanbanOpen] = useState(false);
-//   const [kanbanProject, setKanbanProject] = useState(null);
-//   const [projects, setProjects] = useState([]);
-//   const [searchTerm, setSearchTerm] = useState("");
-//   const [selectedProject, setSelectedProject] = useState(null);
-//   const [open, setOpen] = useState(false);
-//   const [subscriptionFilter, setSubscriptionFilter] = useState("");
-//   const [createdByFilter, setCreatedByFilter] = useState("");
-//   const [assignedToFilter, setAssignedToFilter] = useState("");
-//   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
-//   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-//   const [projectToDeleteId, setProjectToDeleteId] = useState(null);
-//   const [upsaleDialogOpen, setUpsaleDialogOpen] = useState(false);
-//   const [upsaleData, setUpsaleData] = useState({
-//     serviceType: "",
-//     amount: "",
-//     details: "",
-//     comments: "",
-//   });
-//   const [selectedProjectId, setSelectedProjectId] = useState(null);
-//   const [editUpsaleDialogOpen, setEditUpsaleDialogOpen] = useState(false);
-//   const [selectedUpsaleId, setSelectedUpsaleId] = useState(null);
-//   const [editProjectDialogOpen, setEditProjectDialogOpen] = useState(false);
-//   const [editProjectData, setEditProjectData] = useState({
-//     projectName: "",
-//     clientName: "",
-//     clientEmail: "",
-//     clientNumber: "",
-//     amount: "",
-//     assignedDeveloper: [],
-//     serviceType: [],
-//     referenceSite: "",
-//     businessNiche: "",
-//     projectDetails: "",
-//     comments: "",
-//     subscriptionType: "",
-//     createdBy: "",
-//   });
-//   const [serviceTypes, setServiceTypes] = useState([]);
-//   const [developers, setDevelopers] = useState([]);
-//   const [snackbarOpen, setSnackbarOpen] = useState(false);
-//   const [snackbarMessage, setSnackbarMessage] = useState("");
-//   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-//   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-//   const [page, setPage] = useState(1);
-//   const projectsPerPage = 10;
-//   const theme = useTheme();
-//   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-//   const [isChatOpen, setIsChatOpen] = useState(false);
-//   const [message, setMessage] = useState("");
-//   const [updates, setUpdates] = useState([]);
-//   const [isLoadingUpdates, setIsLoadingUpdates] = useState(false);
-//   const messagesEndRef = useRef(null);
-
-//   // Consolidated Initial Load
-//   useEffect(() => {
-//     const loadInitialData = async () => {
-//       setIsLoading(true);
-//       try {
-//         const token = localStorage.getItem("token");
-//         const headers = { Authorization: `Bearer ${token}` };
-
-//         await Promise.all([
-//           fetchProjects(),
-//           axios.get(`${API_BASE}/api/auth/developers`, { headers }).then((r) => setDevelopers(r.data)),
-//           axios.get(`${API_BASE}/api/servicetypes`, { headers }).then((r) => setServiceTypes(r.data.map((st) => st.name)))
-//         ]);
-//       } catch (error) {
-//         console.error("Error loading initial data:", error);
-//       } finally {
-//         setIsLoading(false);
-//       }
-//     };
-
-//     loadInitialData();
-//   }, []);
-
-//   const fetchProjects = async () => {
-//     try {
-//       const r = await axios.get(`${API_BASE}/api/newproject/projects`, {
-//         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-//       });
-//       setProjects(Array.isArray(r.data) ? r.data : []);
-//     } catch {
-//       setProjects([]);
-//     }
-//   };
-
-//   const handleKanbanClick = (project) => {
-//     setKanbanProject(project);
-//     setKanbanOpen(true);
-//   };
-
-//   const filteredProjects = Array.isArray(projects)
-//     ? projects.filter((p) => {
-//       const devNames = normalizeDevelopers(p.assignedDeveloper).map(
-//         (d) => d.username
-//       );
-//       return (
-//         p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-//         (!subscriptionFilter || p.subscriptionType === subscriptionFilter) &&
-//         (!createdByFilter || p.createdBy === createdByFilter) &&
-//         (!assignedToFilter || devNames.includes(assignedToFilter)) &&
-//         (!serviceTypeFilter || p.serviceType.includes(serviceTypeFilter))
-//       );
-//     })
-//     : [];
-
-//   const currentProjects = filteredProjects.slice(
-//     (page - 1) * projectsPerPage,
-//     page * projectsPerPage
-//   );
-
-//   const subscriptionTypes = [
-//     ...new Set(projects.map((p) => p.subscriptionType).filter(Boolean)),
-//   ];
-//   const createdByValues = [
-//     ...new Set(projects.map((p) => p.createdBy).filter(Boolean)),
-//   ];
-//   const assignedToValues = [
-//     ...new Set(
-//       projects.flatMap((p) =>
-//         normalizeDevelopers(p.assignedDeveloper).map((d) => d.username)
-//       )
-//     ),
-//   ];
-//   const serviceTypeValues = [
-//     ...new Set(projects.flatMap((p) => p.serviceType || [])),
-//   ];
-
-//   const handleViewClick = (p) => {
-//     setSelectedProject(p);
-//     setOpen(true);
-//   };
-//   const handleClose = () => {
-//     setOpen(false);
-//     setSelectedProject(null);
-//   };
-//   const handleDeleteClick = (id) => {
-//     setProjectToDeleteId(id);
-//     setDeleteConfirmationOpen(true);
-//   };
-//   const cancelDelete = () => {
-//     setDeleteConfirmationOpen(false);
-//     setProjectToDeleteId(null);
-//   };
-
-//   const confirmDelete = async () => {
-//     try {
-//       await axios.delete(
-//         `${API_BASE}/api/newproject/projects/${projectToDeleteId}`
-//       );
-//       fetchProjects();
-//       setSnackbarMessage("Project deleted successfully.");
-//       setSnackbarSeverity("success");
-//     } catch {
-//       setSnackbarMessage("Failed to delete project.");
-//       setSnackbarSeverity("error");
-//     } finally {
-//       setDeleteConfirmationOpen(false);
-//       setProjectToDeleteId(null);
-//       setSnackbarOpen(true);
-//     }
-//   };
-
-//   const handleToggleUpSale = async (id, cur) => {
-//     const newStatus = !cur;
-//     setProjects((prev) =>
-//       prev.map((p) => (p._id === id ? { ...p, upSale: newStatus } : p))
-//     );
-//     try {
-//       await axios.put(
-//         `${API_BASE}/api/newproject/projects/${id}/up-sale`,
-//         { upSale: newStatus },
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//     } catch { }
-//   };
-
-//   const handleStatusChange = async (id, status) => {
-//     try {
-//       const r = await axios.put(
-//         `${API_BASE}/api/newproject/projects/${id}/status`,
-//         { status },
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//       const updated = r.data.updatedProject;
-//       setProjects((prev) =>
-//         prev.map((p) => (p._id === updated._id ? updated : p))
-//       );
-//     } catch (err) {
-//       if (err.response?.status === 401) {
-//         localStorage.removeItem("token");
-//         window.location.href = "/";
-//       }
-//     }
-//   };
-
-//   const handleEditProjectClick = (p) => {
-//     setEditProjectData({
-//       ...p,
-//       assignedDeveloper: normalizeDevelopers(p.assignedDeveloper),
-//     });
-//     setEditProjectDialogOpen(true);
-//   };
-//   const handleEditProjectDialogClose = () => setEditProjectDialogOpen(false);
-
-//   const handleEditProjectSubmit = async () => {
-//     try {
-//       await axios.put(
-//         `${API_BASE}/api/newproject/projects/${selectedProject._id}`,
-//         editProjectData,
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//       fetchProjects();
-//       handleEditProjectDialogClose();
-//       setSnackbarMessage("Project updated.");
-//       setSnackbarSeverity("success");
-//       setSnackbarOpen(true);
-//     } catch {
-//       setSnackbarMessage("Update failed.");
-//       setSnackbarSeverity("error");
-//       setSnackbarOpen(true);
-//     }
-//   };
-
-//   const handleUpsaleSubmit = async () => {
-//     try {
-//       await axios.post(
-//         `${API_BASE}/api/newproject/projects/${selectedProjectId}/upsale`,
-//         upsaleData,
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//       fetchProjects();
-//       setUpsaleDialogOpen(false);
-//       setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });
-//       setSnackbarMessage("Upsale added.");
-//       setSnackbarSeverity("success");
-//       setSnackbarOpen(true);
-//     } catch {
-//       setSnackbarMessage("Failed to add upsale.");
-//       setSnackbarSeverity("error");
-//       setSnackbarOpen(true);
-//     }
-//   };
-
-//   const handleEditUpsaleSubmit = async () => {
-//     try {
-//       await axios.put(
-//         `${API_BASE}/api/newproject/projects/${selectedProjectId}/upsale/${selectedUpsaleId}`,
-//         upsaleData,
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//       fetchProjects();
-//       setEditUpsaleDialogOpen(false);
-//       setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });
-//     } catch { }
-//   };
-
-//   const handleUpdateClick = async (project) => {
-//     setSelectedProject(project);
-//     setIsChatOpen(true);
-//     setIsLoadingUpdates(true);
-//     try {
-//       const r = await axios.get(
-//         `${API_BASE}/api/newproject/projects/${project._id}/updates`,
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//           validateStatus: (s) => s < 500,
-//         }
-//       );
-//       setUpdates(
-//         (r.data || []).map((u) => ({
-//           ...u,
-//           _id: u._id || Math.random().toString(),
-//           createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
-//           createdBy: {
-//             id: u.createdBy?.id || "unknown",
-//             username: u.createdBy?.username || "Unknown",
-//           },
-//         }))
-//       );
-//     } catch {
-//       setUpdates([]);
-//     } finally {
-//       setIsLoadingUpdates(false);
-//     }
-//   };
-
-//   const handleSendUpdate = async () => {
-//     if (!message.trim() || !selectedProject) return;
-//     const tempId = Date.now().toString();
-//     const newUpdate = {
-//       _id: tempId,
-//       text: message,
-//       createdAt: new Date(),
-//       createdBy: {
-//         id: localStorage.getItem("userId"),
-//         username: localStorage.getItem("username") || "You",
-//       },
-//     };
-//     setUpdates((prev) => [...prev, newUpdate]);
-//     setMessage("");
-//     try {
-//       await axios.post(
-//         `${API_BASE}/api/newproject/projects/${selectedProject._id}/updates`,
-//         { text: message },
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//       const r = await axios.get(
-//         `${API_BASE}/api/newproject/projects/${selectedProject._id}/updates`,
-//         {
-//           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-//         }
-//       );
-//       setUpdates(r.data || []);
-//     } catch {
-//       setUpdates((prev) => prev.filter((u) => u._id !== tempId));
-//     }
-//   };
-
-//   useEffect(() => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [updates]);
-
-
-//   if (isLoading) {
-//     return (
-//       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F5F7] font-sans">
-//         <div className="w-10 h-10 border-4 border-[#EBECF0] border-t-[#0052CC] rounded-full animate-spin"></div>
-//         <p className="mt-4 text-[#5E6C84] text-sm font-medium animate-pulse">Loading projects...</p>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <Box
-//       sx={{
-//         width: "100%",
-//         bgcolor: J.bgPage,
-//         minHeight: "100vh",
-//         fontFamily: J.fontFamily,
-//       }}
-//     >
-//       {/* ── Top bar ── */}
-//       <Box
-//         sx={{
-//           bgcolor: J.bgSurface,
-//           borderBottom: `1px solid ${J.border}`,
-//           px: { xs: 2, md: 4 },
-//         }}
-//       >
-//         <Box
-//           sx={{ display: "flex", alignItems: "center", gap: 2, height: 48 }}
-//         >
-//           <FolderIcon sx={{ color: J.blue, fontSize: 20 }} />
-//           <Typography
-//             sx={{
-//               fontWeight: 600,
-//               fontSize: "0.9375rem",
-//               color: J.textPrimary,
-//             }}
-//           >
-//             Projects
-//           </Typography>
-//           <Box sx={{ flex: 1 }} />
-//           <Typography sx={{ fontSize: "0.8rem", color: J.textSecondary }}>
-//             {filteredProjects.length} project
-//             {filteredProjects.length !== 1 ? "s" : ""}
-//           </Typography>
-//         </Box>
-//       </Box>
-
-//       {/* ── Toolbar ── */}
-//       <Box
-//         sx={{
-//           bgcolor: J.bgSurface,
-//           borderBottom: `1px solid ${J.border}`,
-//           px: { xs: 2, md: 4 },
-//           py: 1.25,
-//         }}
-//       >
-//         <Box
-//           sx={{
-//             display: "flex",
-//             alignItems: "center",
-//             gap: 1.5,
-//             flexWrap: "wrap",
-//           }}
-//         >
-//           <TextField
-//             size="small"
-//             placeholder="Search projects"
-//             value={searchTerm}
-//             onChange={(e) => setSearchTerm(e.target.value)}
-//             InputProps={{
-//               startAdornment: (
-//                 <InputAdornment position="start">
-//                   <Search sx={{ color: J.textSecondary, fontSize: 18 }} />
-//                 </InputAdornment>
-//               ),
-//               sx: {
-//                 borderRadius: J.radius,
-//                 fontSize: "0.875rem",
-//                 height: 32,
-//                 bgcolor: J.bgPage,
-//                 "& .MuiOutlinedInput-notchedOutline": {
-//                   borderColor: J.border,
-//                 },
-//                 "&:hover .MuiOutlinedInput-notchedOutline": {
-//                   borderColor: J.borderFocus,
-//                 },
-//               },
-//             }}
-//             sx={{ width: 220 }}
-//           />
-
-//           {!isMobile &&
-//             [
-//               {
-//                 label: "Subscription",
-//                 value: subscriptionFilter,
-//                 onChange: (e) => setSubscriptionFilter(e.target.value),
-//                 options: subscriptionTypes,
-//               },
-//               {
-//                 label: "Created by",
-//                 value: createdByFilter,
-//                 onChange: (e) => setCreatedByFilter(e.target.value),
-//                 options: createdByValues,
-//               },
-//               {
-//                 label: "Assigned to",
-//                 value: assignedToFilter,
-//                 onChange: (e) => setAssignedToFilter(e.target.value),
-//                 options: assignedToValues,
-//               },
-//               {
-//                 label: "Service",
-//                 value: serviceTypeFilter,
-//                 onChange: (e) => setServiceTypeFilter(e.target.value),
-//                 options: serviceTypeValues,
-//               },
-//             ].map(({ label, value, onChange, options }) => (
-//               <FormControl key={label} size="small" sx={{ minWidth: 130 }}>
-//                 <Select
-//                   value={value}
-//                   onChange={onChange}
-//                   displayEmpty
-//                   sx={{
-//                     height: 32,
-//                     borderRadius: J.radius,
-//                     fontSize: "0.8125rem",
-//                     bgcolor: J.bgSurface,
-//                     "& .MuiOutlinedInput-notchedOutline": {
-//                       borderColor: J.border,
-//                     },
-//                     "&:hover .MuiOutlinedInput-notchedOutline": {
-//                       borderColor: J.borderFocus,
-//                     },
-//                   }}
-//                   renderValue={(v) =>
-//                     v ? (
-//                       <span style={{ color: J.textPrimary }}>{v}</span>
-//                     ) : (
-//                       <span style={{ color: J.textSecondary }}>{label}</span>
-//                     )
-//                   }
-//                 >
-//                   <MenuItem value="" sx={{ fontSize: "0.8125rem" }}>
-//                     All {label}
-//                   </MenuItem>
-//                   {options.map((o) => (
-//                     <MenuItem key={o} value={o} sx={{ fontSize: "0.8125rem" }}>
-//                       {o}
-//                     </MenuItem>
-//                   ))}
-//                 </Select>
-//               </FormControl>
-//             ))}
-
-//           {isMobile && (
-//             <Button
-//               size="small"
-//               startIcon={<FilterList sx={{ fontSize: 16 }} />}
-//               onClick={() => setFilterDrawerOpen(true)}
-//               sx={{
-//                 height: 32,
-//                 borderRadius: J.radius,
-//                 color: J.textSecondary,
-//                 border: `1px solid ${J.border}`,
-//                 bgcolor: J.bgSurface,
-//                 fontSize: "0.8125rem",
-//                 textTransform: "none",
-//               }}
-//             >
-//               Filters
-//             </Button>
-//           )}
-//         </Box>
-//       </Box>
-
-//       {/* ── Content ── */}
-//       <Box sx={{ px: { xs: 2, md: 4 }, py: 3 }}>
-//         {isMobile ? (
-//           currentProjects.map((p) => (
-//             <MobileProjectCard
-//               key={p._id}
-//               project={p}
-//               onView={handleViewClick}
-//               onDelete={handleDeleteClick}
-//               onToggleUpSale={handleToggleUpSale}
-//               onUpsaleInfo={(id) => {
-//                 setSelectedProjectId(id);
-//                 setUpsaleDialogOpen(true);
-//               }}
-//               onKanban={handleKanbanClick}
-
-//             />
-//           ))
-//         ) : (
-//           <Box sx={{ overflowX: "auto" }}>
-//             <Box
-//               sx={{
-//                 bgcolor: J.bgSurface,
-//                 border: `1px solid ${J.border}`,
-//                 borderRadius: J.radius,
-//                 boxShadow: J.shadowCard,
-//                 overflow: "hidden",
-//                 minWidth: 860,
-//               }}
-//             >
-//               {/* Header */}
-//               <Box
-//                 sx={{
-//                   display: "grid",
-//                   gridTemplateColumns: COLS,
-//                   px: 2,
-//                   py: 1,
-//                   bgcolor: J.bgPage,
-//                   borderBottom: `2px solid ${J.border}`,
-//                 }}
-//               >
-//                 {[
-//                   "Project",
-//                   "Assigned To",
-//                   "Service Type",
-//                   "Subscription",
-//                   "Status",
-//                   "Up-Sale",
-//                   "Actions",
-//                 ].map((h) => (
-//                   <Typography
-//                     key={h}
-//                     sx={{
-//                       fontSize: "0.72rem",
-//                       fontWeight: 700,
-//                       color: J.textSecondary,
-//                       textTransform: "uppercase",
-//                       letterSpacing: "0.05em",
-//                     }}
-//                   >
-//                     {h}
-//                   </Typography>
-//                 ))}
-//               </Box>
-
-//               {/* Rows */}
-//               {currentProjects.length === 0 ? (
-//                 <Box sx={{ py: 8, textAlign: "center" }}>
-//                   <FolderIcon
-//                     sx={{ fontSize: 40, color: J.textDisabled, mb: 1 }}
-//                   />
-//                   <Typography
-//                     sx={{ color: J.textSecondary, fontSize: "0.875rem" }}
-//                   >
-//                     No projects found
-//                   </Typography>
-//                 </Box>
-//               ) : (
-//                 currentProjects.map((project, idx) => (
-//                   <Box
-//                     key={project._id}
-//                     sx={{
-//                       display: "grid",
-//                       gridTemplateColumns: COLS,
-//                       px: 2,
-//                       py: 1.25,
-//                       borderBottom:
-//                         idx < currentProjects.length - 1
-//                           ? `1px solid ${J.border}`
-//                           : "none",
-//                       alignItems: "center",
-//                       transition: "background 0.1s",
-//                       "&:hover": { bgcolor: "#FAFBFC" },
-//                     }}
-//                   >
-//                     {/* Project name */}
-//                     <Box
-//                       sx={{
-//                         display: "flex",
-//                         alignItems: "center",
-//                         gap: 1.5,
-//                         minWidth: 0,
-//                         overflow: "hidden",
-//                       }}
-//                     >
-//                       <Box
-//                         sx={{
-//                           width: 26,
-//                           height: 26,
-//                           borderRadius: J.radius,
-//                           bgcolor: J.blueLight,
-//                           display: "flex",
-//                           alignItems: "center",
-//                           justifyContent: "center",
-//                           flexShrink: 0,
-//                         }}
-//                       >
-//                         <FolderIcon sx={{ fontSize: 15, color: J.blue }} />
-//                       </Box>
-//                       <Box sx={{ minWidth: 0, overflow: "hidden" }}>
-//                         <Typography
-//                           onClick={() => handleViewClick(project)}
-//                           sx={{
-//                             fontSize: "0.875rem",
-//                             fontWeight: 500,
-//                             color: J.blue,
-//                             cursor: "pointer",
-//                             "&:hover": { textDecoration: "underline" },
-//                             whiteSpace: "nowrap",
-//                             overflow: "hidden",
-//                             textOverflow: "ellipsis",
-//                           }}
-//                         >
-//                           {project.projectName}
-//                         </Typography>
-//                         <Typography
-//                           sx={{
-//                             fontSize: "0.72rem",
-//                             color: J.textSecondary,
-//                             whiteSpace: "nowrap",
-//                             overflow: "hidden",
-//                             textOverflow: "ellipsis",
-//                           }}
-//                         >
-//                           {project.createdBy}
-//                         </Typography>
-//                       </Box>
-//                     </Box>
-
-//                     {/* Assigned — compact, never overflows */}
-//                     <DevCell assignedDeveloper={project.assignedDeveloper} />
-
-//                     {/* Service type */}
-//                     <Box
-//                       sx={{
-//                         display: "flex",
-//                         gap: 0.5,
-//                         flexWrap: "wrap",
-//                         overflow: "hidden",
-//                       }}
-//                     >
-//                       {project.serviceType.slice(0, 2).map((s, i) => (
-//                         <JiraChip key={i} label={s} color="blue" />
-//                       ))}
-//                       {project.serviceType.length > 2 && (
-//                         <JiraChip
-//                           label={`+${project.serviceType.length - 2}`}
-//                           color="gray"
-//                         />
-//                       )}
-//                     </Box>
-
-//                     {/* Subscription */}
-//                     <JiraChip label={project.subscriptionType} color="gray" />
-
-//                     {/* Status */}
-//                     <FormControl size="small">
-//                       <Select
-//                         value={project.status}
-//                         onChange={(e) =>
-//                           handleStatusChange(project._id, e.target.value)
-//                         }
-//                         sx={{
-//                           height: 28,
-//                           borderRadius: J.radius,
-//                           bgcolor:
-//                             project.status === "Active"
-//                               ? J.greenBg
-//                               : J.redBg,
-//                           color:
-//                             project.status === "Active" ? J.green : J.red,
-//                           fontWeight: 700,
-//                           fontSize: "0.7rem",
-//                           letterSpacing: "0.04em",
-//                           "& .MuiOutlinedInput-notchedOutline": {
-//                             border: "none",
-//                           },
-//                           "& .MuiSelect-icon": {
-//                             color:
-//                               project.status === "Active" ? J.green : J.red,
-//                           },
-//                         }}
-//                       >
-//                         <MenuItem
-//                           value="Active"
-//                           sx={{ fontSize: "0.8125rem" }}
-//                         >
-//                           ACTIVE
-//                         </MenuItem>
-//                         <MenuItem
-//                           value="Closed"
-//                           sx={{ fontSize: "0.8125rem" }}
-//                         >
-//                           CLOSED
-//                         </MenuItem>
-//                       </Select>
-//                     </FormControl>
-
-//                     {/* Up-sale */}
-//                     <Box
-//                       sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-//                     >
-//                       <Switch
-//                         checked={project.upSale}
-//                         onChange={() =>
-//                           handleToggleUpSale(project._id, project.upSale)
-//                         }
-//                         size="small"
-//                         sx={{
-//                           "& .MuiSwitch-switchBase.Mui-checked": {
-//                             color: J.blue,
-//                           },
-//                           "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-//                             { bgcolor: J.blue },
-//                         }}
-//                       />
-//                       {project.upSale && (
-//                         <Button
-//                           size="small"
-//                           onClick={() => {
-//                             setSelectedProjectId(project._id);
-//                             setUpsaleDialogOpen(true);
-//                           }}
-//                           sx={{
-//                             color: J.blue,
-//                             fontSize: "0.7rem",
-//                             textTransform: "none",
-//                             p: "2px 6px",
-//                             minWidth: 0,
-//                             border: `1px solid ${J.border}`,
-//                             borderRadius: J.radius,
-//                           }}
-//                         >
-//                           + Add
-//                         </Button>
-//                       )}
-//                     </Box>
-
-//                     {/* Actions */}
-//                     <Box
-//                       sx={{
-//                         display: "flex",
-//                         alignItems: "center",
-//                         gap: 0.25,
-//                       }}
-//                     >
-
-//                       <Tooltip title="Kanban" arrow>
-//                         <IconButton
-//                           size="small"
-//                           onClick={() => handleKanbanClick(project)}
-//                           sx={{
-//                             color: J.textSecondary,
-//                             p: "4px",
-//                             borderRadius: J.radius,
-//                             "&:hover": { bgcolor: J.bgHover, color: J.purple },
-//                           }}
-//                         >
-//                           <KanbanIcon sx={{ fontSize: 15 }} />
-//                         </IconButton>
-//                       </Tooltip>
-
-//                       <Tooltip title="Updates" arrow>
-//                         <IconButton
-//                           size="small"
-//                           onClick={() => handleUpdateClick(project)}
-//                           sx={{
-//                             color: J.textSecondary,
-//                             p: "4px",
-//                             borderRadius: J.radius,
-//                             "&:hover": { bgcolor: J.bgHover, color: J.blue },
-//                           }}
-//                         >
-//                           <MessageSquare size={15} />
-//                         </IconButton>
-//                       </Tooltip>
-//                       <Tooltip title="View" arrow>
-//                         <IconButton
-//                           size="small"
-//                           onClick={() => handleViewClick(project)}
-//                           sx={{
-//                             color: J.textSecondary,
-//                             p: "4px",
-//                             borderRadius: J.radius,
-//                             "&:hover": { bgcolor: J.bgHover, color: J.blue },
-//                           }}
-//                         >
-//                           <VisibilityIcon sx={{ fontSize: 16 }} />
-//                         </IconButton>
-//                       </Tooltip>
-//                       <Tooltip title="Delete" arrow>
-//                         <IconButton
-//                           size="small"
-//                           onClick={() => handleDeleteClick(project._id)}
-//                           sx={{
-//                             color: J.textSecondary,
-//                             p: "4px",
-//                             borderRadius: J.radius,
-//                             "&:hover": {
-//                               bgcolor: "#FFEBE6",
-//                               color: J.red,
-//                             },
-//                           }}
-//                         >
-//                           <DeleteIcon sx={{ fontSize: 16 }} />
-//                         </IconButton>
-//                       </Tooltip>
-//                     </Box>
-//                   </Box>
-//                 ))
-//               )}
-//             </Box>
-//           </Box>
-//         )}
-
-//         {/* Pagination */}
-//         {filteredProjects.length > projectsPerPage && (
-//           <Box
-//             sx={{
-//               display: "flex",
-//               justifyContent: "flex-end",
-//               mt: 3,
-//               alignItems: "center",
-//               gap: 2,
-//             }}
-//           >
-//             <Typography sx={{ fontSize: "0.8rem", color: J.textSecondary }}>
-//               {(page - 1) * projectsPerPage + 1}–
-//               {Math.min(page * projectsPerPage, filteredProjects.length)} of{" "}
-//               {filteredProjects.length}
-//             </Typography>
-//             <Pagination
-//               count={Math.ceil(filteredProjects.length / projectsPerPage)}
-//               page={page}
-//               onChange={(_, v) => setPage(v)}
-//               size="small"
-//               shape="rounded"
-//               sx={{
-//                 "& .MuiPaginationItem-root": {
-//                   borderRadius: J.radius,
-//                   fontSize: "0.8125rem",
-//                   color: J.textSecondary,
-//                   border: `1px solid ${J.border}`,
-//                   "&:hover": { bgcolor: J.bgHover },
-//                 },
-//                 "& .MuiPaginationItem-root.Mui-selected": {
-//                   bgcolor: J.blue,
-//                   color: "#fff",
-//                   border: "none",
-//                   "&:hover": { bgcolor: J.blueDark },
-//                 },
-//               }}
-//             />
-//           </Box>
-//         )}
-//       </Box>
-
-//       {/* ── Filter drawer ── */}
-//       <FilterDrawer
-//         open={filterDrawerOpen}
-//         onClose={() => setFilterDrawerOpen(false)}
-//         subscriptionFilter={subscriptionFilter}
-//         createdByFilter={createdByFilter}
-//         assignedToFilter={assignedToFilter}
-//         serviceTypeFilter={serviceTypeFilter}
-//         onSubscriptionChange={(e) => setSubscriptionFilter(e.target.value)}
-//         onCreatedByChange={(e) => setCreatedByFilter(e.target.value)}
-//         onAssignedToChange={(e) => setAssignedToFilter(e.target.value)}
-//         onServiceTypeChange={(e) => setServiceTypeFilter(e.target.value)}
-//         subscriptionTypes={subscriptionTypes}
-//         createdByValues={createdByValues}
-//         assignedToValues={assignedToValues}
-//         serviceTypeValues={serviceTypeValues}
-//       />
-
-//       {/* ── Project details dialog ── */}
-//       <Dialog
-//         open={open}
-//         onClose={handleClose}
-//         fullWidth
-//         maxWidth="md"
-//         PaperProps={{
-//           sx: {
-//             borderRadius: J.radius,
-//             boxShadow: "0 8px 32px rgba(9,30,66,0.2)",
-//           },
-//         }}
-//       >
-//         <DialogTitle
-//           sx={{
-//             borderBottom: `1px solid ${J.border}`,
-//             py: 2,
-//             px: 3,
-//             display: "flex",
-//             justifyContent: "space-between",
-//             alignItems: "center",
-//           }}
-//         >
-//           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-//             <FolderIcon sx={{ color: J.blue, fontSize: 20 }} />
-//             <Typography
-//               sx={{ fontWeight: 600, fontSize: "1rem", color: J.textPrimary }}
-//             >
-//               Project Details
-//             </Typography>
-//           </Box>
-//           <IconButton size="small" onClick={handleClose}>
-//             <CloseIcon sx={{ fontSize: 18 }} />
-//           </IconButton>
-//         </DialogTitle>
-//         <DialogContent sx={{ p: 3, bgcolor: J.bgPage }}>
-//           {selectedProject && (
-//             <>
-//               <Box
-//                 sx={{
-//                   bgcolor: J.bgSurface,
-//                   border: `1px solid ${J.border}`,
-//                   borderRadius: J.radius,
-//                   p: 3,
-//                   mb: 3,
-//                 }}
-//               >
-//                 <Typography
-//                   sx={{
-//                     fontWeight: 700,
-//                     fontSize: "0.8rem",
-//                     color: J.textSecondary,
-//                     textTransform: "uppercase",
-//                     letterSpacing: "0.05em",
-//                     mb: 2,
-//                   }}
-//                 >
-//                   Project Information
-//                 </Typography>
-//                 <Grid container spacing={2}>
-//                   {[
-//                     {
-//                       label: "Project Name",
-//                       value: selectedProject.projectName,
-//                     },
-//                     { label: "Client", value: selectedProject.clientName },
-//                     {
-//                       label: "Client Email",
-//                       value: selectedProject.clientEmail,
-//                     },
-//                     {
-//                       label: "Client Number",
-//                       value: selectedProject.clientNumber,
-//                     },
-//                     { label: "Amount", value: selectedProject.amount },
-//                     {
-//                       label: "Assigned Developer(s)",
-//                       value: getDevNamesString(selectedProject.assignedDeveloper),
-//                     },
-//                     {
-//                       label: "Service Type",
-//                       value: (selectedProject.serviceType || []).join(", "),
-//                     },
-//                     {
-//                       label: "Reference Site",
-//                       value: selectedProject.referenceSite,
-//                     },
-//                     {
-//                       label: "Business Niche",
-//                       value: selectedProject.businessNiche,
-//                     },
-//                     {
-//                       label: "Subscription Type",
-//                       value: selectedProject.subscriptionType,
-//                     },
-//                   ].map(({ label, value }) => (
-//                     <Grid item xs={12} sm={6} key={label}>
-//                       <Typography component="span" sx={labelSx}>
-//                         {label}
-//                       </Typography>
-//                       <TextField
-//                         variant="filled"
-//                         fullWidth
-//                         value={value || "—"}
-//                         InputProps={{ readOnly: true, disableUnderline: true }}
-//                         sx={jiraFilledField}
-//                       />
-//                     </Grid>
-//                   ))}
-//                   <Grid item xs={12}>
-//                     <Typography component="span" sx={labelSx}>
-//                       Details
-//                     </Typography>
-//                     <TextField
-//                       variant="filled"
-//                       fullWidth
-//                       multiline
-//                       rows={3}
-//                       value={selectedProject.projectDetails || "—"}
-//                       InputProps={{ readOnly: true, disableUnderline: true }}
-//                       sx={jiraFilledField}
-//                     />
-//                   </Grid>
-//                   <Grid item xs={12}>
-//                     <Typography component="span" sx={labelSx}>
-//                       Comments
-//                     </Typography>
-//                     <TextField
-//                       variant="filled"
-//                       fullWidth
-//                       multiline
-//                       rows={2}
-//                       value={selectedProject.comments || "—"}
-//                       InputProps={{ readOnly: true, disableUnderline: true }}
-//                       sx={jiraFilledField}
-//                     />
-//                   </Grid>
-//                 </Grid>
-//                 <Button
-//                   variant="contained"
-//                   startIcon={<Edit sx={{ fontSize: 15 }} />}
-//                   onClick={() => handleEditProjectClick(selectedProject)}
-//                   disableElevation
-//                   sx={{
-//                     mt: 2.5,
-//                     height: 32,
-//                     borderRadius: J.radius,
-//                     bgcolor: J.blue,
-//                     fontSize: "0.8125rem",
-//                     textTransform: "none",
-//                     "&:hover": { bgcolor: J.blueDark },
-//                   }}
-//                 >
-//                   Edit project
-//                 </Button>
-//               </Box>
-
-//               {selectedProject.upsaleData?.length > 0 && (
-//                 <Box
-//                   sx={{
-//                     bgcolor: J.bgSurface,
-//                     border: `1px solid ${J.border}`,
-//                     borderRadius: J.radius,
-//                     p: 3,
-//                   }}
-//                 >
-//                   <Typography
-//                     sx={{
-//                       fontWeight: 700,
-//                       fontSize: "0.8rem",
-//                       color: J.textSecondary,
-//                       textTransform: "uppercase",
-//                       letterSpacing: "0.05em",
-//                       mb: 2,
-//                     }}
-//                   >
-//                     Upsale Packages
-//                   </Typography>
-//                   {selectedProject.upsaleData.map((upsale, idx) => (
-//                     <Box
-//                       key={idx}
-//                       sx={{
-//                         mb:
-//                           idx < selectedProject.upsaleData.length - 1 ? 3 : 0,
-//                         pb:
-//                           idx < selectedProject.upsaleData.length - 1 ? 3 : 0,
-//                         borderBottom:
-//                           idx < selectedProject.upsaleData.length - 1
-//                             ? `1px solid ${J.border}`
-//                             : "none",
-//                       }}
-//                     >
-//                       <Box
-//                         sx={{
-//                           display: "flex",
-//                           alignItems: "center",
-//                           justifyContent: "space-between",
-//                           mb: 1.5,
-//                         }}
-//                       >
-//                         <JiraChip label={`Package ${idx + 1}`} color="blue" />
-//                         <Button
-//                           variant="outlined"
-//                           size="small"
-//                           startIcon={<Edit sx={{ fontSize: 13 }} />}
-//                           onClick={() => {
-//                             setSelectedProjectId(selectedProject._id);
-//                             setSelectedUpsaleId(upsale._id);
-//                             setUpsaleData(upsale);
-//                             setEditUpsaleDialogOpen(true);
-//                           }}
-//                           sx={{
-//                             height: 28,
-//                             borderRadius: J.radius,
-//                             color: J.blue,
-//                             borderColor: J.border,
-//                             fontSize: "0.75rem",
-//                             textTransform: "none",
-//                             "&:hover": {
-//                               borderColor: J.blue,
-//                               bgcolor: J.blueLight,
-//                             },
-//                           }}
-//                         >
-//                           Edit
-//                         </Button>
-//                       </Box>
-//                       <Grid container spacing={2}>
-//                         {[
-//                           {
-//                             label: "Service Type",
-//                             value: upsale.serviceType,
-//                           },
-//                           { label: "Amount", value: upsale.amount },
-//                         ].map(({ label, value }) => (
-//                           <Grid item xs={12} sm={6} key={label}>
-//                             <Typography component="span" sx={labelSx}>
-//                               {label}
-//                             </Typography>
-//                             <TextField
-//                               variant="filled"
-//                               fullWidth
-//                               value={value || "—"}
-//                               InputProps={{
-//                                 readOnly: true,
-//                                 disableUnderline: true,
-//                               }}
-//                               sx={jiraFilledField}
-//                             />
-//                           </Grid>
-//                         ))}
-//                         {[
-//                           { label: "Details", value: upsale.details },
-//                           { label: "Comments", value: upsale.comments },
-//                         ].map(({ label, value }) => (
-//                           <Grid item xs={12} key={label}>
-//                             <Typography component="span" sx={labelSx}>
-//                               {label}
-//                             </Typography>
-//                             <TextField
-//                               variant="filled"
-//                               fullWidth
-//                               value={value || "—"}
-//                               InputProps={{
-//                                 readOnly: true,
-//                                 disableUnderline: true,
-//                               }}
-//                               sx={jiraFilledField}
-//                             />
-//                           </Grid>
-//                         ))}
-//                       </Grid>
-//                     </Box>
-//                   ))}
-//                 </Box>
-//               )}
-//             </>
-//           )}
-//         </DialogContent>
-//         <DialogActions
-//           sx={{
-//             px: 3,
-//             py: 2,
-//             borderTop: `1px solid ${J.border}`,
-//             bgcolor: J.bgSurface,
-//           }}
-//         >
-//           <Button
-//             onClick={handleClose}
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               color: J.textSecondary,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//               border: `1px solid ${J.border}`,
-//               "&:hover": { bgcolor: J.bgHover },
-//             }}
-//           >
-//             Close
-//           </Button>
-//         </DialogActions>
-//       </Dialog>
-
-//       {/* ── Add upsale dialog ── */}
-//       <Dialog
-//         open={upsaleDialogOpen}
-//         onClose={() => {
-//           setUpsaleDialogOpen(false);
-//           setUpsaleData({
-//             serviceType: "",
-//             amount: "",
-//             details: "",
-//             comments: "",
-//           });
-//         }}
-//         fullWidth
-//         maxWidth="sm"
-//         PaperProps={{ sx: { borderRadius: J.radius } }}
-//       >
-//         <DialogTitle
-//           sx={{
-//             borderBottom: `1px solid ${J.border}`,
-//             py: 2,
-//             px: 3,
-//             fontSize: "1rem",
-//             fontWeight: 600,
-//             color: J.textPrimary,
-//           }}
-//         >
-//           Add Upsale Package
-//         </DialogTitle>
-//         <DialogContent sx={{ p: 3 }}>
-//           <Grid container spacing={2} sx={{ mt: 0 }}>
-//             {[
-//               { label: "Service Type", name: "serviceType" },
-//               { label: "Amount", name: "amount" },
-//             ].map((f) => (
-//               <Grid item xs={12} sm={6} key={f.name}>
-//                 <Typography component="span" sx={labelSx}>
-//                   {f.label}
-//                 </Typography>
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   value={upsaleData[f.name]}
-//                   onChange={(e) =>
-//                     setUpsaleData((p) => ({
-//                       ...p,
-//                       [f.name]: e.target.value,
-//                     }))
-//                   }
-//                   sx={jiraField}
-//                 />
-//               </Grid>
-//             ))}
-//             {[
-//               { label: "Details", name: "details" },
-//               { label: "Comments", name: "comments" },
-//             ].map((f) => (
-//               <Grid item xs={12} key={f.name}>
-//                 <Typography component="span" sx={labelSx}>
-//                   {f.label}
-//                 </Typography>
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   multiline
-//                   rows={3}
-//                   value={upsaleData[f.name]}
-//                   onChange={(e) =>
-//                     setUpsaleData((p) => ({
-//                       ...p,
-//                       [f.name]: e.target.value,
-//                     }))
-//                   }
-//                   sx={jiraField}
-//                 />
-//               </Grid>
-//             ))}
-//           </Grid>
-//         </DialogContent>
-//         <DialogActions
-//           sx={{ px: 3, py: 2, borderTop: `1px solid ${J.border}` }}
-//         >
-//           <Button
-//             onClick={() => {
-//               setUpsaleDialogOpen(false);
-//               setUpsaleData({
-//                 serviceType: "",
-//                 amount: "",
-//                 details: "",
-//                 comments: "",
-//               });
-//             }}
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               color: J.textSecondary,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//             }}
-//           >
-//             Cancel
-//           </Button>
-//           <Button
-//             onClick={handleUpsaleSubmit}
-//             variant="contained"
-//             disableElevation
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               bgcolor: J.blue,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//               "&:hover": { bgcolor: J.blueDark },
-//             }}
-//           >
-//             Submit
-//           </Button>
-//         </DialogActions>
-//       </Dialog>
-
-//       {/* ── Edit project dialog ── */}
-//       <Dialog
-//         open={editProjectDialogOpen}
-//         onClose={handleEditProjectDialogClose}
-//         fullWidth
-//         maxWidth="md"
-//         PaperProps={{ sx: { borderRadius: J.radius } }}
-//       >
-//         <DialogTitle
-//           sx={{
-//             borderBottom: `1px solid ${J.border}`,
-//             py: 2,
-//             px: 3,
-//             fontSize: "1rem",
-//             fontWeight: 600,
-//             color: J.textPrimary,
-//           }}
-//         >
-//           Edit Project
-//         </DialogTitle>
-//         <DialogContent sx={{ p: 3 }}>
-//           <Grid container spacing={2} sx={{ mt: 0 }}>
-//             {[
-//               { label: "Project Name", key: "projectName" },
-//               { label: "Client Name", key: "clientName" },
-//               { label: "Client Email", key: "clientEmail" },
-//               { label: "Client Number", key: "clientNumber" },
-//               { label: "Amount", key: "amount" },
-//               { label: "Reference Site", key: "referenceSite" },
-//               { label: "Business Niche", key: "businessNiche" },
-//             ].map((f) => (
-//               <Grid item xs={12} sm={6} key={f.key}>
-//                 <Typography component="span" sx={labelSx}>
-//                   {f.label}
-//                 </Typography>
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   value={editProjectData[f.key] || ""}
-//                   onChange={(e) =>
-//                     setEditProjectData((p) => ({
-//                       ...p,
-//                       [f.key]: e.target.value,
-//                     }))
-//                   }
-//                   sx={jiraField}
-//                 />
-//               </Grid>
-//             ))}
-
-//             {/* Multi-select developers */}
-//             <Grid item xs={12} sm={6}>
-//               <Typography component="span" sx={labelSx}>
-//                 Assigned Developer(s)
-//               </Typography>
-//               <FormControl fullWidth size="small" sx={jiraField}>
-//                 <Select
-//                   multiple
-//                   value={normalizeDevelopers(
-//                     editProjectData.assignedDeveloper
-//                   ).map((d) => d.id)}
-//                   onChange={(e) => {
-//                     const ids = e.target.value;
-//                     const selected = ids
-//                       .map((id) => {
-//                         const dev = developers.find((x) => x._id === id);
-//                         return dev
-//                           ? { id: dev._id, username: dev.username }
-//                           : null;
-//                       })
-//                       .filter(Boolean);
-//                     setEditProjectData((p) => ({
-//                       ...p,
-//                       assignedDeveloper: selected,
-//                     }));
-//                   }}
-//                   renderValue={(ids) =>
-//                     ids
-//                       .map(
-//                         (id) =>
-//                           developers.find((x) => x._id === id)?.username || id
-//                       )
-//                       .join(", ")
-//                   }
-//                   sx={{ borderRadius: J.radius, fontSize: "0.875rem" }}
-//                 >
-//                   {developers.map((d) => (
-//                     <MenuItem
-//                       key={d._id}
-//                       value={d._id}
-//                       sx={{ fontSize: "0.875rem" }}
-//                     >
-//                       {d.username}
-//                     </MenuItem>
-//                   ))}
-//                 </Select>
-//               </FormControl>
-//             </Grid>
-
-//             {/* Service type */}
-//             <Grid item xs={12} sm={6}>
-//               <Typography component="span" sx={labelSx}>
-//                 Service Type
-//               </Typography>
-//               <FormControl fullWidth size="small" sx={jiraField}>
-//                 <Select
-//                   multiple
-//                   value={editProjectData.serviceType || []}
-//                   onChange={(e) =>
-//                     setEditProjectData((p) => ({
-//                       ...p,
-//                       serviceType: e.target.value,
-//                     }))
-//                   }
-//                   renderValue={(s) => s.join(", ")}
-//                   sx={{ borderRadius: J.radius, fontSize: "0.875rem" }}
-//                 >
-//                   {serviceTypes.map((t) => (
-//                     <MenuItem key={t} value={t} sx={{ fontSize: "0.875rem" }}>
-//                       {t}
-//                     </MenuItem>
-//                   ))}
-//                 </Select>
-//               </FormControl>
-//             </Grid>
-
-//             {/* Subscription type */}
-//             <Grid item xs={12} sm={6}>
-//               <Typography component="span" sx={labelSx}>
-//                 Subscription Type
-//               </Typography>
-//               <FormControl fullWidth size="small" sx={jiraField}>
-//                 <Select
-//                   value={editProjectData.subscriptionType || ""}
-//                   onChange={(e) =>
-//                     setEditProjectData((p) => ({
-//                       ...p,
-//                       subscriptionType: e.target.value,
-//                     }))
-//                   }
-//                   sx={{ borderRadius: J.radius, fontSize: "0.875rem" }}
-//                 >
-//                   <MenuItem
-//                     value="Subscription-Based"
-//                     sx={{ fontSize: "0.875rem" }}
-//                   >
-//                     Subscription-Based
-//                   </MenuItem>
-//                   <MenuItem value="One-Time" sx={{ fontSize: "0.875rem" }}>
-//                     One-Time
-//                   </MenuItem>
-//                 </Select>
-//               </FormControl>
-//             </Grid>
-
-//             <Grid item xs={12}>
-//               <Typography component="span" sx={labelSx}>
-//                 Details
-//               </Typography>
-//               <TextField
-//                 fullWidth
-//                 size="small"
-//                 multiline
-//                 rows={4}
-//                 value={editProjectData.projectDetails || ""}
-//                 onChange={(e) =>
-//                   setEditProjectData((p) => ({
-//                     ...p,
-//                     projectDetails: e.target.value,
-//                   }))
-//                 }
-//                 sx={jiraField}
-//               />
-//             </Grid>
-//             <Grid item xs={12}>
-//               <Typography component="span" sx={labelSx}>
-//                 Comments
-//               </Typography>
-//               <TextField
-//                 fullWidth
-//                 size="small"
-//                 multiline
-//                 rows={3}
-//                 value={editProjectData.comments || ""}
-//                 onChange={(e) =>
-//                   setEditProjectData((p) => ({
-//                     ...p,
-//                     comments: e.target.value,
-//                   }))
-//                 }
-//                 sx={jiraField}
-//               />
-//             </Grid>
-//           </Grid>
-//         </DialogContent>
-//         <DialogActions
-//           sx={{ px: 3, py: 2, borderTop: `1px solid ${J.border}` }}
-//         >
-//           <Button
-//             onClick={handleEditProjectDialogClose}
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               color: J.textSecondary,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//             }}
-//           >
-//             Cancel
-//           </Button>
-//           <Button
-//             onClick={handleEditProjectSubmit}
-//             variant="contained"
-//             disableElevation
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               bgcolor: J.blue,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//               "&:hover": { bgcolor: J.blueDark },
-//             }}
-//           >
-//             Save changes
-//           </Button>
-//         </DialogActions>
-//       </Dialog>
-
-//       {/* ── Edit upsale dialog ── */}
-//       <Dialog
-//         open={editUpsaleDialogOpen}
-//         onClose={() => {
-//           setEditUpsaleDialogOpen(false);
-//           setUpsaleData({
-//             serviceType: "",
-//             amount: "",
-//             details: "",
-//             comments: "",
-//           });
-//         }}
-//         fullWidth
-//         maxWidth="sm"
-//         PaperProps={{ sx: { borderRadius: J.radius } }}
-//       >
-//         <DialogTitle
-//           sx={{
-//             borderBottom: `1px solid ${J.border}`,
-//             py: 2,
-//             px: 3,
-//             fontSize: "1rem",
-//             fontWeight: 600,
-//             color: J.textPrimary,
-//           }}
-//         >
-//           Edit Upsale
-//         </DialogTitle>
-//         <DialogContent sx={{ p: 3 }}>
-//           <Grid container spacing={2} sx={{ mt: 0 }}>
-//             {[
-//               { label: "Service Type", name: "serviceType" },
-//               { label: "Amount", name: "amount" },
-//             ].map((f) => (
-//               <Grid item xs={12} sm={6} key={f.name}>
-//                 <Typography component="span" sx={labelSx}>
-//                   {f.label}
-//                 </Typography>
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   value={upsaleData[f.name]}
-//                   onChange={(e) =>
-//                     setUpsaleData((p) => ({
-//                       ...p,
-//                       [f.name]: e.target.value,
-//                     }))
-//                   }
-//                   sx={jiraField}
-//                 />
-//               </Grid>
-//             ))}
-//             {[
-//               { label: "Details", name: "details" },
-//               { label: "Comments", name: "comments" },
-//             ].map((f) => (
-//               <Grid item xs={12} key={f.name}>
-//                 <Typography component="span" sx={labelSx}>
-//                   {f.label}
-//                 </Typography>
-//                 <TextField
-//                   fullWidth
-//                   size="small"
-//                   multiline
-//                   rows={3}
-//                   value={upsaleData[f.name]}
-//                   onChange={(e) =>
-//                     setUpsaleData((p) => ({
-//                       ...p,
-//                       [f.name]: e.target.value,
-//                     }))
-//                   }
-//                   sx={jiraField}
-//                 />
-//               </Grid>
-//             ))}
-//           </Grid>
-//         </DialogContent>
-//         <DialogActions
-//           sx={{ px: 3, py: 2, borderTop: `1px solid ${J.border}` }}
-//         >
-//           <Button
-//             onClick={() => setEditUpsaleDialogOpen(false)}
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               color: J.textSecondary,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//             }}
-//           >
-//             Cancel
-//           </Button>
-//           <Button
-//             onClick={handleEditUpsaleSubmit}
-//             variant="contained"
-//             disableElevation
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               bgcolor: J.blue,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//               "&:hover": { bgcolor: J.blueDark },
-//             }}
-//           >
-//             Save
-//           </Button>
-//         </DialogActions>
-//       </Dialog>
-
-//       {/* ── Updates chat dialog ── */}
-//       <Dialog
-//         open={isChatOpen}
-//         onClose={() => {
-//           setIsChatOpen(false);
-//           setUpdates([]);
-//           setMessage("");
-//         }}
-//         maxWidth="sm"
-//         fullWidth
-//         fullScreen={isMobile}
-//         PaperProps={{
-//           sx: {
-//             height: "75vh",
-//             maxHeight: 700,
-//             display: "flex",
-//             flexDirection: "column",
-//             borderRadius: isMobile ? 0 : J.radius,
-//           },
-//         }}
-//       >
-//         <DialogTitle
-//           sx={{
-//             borderBottom: `1px solid ${J.border}`,
-//             py: 1.5,
-//             px: 3,
-//             display: "flex",
-//             justifyContent: "space-between",
-//             alignItems: "center",
-//           }}
-//         >
-//           <Box>
-//             <Typography
-//               sx={{
-//                 fontWeight: 600,
-//                 fontSize: "0.9375rem",
-//                 color: J.textPrimary,
-//               }}
-//             >
-//               Activity
-//             </Typography>
-//             {selectedProject && (
-//               <Typography sx={{ fontSize: "0.75rem", color: J.textSecondary }}>
-//                 {selectedProject.projectName}
-//               </Typography>
-//             )}
-//           </Box>
-//           <IconButton
-//             size="small"
-//             onClick={() => {
-//               setIsChatOpen(false);
-//               setUpdates([]);
-//               setMessage("");
-//             }}
-//           >
-//             <CloseIcon sx={{ fontSize: 18 }} />
-//           </IconButton>
-//         </DialogTitle>
-
-//         <DialogContent
-//           sx={{ flex: 1, overflow: "auto", p: 0, bgcolor: J.bgPage }}
-//         >
-//           {isLoadingUpdates ? (
-//             <Box
-//               display="flex"
-//               justifyContent="center"
-//               alignItems="center"
-//               height="100%"
-//             >
-//               <CircularProgress size={28} sx={{ color: J.blue }} />
-//             </Box>
-//           ) : updates.length === 0 ? (
-//             <Box
-//               display="flex"
-//               flexDirection="column"
-//               justifyContent="center"
-//               alignItems="center"
-//               height="100%"
-//               gap={1}
-//             >
-//               <MessageSquare size={32} color={J.textDisabled} />
-//               <Typography sx={{ color: J.textSecondary, fontSize: "0.875rem" }}>
-//                 No activity yet
-//               </Typography>
-//             </Box>
-//           ) : (
-//             <Box sx={{ p: 2 }}>
-//               {updates.map((update) => (
-//                 <Box
-//                   key={update._id}
-//                   sx={{ display: "flex", gap: 1.5, mb: 2.5 }}
-//                 >
-//                   <Avatar
-//                     sx={{
-//                       width: 28,
-//                       height: 28,
-//                       fontSize: "0.7rem",
-//                       bgcolor: stringToColor(update.createdBy.username),
-//                       fontWeight: 700,
-//                       flexShrink: 0,
-//                       mt: 0.25,
-//                     }}
-//                   >
-//                     {update.createdBy.username.charAt(0).toUpperCase()}
-//                   </Avatar>
-//                   <Box sx={{ flex: 1, minWidth: 0 }}>
-//                     <Box
-//                       sx={{
-//                         display: "flex",
-//                         alignItems: "baseline",
-//                         gap: 1,
-//                         mb: 0.5,
-//                       }}
-//                     >
-//                       <Typography
-//                         sx={{
-//                           fontWeight: 600,
-//                           fontSize: "0.8125rem",
-//                           color: J.textPrimary,
-//                         }}
-//                       >
-//                         {update.createdBy.username}
-//                       </Typography>
-//                       <Typography
-//                         sx={{ fontSize: "0.75rem", color: J.textSecondary }}
-//                       >
-//                         {format(
-//                           new Date(update.createdAt),
-//                           "MMM d, yyyy · h:mm a"
-//                         )}
-//                       </Typography>
-//                     </Box>
-//                     <Box
-//                       sx={{
-//                         bgcolor: J.bgSurface,
-//                         border: `1px solid ${J.border}`,
-//                         borderRadius: J.radius,
-//                         px: 1.5,
-//                         py: 1,
-//                       }}
-//                     >
-//                       <Typography
-//                         sx={{
-//                           fontSize: "0.875rem",
-//                           color: J.textPrimary,
-//                           lineHeight: 1.5,
-//                         }}
-//                       >
-//                         {update.text}
-//                       </Typography>
-//                     </Box>
-//                   </Box>
-//                 </Box>
-//               ))}
-//               <div ref={messagesEndRef} />
-//             </Box>
-//           )}
-//         </DialogContent>
-
-//         <Box
-//           sx={{
-//             p: 2,
-//             borderTop: `1px solid ${J.border}`,
-//             bgcolor: J.bgSurface,
-//           }}
-//         >
-//           <TextField
-//             fullWidth
-//             size="small"
-//             placeholder="Add a comment..."
-//             value={message}
-//             onChange={(e) => setMessage(e.target.value)}
-//             onKeyPress={(e) =>
-//               e.key === "Enter" && !e.shiftKey && handleSendUpdate()
-//             }
-//             sx={{
-//               ...jiraField,
-//               "& .MuiOutlinedInput-root": {
-//                 ...jiraField["& .MuiOutlinedInput-root"],
-//                 bgcolor: J.bgPage,
-//               },
-//             }}
-//             InputProps={{
-//               endAdornment: (
-//                 <InputAdornment position="end">
-//                   <IconButton
-//                     size="small"
-//                     onClick={handleSendUpdate}
-//                     disabled={!message.trim()}
-//                     sx={{
-//                       color: message.trim() ? J.blue : J.textDisabled,
-//                       p: "4px",
-//                     }}
-//                   >
-//                     <Send size={16} />
-//                   </IconButton>
-//                 </InputAdornment>
-//               ),
-//             }}
-//           />
-//         </Box>
-//       </Dialog>
-
-//       {/* ── Delete confirm ── */}
-//       <MUIDialog
-//         open={deleteConfirmationOpen}
-//         onClose={cancelDelete}
-//         PaperProps={{ sx: { borderRadius: J.radius, minWidth: 360 } }}
-//       >
-//         <MUIDialogTitle
-//           sx={{
-//             borderBottom: `1px solid ${J.border}`,
-//             py: 2,
-//             px: 3,
-//             fontSize: "1rem",
-//             fontWeight: 600,
-//             color: J.textPrimary,
-//           }}
-//         >
-//           Delete project?
-//         </MUIDialogTitle>
-//         <MUIDialogContent sx={{ p: 3 }}>
-//           <MUIDialogContentText
-//             sx={{ fontSize: "0.875rem", color: J.textPrimary }}
-//           >
-//             This action is permanent and cannot be undone. Are you sure you want
-//             to delete this project?
-//           </MUIDialogContentText>
-//         </MUIDialogContent>
-//         <MUIDialogActions
-//           sx={{ px: 3, py: 2, borderTop: `1px solid ${J.border}` }}
-//         >
-//           <Button
-//             onClick={cancelDelete}
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               color: J.textSecondary,
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//             }}
-//           >
-//             Cancel
-//           </Button>
-//           <Button
-//             onClick={confirmDelete}
-//             variant="contained"
-//             disableElevation
-//             sx={{
-//               height: 32,
-//               borderRadius: J.radius,
-//               bgcolor: "#DE350B",
-//               fontSize: "0.8125rem",
-//               textTransform: "none",
-//               "&:hover": { bgcolor: "#BF2600" },
-//             }}
-//           >
-//             Delete
-//           </Button>
-//         </MUIDialogActions>
-//       </MUIDialog>
-
-//       {/* ── Snackbar ── */}
-//       <Snackbar
-//         open={snackbarOpen}
-//         autoHideDuration={5000}
-//         onClose={(_, r) => r !== "clickaway" && setSnackbarOpen(false)}
-//         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-//       >
-//         <Alert
-//           severity={snackbarSeverity}
-//           onClose={() => setSnackbarOpen(false)}
-//           variant="filled"
-//           sx={{ borderRadius: J.radius, fontSize: "0.875rem" }}
-//         >
-//           {snackbarMessage}
-//         </Alert>
-//       </Snackbar>
-
-//       {/* Kanban View */}
-//       <ProjectKanban
-//         open={kanbanOpen}
-//         onClose={() => {
-//           setKanbanOpen(false);
-//           setKanbanProject(null);
-//         }}
-//         project={kanbanProject}
-//       />
-//     </Box>
-//   );
-// };
-
-// export default ProjectList;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Box,
-  TextField,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  FormControl,
-  Select,
-  MenuItem,
-  Switch,
-  Dialog as MUIDialog,
-  DialogActions as MUIDialogActions,
-  DialogContent as MUIDialogContent,
-  DialogContentText as MUIDialogContentText,
-  DialogTitle as MUIDialogTitle,
-  Tooltip,
-  IconButton,
-  Pagination,
-  Snackbar,
-  Alert,
-  useMediaQuery,
-  useTheme,
-  Drawer,
-  Stack,
-  Avatar,
-  Divider,
-  Collapse,
-} from "@mui/material";
-import {
-  Search,
-  FilterList,
-  Close as CloseIcon,
-  KeyboardArrowDown,
-  KeyboardArrowUp,
-} from "@mui/icons-material";
+import React, { useState, useEffect, useMemo } from "react";
+import axios from "axios";
+import { format } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   FolderDot, 
   Eye, 
   Trash2, 
   KanbanSquare, 
   CheckCircle2,
-  PenSquare
+  PenSquare,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  AlertTriangle
 } from "lucide-react";
-import { format } from "date-fns";
-import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
 import ProjectKanban from "../Admin Pages/Components/Projectkanban";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-// ── Minimalist SaaS Design Tokens ─────────────────────────────────────────────
-const T = {
-  bgPage: "#F8FAFC",
-  bgSurface: "#FFFFFF",
-  bgHover: "#F1F5F9",
-  bgSubtle: "#F8FAFC",
-  border: "#E2E8F0",
-  borderFocus: "#3B82F6",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  textDisabled: "#94A3B8",
-  primary: "#3B82F6",
-  primaryLight: "#EFF6FF",
-  success: "#10B981",
-  successBg: "#ECFDF5",
-  danger: "#EF4444",
-  dangerBg: "#FEF2F2",
-  fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-  radius: "8px",
-  radiusSm: "6px",
-  shadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-};
-
-const statusConfig = {
-  Active: { bg: T.successBg, color: T.success, label: "ACTIVE" },
-  Closed: { bg: T.dangerBg, color: T.danger, label: "CLOSED" },
-};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const normalizeDevelopers = (assignedDeveloper) => {
@@ -2617,45 +32,33 @@ const normalizeDevelopers = (assignedDeveloper) => {
 const getDevNamesString = (assignedDeveloper) =>
   normalizeDevelopers(assignedDeveloper).map((d) => d.username).join(", ") || "—";
 
-const AVATAR_PALETTE = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"];
-const stringToColor = (s) => {
-  if (!s) return AVATAR_PALETTE[0];
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
-};
-
-// ── Shared UI Components ─────────────────────────────────────────────────────
+// ── UI Components ─────────────────────────────────────────────────────────────
 const DevCell = ({ assignedDeveloper }) => {
   const devs = normalizeDevelopers(assignedDeveloper);
-  if (devs.length === 0) return <Typography sx={{ fontSize: "0.8rem", color: T.textSecondary }}>Unassigned</Typography>;
+  if (devs.length === 0) return <span className="text-[10px] font-bold text-[#656D76] italic neu-pressed-sm px-2 py-1 rounded-md">Unassigned</span>;
 
   const MAX_AVATARS = 2;
   const shown = devs.slice(0, MAX_AVATARS);
   const overflow = devs.length - MAX_AVATARS;
-  const tooltipLabel = devs.map((d) => d.username).join(", ");
   const labelText = devs.length === 1 ? devs[0].username : `${devs[0].username.split(" ")[0]} +${devs.length - 1}`;
+  const tooltipLabel = devs.map((d) => d.username).join(", ");
 
   return (
-    <Tooltip title={tooltipLabel} arrow placement="top">
-      <Box sx={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, maxWidth: "100%", cursor: "default" }}>
-        <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-          {shown.map((dev, i) => (
-            <Avatar key={dev.id || i} sx={{ width: 24, height: 24, fontSize: "0.65rem", fontWeight: 700, bgcolor: stringToColor(dev.username), border: `2px solid ${T.bgSurface}`, ml: i > 0 ? "-8px" : 0, zIndex: shown.length - i }}>
-              {dev.username.charAt(0).toUpperCase()}
-            </Avatar>
-          ))}
-          {overflow > 0 && (
-            <Avatar sx={{ width: 24, height: 24, fontSize: "0.6rem", fontWeight: 700, bgcolor: T.bgHover, color: T.textSecondary, border: `2px solid ${T.bgSurface}`, ml: "-8px", zIndex: 0 }}>
-              +{overflow}
-            </Avatar>
-          )}
-        </Box>
-        <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-          {labelText}
-        </Typography>
-      </Box>
-    </Tooltip>
+    <div className="flex items-center gap-2 cursor-default" title={tooltipLabel}>
+      <div className="flex items-center shrink-0">
+        {shown.map((dev, i) => (
+          <div key={dev.id || i} className="w-6 h-6 rounded-full neu-btn-primary flex items-center justify-center text-white text-[9px] font-bold border-2 border-[#F0F4F8]" style={{ marginLeft: i > 0 ? "-8px" : "0", zIndex: shown.length - i }}>
+            {dev.username.charAt(0).toUpperCase()}
+          </div>
+        ))}
+        {overflow > 0 && (
+          <div className="w-6 h-6 rounded-full neu-pressed flex items-center justify-center text-[#656D76] text-[9px] font-bold border-2 border-[#F0F4F8] z-0" style={{ marginLeft: "-8px" }}>
+            +{overflow}
+          </div>
+        )}
+      </div>
+      <span className="text-xs font-bold text-[#1F2328] truncate max-w-[80px]">{labelText}</span>
+    </div>
   );
 };
 
@@ -2663,266 +66,149 @@ const ProgressCapsule = ({ stats }) => {
   const total = stats?.total || 0;
   const completed = stats?.completed || 0;
   
-  if (total === 0) return <Typography sx={{ fontSize: "0.75rem", color: T.textDisabled, fontWeight: 500 }}>No tasks</Typography>;
+  if (total === 0) return <span className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">No tasks</span>;
   
   const pct = Math.round((completed / total) * 100);
   const isDone = pct === 100;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, width: '100%', maxWidth: 110 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {completed}/{total}
-        </Typography>
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: isDone ? T.success : T.primary }}>
-          {pct}%
-        </Typography>
-      </Box>
-      <Box sx={{ width: '100%', height: 4, bgcolor: T.bgHover, borderRadius: 2, overflow: 'hidden' }}>
-        <Box sx={{ width: `${pct}%`, height: '100%', bgcolor: isDone ? T.success : T.primary, transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }} />
-      </Box>
-    </Box>
+    <div className="flex flex-col gap-1 w-full max-w-[100px]">
+      <div className="flex justify-between items-center">
+        <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{completed}/{total}</span>
+        <span className={`text-[9px] font-bold ${isDone ? 'text-[#1A7F37]' : 'text-[#0969DA]'}`}>{pct}%</span>
+      </div>
+      <div className="w-full h-1.5 rounded-full neu-pressed-sm overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-300 ${isDone ? 'bg-[#1A7F37]' : 'bg-[#0969DA]'}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 };
 
-const StatusBadge = ({ status }) => {
-  const cfg = statusConfig[status] || statusConfig.Active;
-  return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", px: 1.25, py: 0.25, borderRadius: "12px", bgcolor: cfg.bg, color: cfg.color, fontWeight: 700, fontSize: "0.68rem", letterSpacing: "0.05em", whiteSpace: "nowrap", userSelect: "none" }}>
-      {cfg.label}
-    </Box>
-  );
-};
-
-const TagChip = ({ label, type = "default" }) => {
-  const isOutline = type === "outline";
-  return (
-    <Box sx={{ display: "inline-block", px: 1, py: 0.25, borderRadius: T.radiusSm, bgcolor: isOutline ? "transparent" : T.primaryLight, color: isOutline ? T.textSecondary : T.primary, border: isOutline ? `1px solid ${T.border}` : "none", fontSize: "0.7rem", fontWeight: 600, whiteSpace: "nowrap" }}>
-      {label}
-    </Box>
-  );
-};
-
-// ── Recent Completions Panel ─────────────────────────────────────────────────
-const RecentCompletionsList = ({ completions }) => {
-  if (!completions || completions.length === 0) {
-    return <Typography sx={{ fontSize: "0.8rem", color: T.textDisabled, fontStyle: 'italic', p: 3, pl: 6 }}>No tasks completed yet.</Typography>;
-  }
-  return (
-    <Box sx={{ p: 2, pl: 7, pr: 4, bgcolor: T.bgSubtle, borderTop: `1px solid ${T.border}` }}>
-      <Typography sx={{ fontSize: "0.65rem", fontWeight: 800, color: T.textDisabled, textTransform: "uppercase", letterSpacing: "0.06em", mb: 1.5 }}>
-        Recent Completions
-      </Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {completions.map((task) => (
-          <Box key={task._id} sx={{ display: 'flex', alignItems: 'center', gap: 2, bgcolor: T.bgSurface, p: 1.25, px: 2, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }}>
-            <CheckCircle2 size={14} color={T.success} />
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: T.textPrimary, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {task.taskTitle || task.title}
-            </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: T.textSecondary, whiteSpace: 'nowrap' }}>
-              {task.completedBy?.username}
-            </Typography>
-            <Typography sx={{ fontSize: '0.7rem', color: T.textDisabled, whiteSpace: 'nowrap', minWidth: 90, textAlign: 'right' }}>
-              {task.completedAt ? format(new Date(task.completedAt), "MMM d, yyyy") : ""}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-    </Box>
-  );
-};
-
-// ── Grid Column Defs ─────────────────────────────────────────────────────────
-// Added gaps via CSS below, but keeping proportions stable
-const COLS = "minmax(220px,2fr) 150px minmax(130px,1.2fr) 110px 120px 110px 120px 40px";
+// Custom Switch
+const ToggleSwitch = ({ checked, onChange }) => (
+  <label className="flex items-center gap-2 cursor-pointer group relative z-20">
+    <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${checked ? 'neu-btn-primary' : 'neu-pressed'}`}>
+      <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-300 shadow-sm ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+    </div>
+    <input type="checkbox" checked={checked} onChange={onChange} className="hidden" />
+  </label>
+);
 
 // ── Desktop Row Component ────────────────────────────────────────────────────
 const ProjectRow = ({ project, isLast, onView, onStatusChange, onToggleUpSale, onUpsaleAdd, onKanban, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Box sx={{ borderBottom: isLast ? "none" : `1px solid ${T.border}`, transition: "background 0.2s ease", "&:hover": { bgcolor: T.bgHover } }}>
-      <Box sx={{ display: "grid", gridTemplateColumns: COLS, gap: 3, px: 3, py: 2, alignItems: "center" }}>
+    <>
+      <tr className={`border-b border-[#D1DCEB]/30 transition-colors hover:bg-[#D1DCEB]/10 ${isLast ? 'border-none' : ''}`}>
         
         {/* Project Name */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
-          <Box sx={{ width: 32, height: 32, borderRadius: T.radius, bgcolor: T.bgSurface, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: T.shadow }}>
-            <FolderDot size={16} color={T.textSecondary} />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography onClick={() => onView(project)} sx={{ fontSize: "0.875rem", fontWeight: 700, color: T.textPrimary, cursor: "pointer", transition: 'color 0.2s', "&:hover": { color: T.primary }, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {project.projectName}
-            </Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: T.textDisabled, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              Created by {project.createdBy}
-            </Typography>
-          </Box>
-        </Box>
+        <td className="p-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg neu-flat-sm flex items-center justify-center shrink-0 text-[#0969DA]">
+              <FolderDot size={16} />
+            </div>
+            <div className="min-w-0">
+              <button type="button" onClick={() => onView(project)} className="text-sm font-bold text-[#1F2328] hover:text-[#0969DA] truncate text-left w-full neu-action-btn relative z-20 block">
+                {project.projectName}
+              </button>
+              <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider truncate">Created by {project.createdBy}</p>
+            </div>
+          </div>
+        </td>
 
         {/* Assigned */}
-        <DevCell assignedDeveloper={project.assignedDeveloper} />
+        <td className="p-3"><DevCell assignedDeveloper={project.assignedDeveloper} /></td>
 
         {/* Service Type */}
-        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", overflow: "hidden" }}>
-          {project.serviceType.slice(0, 2).map((s, i) => <TagChip key={i} label={s} />)}
-          {project.serviceType.length > 2 && <TagChip label={`+${project.serviceType.length - 2}`} type="outline" />}
-        </Box>
+        <td className="p-3">
+          <div className="flex flex-wrap gap-1.5 items-center max-w-[120px]">
+            {project.serviceType.slice(0, 2).map((s, i) => (
+              <span key={i} className="text-[9px] font-bold text-[#0969DA] uppercase tracking-wider bg-[#0969DA]/10 px-1.5 py-0.5 rounded-md truncate max-w-[80px]">{s}</span>
+            ))}
+            {project.serviceType.length > 2 && (
+              <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider border border-[#D1DCEB] px-1.5 py-0.5 rounded-md">+{project.serviceType.length - 2}</span>
+            )}
+          </div>
+        </td>
 
         {/* Status */}
-        <FormControl size="small" variant="standard">
-          <Select
-            disableUnderline
-            value={project.status}
-            onChange={(e) => onStatusChange(project._id, e.target.value)}
-            sx={{
-              height: 28, borderRadius: "12px", px: 1,
-              bgcolor: project.status === "Active" ? T.successBg : T.dangerBg,
-              color: project.status === "Active" ? T.success : T.danger,
-              fontWeight: 700, fontSize: "0.68rem", letterSpacing: "0.05em",
-              "& .MuiSelect-icon": { color: project.status === "Active" ? T.success : T.danger, right: 4 },
-              "& .MuiSelect-select": { py: 0, px: 1, display: 'flex', alignItems: 'center' }
-            }}
-          >
-            <MenuItem value="Active" sx={{ fontSize: "0.8rem", fontWeight: 600 }}>ACTIVE</MenuItem>
-            <MenuItem value="Closed" sx={{ fontSize: "0.8rem", fontWeight: 600 }}>CLOSED</MenuItem>
-          </Select>
-        </FormControl>
+        <td className="p-3">
+          <div className="relative w-24 z-20">
+            <select
+              value={project.status}
+              onChange={(e) => onStatusChange(project._id, e.target.value)}
+              className={`w-full neu-pressed-sm rounded-md p-1.5 pr-6 text-[10px] font-bold uppercase tracking-wider outline-none cursor-pointer appearance-none bg-transparent ${project.status === 'Active' ? 'text-[#1A7F37]' : 'text-[#D1242F]'}`}
+            >
+              <option value="Active">ACTIVE</option>
+              <option value="Closed">CLOSED</option>
+            </select>
+            <ChevronDown size={12} className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${project.status === 'Active' ? 'text-[#1A7F37]' : 'text-[#D1242F]'}`} />
+          </div>
+        </td>
 
-        {/* Progress Capsule */}
-        <ProgressCapsule stats={project.taskStats} />
+        {/* Progress */}
+        <td className="p-3"><ProgressCapsule stats={project.taskStats} /></td>
 
         {/* Up-Sale */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Switch checked={project.upSale} onChange={() => onToggleUpSale(project._id, project.upSale)} size="small" sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: T.primary }, "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: T.primary } }} />
-          {project.upSale && (
-            <Button size="small" onClick={() => onUpsaleAdd(project._id)} sx={{ color: T.textSecondary, fontSize: "0.7rem", fontWeight: 600, textTransform: "none", p: "2px 8px", minWidth: 0, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, '&:hover': { bgcolor: T.bgHover, color: T.textPrimary } }}>
-              Add
-            </Button>
-          )}
-        </Box>
+        <td className="p-3">
+          <div className="flex items-center gap-2">
+            <ToggleSwitch checked={project.upSale} onChange={() => onToggleUpSale(project._id, project.upSale)} />
+            {project.upSale && (
+              <button type="button" onClick={() => onUpsaleAdd(project._id)} className="neu-flat-sm neu-action-btn text-[10px] font-bold text-[#1F2328] px-2 py-1 rounded-md">
+                Add
+              </button>
+            )}
+          </div>
+        </td>
 
         {/* Actions */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Tooltip title="Open Kanban" arrow><IconButton size="small" onClick={() => onKanban(project)} sx={{ color: T.textSecondary, "&:hover": { bgcolor: T.bgSurface, color: T.primary, boxShadow: T.shadow } }}><KanbanSquare size={16} /></IconButton></Tooltip>
-          <Tooltip title="View Details" arrow><IconButton size="small" onClick={() => onView(project)} sx={{ color: T.textSecondary, "&:hover": { bgcolor: T.bgSurface, color: T.textPrimary, boxShadow: T.shadow } }}><Eye size={16} /></IconButton></Tooltip>
-          <Tooltip title="Delete" arrow><IconButton size="small" onClick={() => onDelete(project._id)} sx={{ color: T.textSecondary, "&:hover": { bgcolor: T.dangerBg, color: T.danger } }}><Trash2 size={16} /></IconButton></Tooltip>
-        </Box>
+        <td className="p-3 text-right">
+          <div className="flex items-center justify-end gap-1.5">
+            <button type="button" onClick={() => onKanban(project)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#0969DA]" title="Open Kanban"><KanbanSquare size={14} className="pointer-events-none"/></button>
+            <button type="button" onClick={() => onView(project)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#656D76]" title="View Details"><Eye size={14} className="pointer-events-none"/></button>
+            <button type="button" onClick={() => setExpanded(!expanded)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#656D76]">
+              {expanded ? <ChevronUp size={14} className="pointer-events-none"/> : <ChevronDown size={14} className="pointer-events-none"/>}
+            </button>
+            <button type="button" onClick={() => onDelete(project._id)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#D1242F] border border-[#D1242F]/30" title="Delete"><Trash2 size={14} className="pointer-events-none"/></button>
+          </div>
+        </td>
+      </tr>
 
-        {/* Expand Toggle */}
-        <IconButton size="small" onClick={() => setExpanded(!expanded)} sx={{ color: T.textDisabled, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none' }}>
-          <KeyboardArrowDown fontSize="small" />
-        </IconButton>
-      </Box>
-
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <RecentCompletionsList completions={project.recentCompletions} />
-      </Collapse>
-    </Box>
+      {/* Expanded Row: Recent Completions */}
+      <AnimatePresence>
+        {expanded && (
+          <tr>
+            <td colSpan={7} className="p-0 border-b border-[#D1DCEB]/30">
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-[#D1DCEB]/10">
+                <div className="p-4 pl-14">
+                  <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2">Recent Completions</p>
+                  {(!project.recentCompletions || project.recentCompletions.length === 0) ? (
+                    <p className="text-xs font-bold text-[#656D76] italic">No tasks completed yet.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {project.recentCompletions.map((task) => (
+                        <div key={task._id} className="neu-pressed rounded-md p-2 px-3 flex items-center gap-3 w-fit pr-8">
+                          <CheckCircle2 size={14} className="text-[#1A7F37] shrink-0" />
+                          <span className="text-xs font-bold text-[#1F2328]">{task.taskTitle || task.title}</span>
+                          <span className="text-[10px] font-bold text-[#656D76] ml-4 bg-[#D1DCEB]/50 px-2 py-0.5 rounded-md">{task.completedBy?.username}</span>
+                          <span className="text-[10px] font-bold text-[#656D76] ml-2">{task.completedAt ? format(new Date(task.completedAt), "MMM d, yyyy") : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </td>
+          </tr>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
-// ── Mobile Card Component ────────────────────────────────────────────────────
-const MobileProjectCard = ({ project, onView, onDelete, onToggleUpSale, onUpsaleInfo, onKanban }) => {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <Card sx={{ mb: 2, borderRadius: T.radius, boxShadow: T.shadow, border: `1px solid ${T.border}`, bgcolor: T.bgSurface, overflow: 'hidden' }}>
-      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-            <Box sx={{ width: 36, height: 36, borderRadius: T.radius, bgcolor: T.bgSubtle, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-               <FolderDot size={18} color={T.textSecondary} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: T.textPrimary, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {project.projectName}
-              </Typography>
-              <Typography sx={{ fontSize: "0.75rem", color: T.textDisabled }}>Created by {project.createdBy}</Typography>
-            </Box>
-          </Box>
-          <StatusBadge status={project.status} />
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 2.5 }}>
-          {project.serviceType.map((s, i) => <TagChip key={i} label={s} />)}
-        </Box>
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, bgcolor: T.bgSubtle, p: 1.5, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }}>
-          <Box>
-             <Typography sx={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Assigned To</Typography>
-             <DevCell assignedDeveloper={project.assignedDeveloper} />
-          </Box>
-          <Box sx={{ textAlign: 'right' }}>
-             <Typography sx={{ fontSize: "0.65rem", fontWeight: 700, color: T.textDisabled, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>Progress</Typography>
-             <ProgressCapsule stats={project.taskStats} />
-          </Box>
-        </Box>
-
-        <Divider sx={{ my: 2, borderColor: T.border }} />
-
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, color: T.textSecondary }}>Up-Sale</Typography>
-            <Switch checked={project.upSale} onChange={() => onToggleUpSale(project._id, project.upSale)} size="small" sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: T.primary }, "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: T.primary } }} />
-            {project.upSale && <Button size="small" onClick={() => onUpsaleInfo(project._id)} sx={{ color: T.textSecondary, fontSize: "0.75rem", fontWeight: 600, textTransform: "none", p: 0, minWidth: 0 }}>Info</Button>}
-          </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <IconButton size="small" onClick={() => onKanban(project)} sx={{ color: T.textSecondary, bgcolor: T.bgSubtle, border: `1px solid ${T.border}` }}><KanbanSquare size={16} /></IconButton>
-            <IconButton size="small" onClick={() => setExpanded(!expanded)} sx={{ color: T.textSecondary, bgcolor: T.bgSubtle, border: `1px solid ${T.border}`, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none' }}>
-              <KeyboardArrowDown fontSize="small" />
-            </IconButton>
-            <IconButton size="small" onClick={() => onView(project)} sx={{ color: T.textPrimary, bgcolor: T.bgSubtle, border: `1px solid ${T.border}` }}><Eye size={16} /></IconButton>
-            <IconButton size="small" onClick={() => onDelete(project._id)} sx={{ color: T.danger, bgcolor: T.dangerBg }}><Trash2 size={16} /></IconButton>
-          </Box>
-        </Box>
-      </CardContent>
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <RecentCompletionsList completions={project.recentCompletions} />
-      </Collapse>
-    </Card>
-  );
-};
-
-
-// ── Filter drawer ────────────────────────────────────────────────────────────
-const FilterDrawer = ({ open, onClose, filters, handlers, options }) => (
-  <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: 300, borderLeft: `1px solid ${T.border}` } }}>
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 3, py: 2, borderBottom: `1px solid ${T.border}`, bgcolor: T.bgSurface }}>
-      <Typography sx={{ fontWeight: 700, fontSize: "1rem", color: T.textPrimary }}>Filters</Typography>
-      <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
-    </Box>
-    <Stack spacing={0} divider={<Divider sx={{ borderColor: T.border }} />}>
-      {[
-        { label: "Subscription", value: filters.sub, onChange: handlers.sub, opts: options.sub },
-        { label: "Created By", value: filters.created, onChange: handlers.created, opts: options.created },
-        { label: "Assigned To", value: filters.assigned, onChange: handlers.assigned, opts: options.assigned },
-        { label: "Service Type", value: filters.service, onChange: handlers.service, opts: options.service },
-      ].map(({ label, value, onChange, opts }) => (
-        <Box key={label} sx={{ px: 3, py: 2.5 }}>
-          <Typography sx={{ fontSize: "0.75rem", fontWeight: 700, color: T.textSecondary, mb: 1, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</Typography>
-          <FormControl fullWidth size="small">
-            <Select value={value} onChange={onChange} displayEmpty sx={{ fontSize: "0.875rem", borderRadius: T.radiusSm, "& .MuiOutlinedInput-notchedOutline": { borderColor: T.border } }}>
-              <MenuItem value="" sx={{ fontSize: "0.875rem", fontStyle: 'italic', color: T.textDisabled }}>All</MenuItem>
-              {opts.map((o) => <MenuItem key={o} value={o} sx={{ fontSize: "0.875rem" }}>{o}</MenuItem>)}
-            </Select>
-          </FormControl>
-        </Box>
-      ))}
-    </Stack>
-  </Drawer>
-);
-
-const sharedFieldSx = {
-  "& .MuiOutlinedInput-root": { borderRadius: T.radiusSm, fontSize: "0.875rem", "& fieldset": { borderColor: T.border }, "&:hover fieldset": { borderColor: T.textDisabled }, "&.Mui-focused fieldset": { borderColor: T.primary } },
-  "& .MuiInputLabel-root": { fontSize: "0.875rem", color: T.textSecondary },
-  "& .MuiInputLabel-root.Mui-focused": { color: T.primary },
-};
-
-const labelSx = { fontSize: "0.75rem", fontWeight: 700, color: T.textSecondary, mb: 0.75, display: "block", textTransform: "uppercase", letterSpacing: "0.05em" };
-
-// ── Main component ────────────────────────────────────────────────────────────
-const ProjectList = () => {
+// ── Main Component ────────────────────────────────────────────────────────────
+export default function ProjectList() {
   const [isLoading, setIsLoading] = useState(true);
   const [kanbanOpen, setKanbanOpen] = useState(false);
   const [kanbanProject, setKanbanProject] = useState(null);
@@ -2951,7 +237,6 @@ const ProjectList = () => {
   const [selectedUpsaleId, setSelectedUpsaleId] = useState(null);
   const [editProjectDialogOpen, setEditProjectDialogOpen] = useState(false);
   const [editProjectData, setEditProjectData] = useState({});
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   
   // Feedback
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -2959,51 +244,44 @@ const ProjectList = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   
   const [page, setPage] = useState(1);
-  const projectsPerPage = 10;
-  
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   
   const CACHE_KEY = "admin_projects_cache";
 
-  // Consolidated Initial Load with Caching
+  // NEW OPTIMIZED API FETCH
   const fetchAllData = async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [projRes, devsRes, servRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/newproject/projects`, { headers }),
+      const [dashRes, devsRes, servRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/reports/dashboard`, { headers }),
         axios.get(`${API_BASE}/api/auth/developers`, { headers }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE}/api/servicetypes`, { headers }).catch(() => ({ data: [] }))
       ]);
 
-      let fetchedProjects = Array.isArray(projRes.data) ? projRes.data : [];
+      const fetchedProjects = dashRes.data.projects || [];
+      const fetchedTasks = dashRes.data.tasks || [];
+      const fetchedCompletions = dashRes.data.completions || [];
       const fetchedDevs = devsRes.data || [];
       const fetchedServices = servRes.data?.map(st => st.name) || [];
 
-      for (let i = 0; i < fetchedProjects.length; i += 5) {
-         const chunk = fetchedProjects.slice(i, i + 5);
-         await Promise.allSettled(chunk.map(async (p) => {
-            const [tasksRes, compRes] = await Promise.all([
-               axios.get(`${API_BASE}/api/tasks/${p._id}`, { headers }).catch(() => ({ data: [] })),
-               axios.get(`${API_BASE}/api/tasks/${p._id}/completions`, { headers }).catch(() => ({ data: [] }))
-            ]);
-
-            const pending = tasksRes.data?.filter(t => t.status !== "Done") || [];
-            const completed = compRes.data || [];
-
-            p.taskStats = {
-               total: pending.length + completed.length,
-               completed: completed.length
-            };
-
-            p.recentCompletions = completed
-               .sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt))
-               .slice(0, 5);
-         }));
-      }
+      // Link Task Stats and Completions internally to avoid N+1 queries
+      fetchedProjects.forEach(p => {
+        const pid = p._id.toString();
+        const pTasks = fetchedTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === pid && t.status !== "Done");
+        const pComps = fetchedCompletions.filter(c => (c.projectId?._id || c.projectId)?.toString() === pid);
+        
+        p.taskStats = {
+          total: pTasks.length + pComps.length,
+          completed: pComps.length
+        };
+        
+        p.recentCompletions = pComps
+          .sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt))
+          .slice(0, 5);
+      });
 
       setProjects(fetchedProjects);
       setDevelopers(fetchedDevs);
@@ -3057,19 +335,24 @@ const ProjectList = () => {
     );
   });
 
-  const currentProjects = filteredProjects.slice((page - 1) * projectsPerPage, page * projectsPerPage);
+  const totalPages = Math.ceil(filteredProjects.length / rowsPerPage) || 1;
+  const currentProjects = filteredProjects.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const subscriptionTypes = [...new Set(projects.map((p) => p.subscriptionType).filter(Boolean))];
   const createdByValues = [...new Set(projects.map((p) => p.createdBy).filter(Boolean))];
   const assignedToValues = [...new Set(projects.flatMap((p) => normalizeDevelopers(p.assignedDeveloper).map((d) => d.username)))];
   const serviceTypeValues = [...new Set(projects.flatMap((p) => p.serviceType || []))];
 
+  const showSnackbar = (msg, sev) => {
+    setSnackbarMessage(msg); setSnackbarSeverity(sev); setSnackbarOpen(true);
+  };
+
   const handleStatusChange = async (id, status) => {
     try {
       const r = await axios.put(`${API_BASE}/api/newproject/projects/${id}/status`, { status }, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
       const updated = r.data.updatedProject;
       setProjects((prev) => prev.map((p) => (p._id === updated._id ? { ...p, status: updated.status } : p)));
-    } catch (err) { }
+    } catch (err) { console.error(err); }
   };
 
   const handleToggleUpSale = async (id, cur) => {
@@ -3080,22 +363,16 @@ const ProjectList = () => {
     } catch { }
   };
 
-  const handleDeleteClick = (id) => { setProjectToDeleteId(id); setDeleteConfirmationOpen(true); };
-  const cancelDelete = () => { setDeleteConfirmationOpen(false); setProjectToDeleteId(null); };
-
   const confirmDelete = async () => {
     try {
       await axios.delete(`${API_BASE}/api/newproject/projects/${projectToDeleteId}`);
       fetchAllData(true);
-      setSnackbarMessage("Project deleted successfully.");
-      setSnackbarSeverity("success");
+      showSnackbar("Project deleted successfully.", "success");
     } catch {
-      setSnackbarMessage("Failed to delete project.");
-      setSnackbarSeverity("error");
+      showSnackbar("Failed to delete project.", "error");
     } finally {
       setDeleteConfirmationOpen(false);
       setProjectToDeleteId(null);
-      setSnackbarOpen(true);
     }
   };
 
@@ -3103,405 +380,588 @@ const ProjectList = () => {
     setEditProjectData({ ...p, assignedDeveloper: normalizeDevelopers(p.assignedDeveloper) });
     setEditProjectDialogOpen(true);
   };
-  const handleEditProjectDialogClose = () => { setEditProjectDialogOpen(false); setEditProjectData({}); };
 
-  const handleEditProjectSubmit = async () => {
+  const handleEditProjectSubmit = async (e) => {
+    e.preventDefault();
     try {
       await axios.put(`${API_BASE}/api/newproject/projects/${selectedProject._id}`, editProjectData, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
       fetchAllData(true);
       setEditProjectDialogOpen(false);
-      setSnackbarMessage("Project updated.");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      setSelectedProject({...editProjectData}); // Update view modal instantly
+      showSnackbar("Project updated successfully.", "success");
     } catch {
-      setSnackbarMessage("Update failed.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar("Update failed.", "error");
     }
   };
 
-  const handleUpsaleSubmit = async () => {
+  const handleUpsaleSubmit = async (e) => {
+    e.preventDefault();
     try {
       await axios.post(`${API_BASE}/api/newproject/projects/${selectedProjectId}/upsale`, upsaleData, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
       fetchAllData(true);
       setUpsaleDialogOpen(false);
       setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });
-      setSnackbarMessage("Upsale added.");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar("Upsale added successfully.", "success");
     } catch {
-      setSnackbarMessage("Failed to add upsale.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar("Failed to add upsale.", "error");
     }
   };
 
-  const handleEditUpsaleSubmit = async () => {
+  const handleEditUpsaleSubmit = async (e) => {
+    e.preventDefault();
     try {
       await axios.put(`${API_BASE}/api/newproject/projects/${selectedProjectId}/upsale/${selectedUpsaleId}`, upsaleData, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
       fetchAllData(true);
       setEditUpsaleDialogOpen(false);
+      
+      // Update currently viewed project to reflect upsale change instantly
+      const updatedUpsaleList = selectedProject.upsaleData.map(u => u._id === selectedUpsaleId ? {...upsaleData, _id: selectedUpsaleId} : u);
+      setSelectedProject({...selectedProject, upsaleData: updatedUpsaleList});
+      
       setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });
-    } catch { }
+      showSnackbar("Upsale updated successfully.", "success");
+    } catch { 
+      showSnackbar("Failed to update upsale.", "error");
+    }
   };
 
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FAFC]" style={{ fontFamily: T.fontFamily }}>
-        <div className="w-10 h-10 border-3 border-[#E2E8F0] border-t-[#3B82F6] rounded-full animate-spin"></div>
-        <p className="mt-4 text-[#94A3B8] text-sm font-semibold tracking-tight animate-pulse">Loading Workspace</p>
+      <div className="h-screen w-full flex items-center justify-center neu-base">
+        <div className="neu-flat rounded-2xl p-10 flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-[#D1DCEB] border-t-[#0969DA] rounded-full animate-spin mb-4"></div>
+          <p className="text-sm font-bold text-[#656D76] animate-pulse uppercase tracking-wider">Loading Projects Workspace...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <Box sx={{ width: "100%", bgcolor: T.bgPage, minHeight: "100vh", fontFamily: T.fontFamily }}>
+    <div className="h-screen w-full overflow-hidden flex flex-col neu-base p-4 sm:p-6 montserrat-regular text-[#1F2328]">
       
-      {/* Top Bar */}
-      <Box sx={{ bgcolor: T.bgSurface, borderBottom: `1px solid ${T.border}`, px: { xs: 3, md: 5 }, py: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <FolderDot size={22} color={T.primary} strokeWidth={2.5} />
-          <Typography sx={{ fontWeight: 500, fontSize: "1.1rem", color: T.textPrimary, letterSpacing: "-0.02em" }}>Project Directory</Typography>
-          <Box sx={{ flex: 1 }} />
-          <Typography sx={{ fontSize: "0.8rem", color: T.textSecondary, fontWeight: 600, bgcolor: T.bgSubtle, px: 2, py: 0.5, borderRadius: "20px", border: `1px solid ${T.border}` }}>
-            {filteredProjects.length} Projects
-          </Typography>
-        </Box>
-      </Box>
+      {/* ── Header & Filters (Fixed at Top) ── */}
+      <div className="shrink-0 flex flex-col gap-4 mb-4 z-20">
+        
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="neu-pressed-sm p-2 rounded-lg text-[#0969DA]">
+               <FolderDot size={20} />
+            </div>
+            <h1 className="text-2xl montserrat-medium text-[#1F2328]">Have a look at your projects!</h1>
+          </div>
+          <div className="neu-pressed-sm rounded-md px-3.5 py-1.5 flex items-center gap-2">
+            <span className="text-xs font-bold text-[#656D76]">{filteredProjects.length} Projects</span>
+          </div>
+        </div>
 
-      {/* Toolbar */}
-      <Box sx={{ bgcolor: T.bgSurface, borderBottom: `1px solid ${T.border}`, px: { xs: 3, md: 5 }, py: 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-          <TextField
-            size="small"
-            placeholder="Search projects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><Search sx={{ color: T.textDisabled, fontSize: 18 }} /></InputAdornment>,
-              sx: { borderRadius: T.radiusSm, fontSize: "0.875rem", height: 36, bgcolor: T.bgPage, "& .MuiOutlinedInput-notchedOutline": { borderColor: T.border }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: T.textDisabled } },
-            }}
-            sx={{ width: 240 }}
-          />
-
-          {!isMobile && [
-            { label: "Subscription", value: subscriptionFilter, onChange: (e) => setSubscriptionFilter(e.target.value), options: subscriptionTypes },
-            { label: "Created By", value: createdByFilter, onChange: (e) => setCreatedByFilter(e.target.value), options: createdByValues },
-            { label: "Assigned To", value: assignedToFilter, onChange: (e) => setAssignedToFilter(e.target.value), options: assignedToValues },
-            { label: "Service", value: serviceTypeFilter, onChange: (e) => setServiceTypeFilter(e.target.value), options: serviceTypeValues },
-          ].map(({ label, value, onChange, options }) => (
-            <FormControl key={label} size="small" sx={{ minWidth: 140 }}>
-              <Select
-                value={value} onChange={onChange} displayEmpty
-                sx={{ height: 36, borderRadius: T.radiusSm, fontSize: "0.8125rem", bgcolor: T.bgSurface, "& .MuiOutlinedInput-notchedOutline": { borderColor: T.border }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: T.textDisabled } }}
-                renderValue={(v) => v ? <span style={{ color: T.textPrimary, fontWeight: 500 }}>{v}</span> : <span style={{ color: T.textSecondary, fontWeight: 500 }}>{label}</span>}
-              >
-                <MenuItem value="" sx={{ fontSize: "0.8125rem", fontStyle: 'italic', color: T.textDisabled }}>All {label}</MenuItem>
-                {options.map((o) => <MenuItem key={o} value={o} sx={{ fontSize: "0.8125rem", fontWeight: 500 }}>{o}</MenuItem>)}
-              </Select>
-            </FormControl>
-          ))}
-
-          {isMobile && (
-            <Button size="small" startIcon={<FilterList sx={{ fontSize: 16 }} />} onClick={() => setFilterDrawerOpen(true)} sx={{ height: 36, borderRadius: T.radiusSm, color: T.textSecondary, border: `1px solid ${T.border}`, bgcolor: T.bgSurface, fontSize: "0.8125rem", textTransform: "none", fontWeight: 600 }}>
-              Filters
-            </Button>
-          )}
-        </Box>
-      </Box>
-
-      {/* Content */}
-      <Box sx={{ px: { xs: 2, md: 5 }, py: 4 }}>
-        {isMobile ? (
-          <AnimatePresence>
-            {currentProjects.map((p) => (
-              <motion.div key={p._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}>
-                <MobileProjectCard project={p} onView={(p) => { setSelectedProject(p); setOpen(true); }} onDelete={handleDeleteClick} onToggleUpSale={handleToggleUpSale} onUpsaleInfo={(id) => { setSelectedProjectId(id); setUpsaleDialogOpen(true); }} onKanban={handleKanbanClick} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        ) : (
-          <Box sx={{ overflowX: "auto", pb: 2 }}>
-            <Box sx={{ bgcolor: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: T.radius, boxShadow: T.shadow, overflow: "hidden", minWidth: 1200 }}>
-              
-              {/* Header */}
-              <Box sx={{ display: "grid", gridTemplateColumns: COLS, gap: 3, px: 3, py: 1.5, bgcolor: T.bgSubtle, borderBottom: `1px solid ${T.border}` }}>
-                {["Project", "Assigned Team", "Tags", "Status", "Progress", "Up-Sale", "Actions", ""].map((h) => (
-                  <Typography key={h} sx={{ fontSize: "0.68rem", fontWeight: 800, color: T.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</Typography>
-                ))}
-              </Box>
-
-              {/* Rows */}
-              {currentProjects.length === 0 ? (
-                <Box sx={{ py: 10, textAlign: "center" }}>
-                  <FolderDot size={48} color={T.textDisabled} strokeWidth={1} style={{ margin: '0 auto', marginBottom: '16px' }} />
-                  <Typography sx={{ color: T.textPrimary, fontSize: "1rem", fontWeight: 700 }}>No projects found</Typography>
-                  <Typography sx={{ color: T.textSecondary, fontSize: "0.85rem", mt: 0.5 }}>Try adjusting your search or filters.</Typography>
-                </Box>
-              ) : (
-                <motion.div initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}>
-                  {currentProjects.map((project, idx) => (
-                    <motion.div key={project._id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-                      <ProjectRow project={project} isLast={idx === currentProjects.length - 1} onView={(p) => { setSelectedProject(p); setOpen(true); }} onStatusChange={handleStatusChange} onToggleUpSale={handleToggleUpSale} onUpsaleAdd={(id) => { setSelectedProjectId(id); setUpsaleDialogOpen(true); }} onKanban={handleKanbanClick} onDelete={handleDeleteClick} />
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </Box>
-          </Box>
-        )}
-
-        {/* Pagination */}
-        {filteredProjects.length > projectsPerPage && (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3, alignItems: "center", gap: 2 }}>
-            <Typography sx={{ fontSize: "0.8rem", color: T.textSecondary, fontWeight: 500 }}>
-              Showing {(page - 1) * projectsPerPage + 1}–{Math.min(page * projectsPerPage, filteredProjects.length)} of {filteredProjects.length}
-            </Typography>
-            <Pagination
-              count={Math.ceil(filteredProjects.length / projectsPerPage)} page={page} onChange={(_, v) => setPage(v)} size="small" shape="rounded"
-              sx={{ "& .MuiPaginationItem-root": { borderRadius: T.radiusSm, fontSize: "0.8125rem", fontWeight: 600, color: T.textSecondary, border: `1px solid ${T.border}`, "&:hover": { bgcolor: T.bgHover } }, "& .MuiPaginationItem-root.Mui-selected": { bgcolor: T.textPrimary, color: "#fff", border: "none", "&:hover": { bgcolor: "#000" } } }}
+        <div className="neu-flat rounded-xl p-5 flex flex-col md:flex-row gap-4">
+          
+          <div className="relative w-full md:w-1/3 z-20">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none">
+              <Search size={16} />
+            </div>
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+              className="w-full neu-pressed rounded-md py-2.5 pl-10 pr-4 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20"
             />
-          </Box>
-        )}
-      </Box>
+          </div>
 
-      {/* Filter drawer */}
-      <FilterDrawer
-        open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)}
-        filters={{ sub: subscriptionFilter, created: createdByFilter, assigned: assignedToFilter, service: serviceTypeFilter }}
-        handlers={{ sub: (e) => setSubscriptionFilter(e.target.value), created: (e) => setCreatedByFilter(e.target.value), assigned: (e) => setAssignedToFilter(e.target.value), service: (e) => setServiceTypeFilter(e.target.value) }}
-        options={{ sub: subscriptionTypes, created: createdByValues, assigned: assignedToValues, service: serviceTypeValues }}
-      />
-
-      {/* Project details dialog */}
-      <Dialog open={open} onClose={() => { setOpen(false); setSelectedProject(null); }} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: T.radius, boxShadow: "0 20px 40px rgba(0,0,0,0.1)", border: `1px solid ${T.border}` } }}>
-        <DialogTitle sx={{ borderBottom: `1px solid ${T.border}`, py: 2.5, px: 4, display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: T.bgSubtle }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <FolderDot size={20} color={T.primary} />
-            <Typography sx={{ fontWeight: 800, fontSize: "1.1rem", color: T.textPrimary }}>Project Details</Typography>
-          </Box>
-          <IconButton size="small" onClick={() => setOpen(false)} sx={{ color: T.textSecondary }}><CloseIcon sx={{ fontSize: 20 }} /></IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 4, bgcolor: T.bgSurface }}>
-          {selectedProject && (
-            <>
-              <Box sx={{ mb: 4 }}>
-                <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: T.textSecondary, textTransform: "uppercase", letterSpacing: "0.06em", mb: 2 }}>Core Information</Typography>
-                <Grid container spacing={3}>
-                  {[
-                    { label: "Project Name", value: selectedProject.projectName }, { label: "Client", value: selectedProject.clientName },
-                    { label: "Client Email", value: selectedProject.clientEmail }, { label: "Client Number", value: selectedProject.clientNumber },
-                    { label: "Amount", value: selectedProject.amount }, { label: "Assigned Developer(s)", value: getDevNamesString(selectedProject.assignedDeveloper) },
-                    { label: "Service Type", value: (selectedProject.serviceType || []).join(", ") }, { label: "Reference Site", value: selectedProject.referenceSite },
-                    { label: "Business Niche", value: selectedProject.businessNiche }, { label: "Subscription Type", value: selectedProject.subscriptionType },
-                  ].map(({ label, value }) => (
-                    <Grid item xs={12} sm={6} key={label}>
-                      <Typography component="span" sx={labelSx}>{label}</Typography>
-                      <TextField variant="outlined" fullWidth value={value || "—"} InputProps={{ readOnly: true }} sx={{...sharedFieldSx, "& .MuiOutlinedInput-root": { ...sharedFieldSx["& .MuiOutlinedInput-root"], bgcolor: T.bgSubtle }}} />
-                    </Grid>
-                  ))}
-                  <Grid item xs={12}>
-                    <Typography component="span" sx={labelSx}>Details</Typography>
-                    <TextField variant="outlined" fullWidth multiline rows={3} value={selectedProject.projectDetails || "—"} InputProps={{ readOnly: true }} sx={{...sharedFieldSx, "& .MuiOutlinedInput-root": { ...sharedFieldSx["& .MuiOutlinedInput-root"], bgcolor: T.bgSubtle }}} />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography component="span" sx={labelSx}>Comments</Typography>
-                    <TextField variant="outlined" fullWidth multiline rows={2} value={selectedProject.comments || "—"} InputProps={{ readOnly: true }} sx={{...sharedFieldSx, "& .MuiOutlinedInput-root": { ...sharedFieldSx["& .MuiOutlinedInput-root"], bgcolor: T.bgSubtle }}} />
-                  </Grid>
-                </Grid>
-                <Button variant="contained" startIcon={<PenSquare size={16} />} onClick={() => handleEditProjectClick(selectedProject)} disableElevation sx={{ mt: 3, height: 36, borderRadius: T.radiusSm, bgcolor: T.textPrimary, color: '#fff', fontSize: "0.8125rem", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#000" } }}>
-                  Edit Project
-                </Button>
-              </Box>
-
-              {selectedProject.upsaleData?.length > 0 && (
-                <Box sx={{ borderTop: `1px solid ${T.border}`, pt: 4 }}>
-                  <Typography sx={{ fontWeight: 800, fontSize: "0.8rem", color: T.textSecondary, textTransform: "uppercase", letterSpacing: "0.06em", mb: 2 }}>Upsale Packages</Typography>
-                  {selectedProject.upsaleData.map((upsale, idx) => (
-                    <Box key={idx} sx={{ mb: idx < selectedProject.upsaleData.length - 1 ? 3 : 0, pb: idx < selectedProject.upsaleData.length - 1 ? 3 : 0, borderBottom: idx < selectedProject.upsaleData.length - 1 ? `1px dashed ${T.border}` : "none" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                        <TagChip label={`Package ${idx + 1}`} />
-                        <Button variant="outlined" size="small" startIcon={<PenSquare size={14} />} onClick={() => { setSelectedProjectId(selectedProject._id); setSelectedUpsaleId(upsale._id); setUpsaleData(upsale); setEditUpsaleDialogOpen(true); }} sx={{ height: 28, borderRadius: T.radiusSm, color: T.primary, borderColor: T.border, fontSize: "0.75rem", fontWeight: 600, textTransform: "none", "&:hover": { borderColor: T.primary, bgcolor: T.primaryLight } }}>Edit</Button>
-                      </Box>
-                      <Grid container spacing={3}>
-                        {[{ label: "Service Type", value: upsale.serviceType }, { label: "Amount", value: upsale.amount }].map(({ label, value }) => (
-                          <Grid item xs={12} sm={6} key={label}>
-                            <Typography component="span" sx={labelSx}>{label}</Typography>
-                            <TextField variant="outlined" fullWidth value={value || "—"} InputProps={{ readOnly: true }} sx={{...sharedFieldSx, "& .MuiOutlinedInput-root": { ...sharedFieldSx["& .MuiOutlinedInput-root"], bgcolor: T.bgSubtle }}} />
-                          </Grid>
-                        ))}
-                        {[{ label: "Details", value: upsale.details }, { label: "Comments", value: upsale.comments }].map(({ label, value }) => (
-                          <Grid item xs={12} key={label}>
-                            <Typography component="span" sx={labelSx}>{label}</Typography>
-                            <TextField variant="outlined" fullWidth multiline rows={2} value={value || "—"} InputProps={{ readOnly: true }} sx={{...sharedFieldSx, "& .MuiOutlinedInput-root": { ...sharedFieldSx["& .MuiOutlinedInput-root"], bgcolor: T.bgSubtle }}} />
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 4, py: 2.5, borderTop: `1px solid ${T.border}`, bgcolor: T.bgSubtle }}>
-          <Button onClick={() => setOpen(false)} sx={{ height: 36, borderRadius: T.radiusSm, color: T.textSecondary, fontWeight: 600, fontSize: "0.85rem", textTransform: "none", border: `1px solid ${T.border}`, "&:hover": { bgcolor: T.bgHover, color: T.textPrimary } }}>Close panel</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add upsale dialog */}
-      <Dialog open={upsaleDialogOpen} onClose={() => { setUpsaleDialogOpen(false); setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" }); }} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: T.radius, border: `1px solid ${T.border}`, boxShadow: T.shadow } }}>
-        <DialogTitle sx={{ borderBottom: `1px solid ${T.border}`, py: 2.5, px: 4, fontSize: "1.1rem", fontWeight: 800, color: T.textPrimary, bgcolor: T.bgSubtle }}>Add Upsale Package</DialogTitle>
-        <DialogContent sx={{ p: 4 }}>
-          <Grid container spacing={3} sx={{ mt: 0 }}>
-            {[{ label: "Service Type", name: "serviceType" }, { label: "Amount", name: "amount" }].map((f) => (
-              <Grid item xs={12} sm={6} key={f.name}>
-                <Typography component="span" sx={labelSx}>{f.label}</Typography>
-                <TextField fullWidth size="small" value={upsaleData[f.name]} onChange={(e) => setUpsaleData((p) => ({ ...p, [f.name]: e.target.value }))} sx={sharedFieldSx} />
-              </Grid>
-            ))}
-            {[{ label: "Details", name: "details" }, { label: "Comments", name: "comments" }].map((f) => (
-              <Grid item xs={12} key={f.name}>
-                <Typography component="span" sx={labelSx}>{f.label}</Typography>
-                <TextField fullWidth size="small" multiline rows={3} value={upsaleData[f.name]} onChange={(e) => setUpsaleData((p) => ({ ...p, [f.name]: e.target.value }))} sx={sharedFieldSx} />
-              </Grid>
-            ))}
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 4, py: 2.5, borderTop: `1px solid ${T.border}`, bgcolor: T.bgSubtle }}>
-          <Button onClick={() => { setUpsaleDialogOpen(false); setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" }); }} sx={{ height: 36, borderRadius: T.radiusSm, color: T.textSecondary, fontWeight: 600, fontSize: "0.85rem", textTransform: "none" }}>Cancel</Button>
-          <Button onClick={handleUpsaleSubmit} variant="contained" disableElevation sx={{ height: 36, borderRadius: T.radiusSm, bgcolor: T.textPrimary, color: '#fff', fontSize: "0.85rem", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#000" } }}>Add Package</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Edit project dialog */}
-      <Dialog open={editProjectDialogOpen} onClose={handleEditProjectDialogClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: T.radius, border: `1px solid ${T.border}`, boxShadow: T.shadow } }}>
-        <DialogTitle sx={{ borderBottom: `1px solid ${T.border}`, py: 2.5, px: 4, fontSize: "1.1rem", fontWeight: 800, color: T.textPrimary, bgcolor: T.bgSubtle }}>Edit Project</DialogTitle>
-        <DialogContent sx={{ p: 4 }}>
-          <Grid container spacing={3} sx={{ mt: 0 }}>
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 relative z-20">
             {[
-              { label: "Project Name", key: "projectName" }, { label: "Client Name", key: "clientName" },
-              { label: "Client Email", key: "clientEmail" }, { label: "Client Number", key: "clientNumber" },
-              { label: "Amount", key: "amount" }, { label: "Reference Site", key: "referenceSite" },
-              { label: "Business Niche", key: "businessNiche" },
-            ].map((f) => (
-              <Grid item xs={12} sm={6} key={f.key}>
-                <Typography component="span" sx={labelSx}>{f.label}</Typography>
-                <TextField fullWidth size="small" value={editProjectData[f.key] || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, [f.key]: e.target.value }))} sx={sharedFieldSx} />
-              </Grid>
+              { label: "Subscription", value: subscriptionFilter, onChange: (e) => {setSubscriptionFilter(e.target.value); setPage(1);}, options: subscriptionTypes },
+              { label: "Created By", value: createdByFilter, onChange: (e) => {setCreatedByFilter(e.target.value); setPage(1);}, options: createdByValues },
+              { label: "Assigned To", value: assignedToFilter, onChange: (e) => {setAssignedToFilter(e.target.value); setPage(1);}, options: assignedToValues },
+              { label: "Service", value: serviceTypeFilter, onChange: (e) => {setServiceTypeFilter(e.target.value); setPage(1);}, options: serviceTypeValues },
+            ].map(({ label, value, onChange, options }) => (
+              <div key={label} className="relative">
+                <select value={value} onChange={onChange} className="w-full neu-pressed rounded-md p-2.5 pr-8 text-xs font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                  <option value="">All {label}</option>
+                  {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none" />
+              </div>
             ))}
+          </div>
+        </div>
+      </div>
 
-            <Grid item xs={12} sm={6}>
-              <Typography component="span" sx={labelSx}>Assigned Developer(s)</Typography>
-              <FormControl fullWidth size="small" sx={sharedFieldSx}>
-                <Select
-                  multiple value={normalizeDevelopers(editProjectData.assignedDeveloper).map((d) => d.id)}
-                  onChange={(e) => {
-                    const ids = e.target.value;
-                    const selected = ids.map((id) => { const dev = developers.find((x) => x._id === id); return dev ? { id: dev._id, username: dev.username } : null; }).filter(Boolean);
-                    setEditProjectData((p) => ({ ...p, assignedDeveloper: selected }));
-                  }}
-                  renderValue={(ids) => ids.map((id) => developers.find((x) => x._id === id)?.username || id).join(", ")}
-                  sx={{ borderRadius: T.radiusSm, fontSize: "0.875rem" }}
-                >
-                  {developers.map((d) => <MenuItem key={d._id} value={d._id} sx={{ fontSize: "0.875rem", fontWeight: 500 }}>{d.username}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
+      {/* ── Table Container (Flexible Height, Internal Scroll) ── */}
+      <div className="flex-1 min-h-0 relative z-10 flex flex-col neu-flat rounded-xl p-2 sm:p-4 mb-4">
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead className="sticky top-0 z-20 bg-[#F0F4F8]">
+              <tr>
+                {["Project", "Assigned Team", "Tags", "Status", "Progress", "Up-Sale", "Actions"].map((h, i) => (
+                  <th key={h} className={`p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/80 ${i === 6 ? 'text-right' : ''}`}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {currentProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center">
+                    <p className="text-sm font-bold text-[#656D76]">No projects match your current filters.</p>
+                  </td>
+                </tr>
+              ) : (
+                currentProjects.map((project, idx) => (
+                  <ProjectRow 
+                    key={project._id} 
+                    project={project} 
+                    isLast={idx === currentProjects.length - 1} 
+                    onView={(p) => { setSelectedProject(p); setOpen(true); }} 
+                    onStatusChange={handleStatusChange} 
+                    onToggleUpSale={handleToggleUpSale} 
+                    onUpsaleAdd={(id) => { setSelectedProjectId(id); setUpsaleDialogOpen(true); }} 
+                    onKanban={handleKanbanClick} 
+                    onDelete={(id) => { setProjectToDeleteId(id); setDeleteConfirmationOpen(true); }} 
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-            <Grid item xs={12} sm={6}>
-              <Typography component="span" sx={labelSx}>Service Type</Typography>
-              <FormControl fullWidth size="small" sx={sharedFieldSx}>
-                <Select
-                  multiple value={editProjectData.serviceType || []}
-                  onChange={(e) => setEditProjectData((p) => ({ ...p, serviceType: e.target.value }))}
-                  renderValue={(s) => s.join(", ")}
-                  sx={{ borderRadius: T.radiusSm, fontSize: "0.875rem" }}
-                >
-                  {serviceTypes.map((t) => <MenuItem key={t} value={t} sx={{ fontSize: "0.875rem", fontWeight: 500 }}>{t}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
+      {/* ── Footer Pagination (Fixed at Bottom) ── */}
+      <div className="shrink-0 flex justify-between items-center relative z-20">
+        <div className="flex items-center gap-3">
+          <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Rows per page</label>
+          <div className="relative">
+            <select
+              value={rowsPerPage}
+              onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }}
+              className="neu-pressed rounded-md p-2 pr-8 text-xs font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent"
+            >
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={30}>30</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none" />
+          </div>
+        </div>
 
-            <Grid item xs={12} sm={6}>
-              <Typography component="span" sx={labelSx}>Subscription Type</Typography>
-              <FormControl fullWidth size="small" sx={sharedFieldSx}>
-                <Select value={editProjectData.subscriptionType || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, subscriptionType: e.target.value }))} sx={{ borderRadius: T.radiusSm, fontSize: "0.875rem" }}>
-                  <MenuItem value="Subscription-Based" sx={{ fontSize: "0.875rem", fontWeight: 500 }}>Subscription-Based</MenuItem>
-                  <MenuItem value="One-Time" sx={{ fontSize: "0.875rem", fontWeight: 500 }}>One-Time</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 flex items-center gap-1 text-xs font-bold text-[#656D76] disabled:opacity-40"
+          >
+            <ChevronLeft size={14} className="pointer-events-none" /> Prev
+          </button>
+          <span className="text-xs font-bold text-[#1F2328] neu-pressed-sm px-3 py-1.5 rounded-md">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 flex items-center gap-1 text-xs font-bold text-[#656D76] disabled:opacity-40"
+          >
+             Next <ChevronRight size={14} className="pointer-events-none" />
+          </button>
+        </div>
+      </div>
 
-            <Grid item xs={12}>
-              <Typography component="span" sx={labelSx}>Details</Typography>
-              <TextField fullWidth size="small" multiline rows={4} value={editProjectData.projectDetails || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, projectDetails: e.target.value }))} sx={sharedFieldSx} />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography component="span" sx={labelSx}>Comments</Typography>
-              <TextField fullWidth size="small" multiline rows={3} value={editProjectData.comments || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, comments: e.target.value }))} sx={sharedFieldSx} />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 4, py: 2.5, borderTop: `1px solid ${T.border}`, bgcolor: T.bgSubtle }}>
-          <Button onClick={handleEditProjectDialogClose} sx={{ height: 36, borderRadius: T.radiusSm, color: T.textSecondary, fontWeight: 600, fontSize: "0.85rem", textTransform: "none" }}>Cancel</Button>
-          <Button onClick={handleEditProjectSubmit} variant="contained" disableElevation sx={{ height: 36, borderRadius: T.radiusSm, bgcolor: T.textPrimary, color: '#fff', fontSize: "0.85rem", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#000" } }}>Save Changes</Button>
-        </DialogActions>
-      </Dialog>
+      {/* ── MODALS ── */}
 
-      {/* Edit upsale dialog */}
-      <Dialog open={editUpsaleDialogOpen} onClose={() => { setEditUpsaleDialogOpen(false); setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" }); }} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: T.radius, border: `1px solid ${T.border}`, boxShadow: T.shadow } }}>
-        <DialogTitle sx={{ borderBottom: `1px solid ${T.border}`, py: 2.5, px: 4, fontSize: "1.1rem", fontWeight: 800, color: T.textPrimary, bgcolor: T.bgSubtle }}>Edit Upsale</DialogTitle>
-        <DialogContent sx={{ p: 4 }}>
-          <Grid container spacing={3} sx={{ mt: 0 }}>
-            {[{ label: "Service Type", name: "serviceType" }, { label: "Amount", name: "amount" }].map((f) => (
-              <Grid item xs={12} sm={6} key={f.name}>
-                <Typography component="span" sx={labelSx}>{f.label}</Typography>
-                <TextField fullWidth size="small" value={upsaleData[f.name]} onChange={(e) => setUpsaleData((p) => ({ ...p, [f.name]: e.target.value }))} sx={sharedFieldSx} />
-              </Grid>
-            ))}
-            {[{ label: "Details", name: "details" }, { label: "Comments", name: "comments" }].map((f) => (
-              <Grid item xs={12} key={f.name}>
-                <Typography component="span" sx={labelSx}>{f.label}</Typography>
-                <TextField fullWidth size="small" multiline rows={3} value={upsaleData[f.name]} onChange={(e) => setUpsaleData((p) => ({ ...p, [f.name]: e.target.value }))} sx={sharedFieldSx} />
-              </Grid>
-            ))}
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 4, py: 2.5, borderTop: `1px solid ${T.border}`, bgcolor: T.bgSubtle }}>
-          <Button onClick={() => setEditUpsaleDialogOpen(false)} sx={{ height: 36, borderRadius: T.radiusSm, color: T.textSecondary, fontWeight: 600, fontSize: "0.85rem", textTransform: "none" }}>Cancel</Button>
-          <Button onClick={handleEditUpsaleSubmit} variant="contained" disableElevation sx={{ height: 36, borderRadius: T.radiusSm, bgcolor: T.textPrimary, color: '#fff', fontSize: "0.85rem", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#000" } }}>Save Package</Button>
-        </DialogActions>
-      </Dialog>
+      {/* 1. Project Details Modal */}
+      <AnimatePresence>
+        {open && selectedProject && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-4xl flex flex-col relative z-10 max-h-[90vh] overflow-hidden"
+            >
+              <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-start shrink-0">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl neu-btn-primary flex items-center justify-center text-white shrink-0">
+                     <FolderDot size={20} />
+                   </div>
+                   <div>
+                     <h2 className="text-xl font-bold text-[#1F2328]">{selectedProject.projectName}</h2>
+                     <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Project Details</p>
+                   </div>
+                </div>
+                <button type="button" onClick={() => setOpen(false)} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]">
+                  <X size={18} className="pointer-events-none" />
+                </button>
+              </div>
 
-      {/* Delete confirm */}
-      <MUIDialog open={deleteConfirmationOpen} onClose={cancelDelete} PaperProps={{ sx: { borderRadius: T.radius, minWidth: 380, border: `1px solid ${T.border}`, boxShadow: T.shadow } }}>
-        <MUIDialogTitle sx={{ py: 3, px: 4, fontSize: "1.1rem", fontWeight: 800, color: T.textPrimary }}>Delete project?</MUIDialogTitle>
-        <MUIDialogContent sx={{ p: 4, pt: 0 }}>
-          <MUIDialogContentText sx={{ fontSize: "0.875rem", color: T.textSecondary, lineHeight: 1.5 }}>
-            This action is permanent and cannot be undone. Are you sure you want to delete this project?
-          </MUIDialogContentText>
-        </MUIDialogContent>
-        <MUIDialogActions sx={{ px: 4, py: 2.5, borderTop: `1px solid ${T.border}`, bgcolor: T.bgSubtle }}>
-          <Button onClick={cancelDelete} sx={{ height: 36, borderRadius: T.radiusSm, color: T.textSecondary, fontWeight: 600, fontSize: "0.85rem", textTransform: "none" }}>Cancel</Button>
-          <Button onClick={confirmDelete} variant="contained" disableElevation sx={{ height: 36, borderRadius: T.radiusSm, bgcolor: T.danger, color: '#fff', fontSize: "0.85rem", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#DC2626" } }}>Yes, Delete</Button>
-        </MUIDialogActions>
-      </MUIDialog>
+              <div className="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-8">
+                
+                <div className="neu-pressed rounded-xl p-6">
+                  <h3 className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider mb-4 border-b border-[#D1DCEB]/50 pb-2">Core Information</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    {[
+                      { label: "Client", value: selectedProject.clientName },
+                      { label: "Client Email", value: selectedProject.clientEmail },
+                      { label: "Client Number", value: selectedProject.clientNumber },
+                      { label: "Amount", value: selectedProject.amount ? `$${selectedProject.amount}` : "—" },
+                      { label: "Assigned Developer(s)", value: getDevNamesString(selectedProject.assignedDeveloper) },
+                      { label: "Service Type", value: (selectedProject.serviceType || []).join(", ") || "—" },
+                      { label: "Reference Site", value: selectedProject.referenceSite || "—" },
+                      { label: "Business Niche", value: selectedProject.businessNiche || "—" },
+                      { label: "Subscription Type", value: selectedProject.subscriptionType || "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">{label}</p>
+                        <p className="text-sm font-bold text-[#1F2328] break-words">{value}</p>
+                      </div>
+                    ))}
+                    <div className="col-span-2 md:col-span-3">
+                      <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Details</p>
+                      <div className="neu-flat-sm rounded-lg p-4 text-sm font-medium text-[#1F2328] whitespace-pre-wrap">{selectedProject.projectDetails || "—"}</div>
+                    </div>
+                    <div className="col-span-2 md:col-span-3">
+                      <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Comments</p>
+                      <div className="neu-flat-sm rounded-lg p-4 text-sm font-medium text-[#1F2328] whitespace-pre-wrap">{selectedProject.comments || "—"}</div>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <button type="button" onClick={() => handleEditProjectClick(selectedProject)} className="neu-btn-primary px-6 py-2.5 rounded-lg text-xs font-bold text-white neu-action-btn flex items-center gap-2">
+                      <PenSquare size={14} className="pointer-events-none" /> Edit Project
+                    </button>
+                  </div>
+                </div>
 
-      {/* Snackbar */}
-      <Snackbar open={snackbarOpen} autoHideDuration={5000} onClose={(_, r) => r !== "clickaway" && setSnackbarOpen(false)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
-        <Alert severity={snackbarSeverity} onClose={() => setSnackbarOpen(false)} variant="filled" sx={{ borderRadius: T.radiusSm, fontSize: "0.875rem", fontWeight: 600, fontFamily: T.fontFamily }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+                {selectedProject.upsaleData?.length > 0 && (
+                  <div>
+                    <h3 className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider mb-4 border-b border-[#D1DCEB]/50 pb-2">Upsale Packages</h3>
+                    <div className="space-y-4">
+                      {selectedProject.upsaleData.map((upsale, idx) => (
+                        <div key={idx} className="neu-flat-sm rounded-xl p-5 border border-[#D1DCEB]/30 relative">
+                          <div className="absolute top-4 right-4 z-20">
+                            <button type="button" onClick={() => { setSelectedProjectId(selectedProject._id); setSelectedUpsaleId(upsale._id); setUpsaleData(upsale); setEditUpsaleDialogOpen(true); }} className="neu-pressed-sm neu-action-btn px-4 py-2 rounded-lg text-[10px] font-bold text-[#0969DA] flex items-center gap-1.5">
+                              <PenSquare size={12} className="pointer-events-none" /> Edit
+                            </button>
+                          </div>
+                          <span className="text-[10px] font-bold text-[#1F2328] neu-pressed-sm px-2 py-1 rounded-md mb-4 inline-block">Package {idx + 1}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Service Type</p><p className="text-sm font-bold text-[#1F2328]">{upsale.serviceType || "—"}</p></div>
+                            <div><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Amount</p><p className="text-sm font-bold text-[#1A7F37]">{upsale.amount ? `$${upsale.amount}` : "—"}</p></div>
+                            <div className="sm:col-span-2"><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Details</p><p className="text-sm font-medium text-[#1F2328]">{upsale.details || "—"}</p></div>
+                            <div className="sm:col-span-2"><p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Comments</p><p className="text-sm font-medium text-[#1F2328]">{upsale.comments || "—"}</p></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+              <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end shrink-0">
+                <button type="button" onClick={() => setOpen(false)} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">
+                  Close Panel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Edit Project Modal */}
+      <AnimatePresence>
+        {editProjectDialogOpen && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleEditProjectDialogClose} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-4xl flex flex-col relative z-10 max-h-[90vh] overflow-hidden"
+            >
+              <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
+                <h2 className="text-xl font-bold text-[#1F2328]">Edit Project</h2>
+                <button type="button" onClick={handleEditProjectDialogClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]">
+                  <X size={18} className="pointer-events-none" />
+                </button>
+              </div>
+
+              <form id="editProjectForm" onSubmit={handleEditProjectSubmit} className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 relative z-20">
+                  {[
+                    { label: "Project Name", key: "projectName", type: "text" }, 
+                    { label: "Client Name", key: "clientName", type: "text" },
+                    { label: "Client Email", key: "clientEmail", type: "email" }, 
+                    { label: "Client Number", key: "clientNumber", type: "text" },
+                    { label: "Amount", key: "amount", type: "text" }, 
+                    { label: "Reference Site", key: "referenceSite", type: "text" },
+                    { label: "Business Niche", key: "businessNiche", type: "text" },
+                  ].map((f) => (
+                    <div key={f.key} className="relative z-20">
+                      <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">{f.label}</label>
+                      <input type={f.type} value={editProjectData[f.key] || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, [f.key]: e.target.value }))} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20" />
+                    </div>
+                  ))}
+
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Subscription Type</label>
+                    <div className="relative">
+                      <select value={editProjectData.subscriptionType || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, subscriptionType: e.target.value }))} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent relative z-20">
+                        <option value="Subscription-Based">Subscription-Based</option>
+                        <option value="One-Time">One-Time</option>
+                        <option value="Website-Based">Website-Based</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30" />
+                    </div>
+                  </div>
+
+                  {/* Developers Checkbox List */}
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Assigned Developer(s)</label>
+                    <div className="neu-pressed rounded-xl p-3 h-[150px] overflow-y-auto custom-scrollbar space-y-1 relative z-20">
+                      {developers.map((dev) => {
+                        const isSelected = (editProjectData.assignedDeveloper || []).some(d => d.id === dev._id);
+                        return (
+                          <label key={dev._id} className={`flex items-center px-4 py-2 cursor-pointer rounded-lg transition-all duration-200 relative z-20 ${isSelected ? "neu-flat bg-[#F0F4F8]" : "hover:bg-[#D1DCEB]/20"}`}>
+                            <input type="checkbox" checked={isSelected} onChange={() => {
+                               let arr = editProjectData.assignedDeveloper || [];
+                               if (isSelected) arr = arr.filter(d => d.id !== dev._id);
+                               else arr = [...arr, { id: dev._id, username: dev.username }];
+                               setEditProjectData(p => ({ ...p, assignedDeveloper: arr }));
+                            }} className="w-4 h-4 accent-[#0969DA] cursor-pointer relative z-30" />
+                            <span className={`ml-3 text-sm transition-colors ${isSelected ? "font-bold text-[#0969DA]" : "font-medium text-[#1F2328]"}`}>{dev.username}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Services Toggle Pills */}
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Service Type</label>
+                    <div className="neu-pressed rounded-xl p-4 h-[150px] overflow-y-auto custom-scrollbar flex flex-wrap gap-2 items-start relative z-20">
+                      {serviceTypes.map(type => {
+                        const isSelected = (editProjectData.serviceType || []).includes(type);
+                        return (
+                          <button
+                            type="button"
+                            key={type}
+                            onClick={() => {
+                              let arr = editProjectData.serviceType || [];
+                              if (isSelected) arr = arr.filter(t => t !== type);
+                              else arr = [...arr, type];
+                              setEditProjectData(p => ({ ...p, serviceType: arr }));
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all neu-action-btn relative z-30 ${
+                              isSelected ? "neu-pressed border border-[#0969DA] text-[#0969DA] shadow-[inset_1.5px_1.5px_3px_rgba(0,0,0,0.1)]" : "neu-flat-sm text-[#656D76]"
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2 relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Details</label>
+                    <textarea rows={3} value={editProjectData.projectDetails || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, projectDetails: e.target.value }))} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text resize-none custom-scrollbar relative z-20" />
+                  </div>
+                  <div className="sm:col-span-2 relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Comments</label>
+                    <textarea rows={2} value={editProjectData.comments || ""} onChange={(e) => setEditProjectData((p) => ({ ...p, comments: e.target.value }))} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text resize-none custom-scrollbar relative z-20" />
+                  </div>
+                </div>
+              </form>
+
+              <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-4 shrink-0 relative z-20">
+                <button type="button" onClick={handleEditProjectDialogClose} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">
+                  Cancel
+                </button>
+                <button type="submit" form="editProjectForm" className="neu-btn-primary px-8 py-2.5 rounded-lg text-sm font-bold text-white neu-action-btn">
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Add/Edit Upsale Modal */}
+      <AnimatePresence>
+        {(upsaleDialogOpen || editUpsaleDialogOpen) && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => {setUpsaleDialogOpen(false); setEditUpsaleDialogOpen(false); setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });}} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-md flex flex-col relative z-10"
+            >
+              <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
+                <h2 className="text-xl font-bold text-[#1F2328]">{editUpsaleDialogOpen ? "Edit Upsale" : "Add Upsale Package"}</h2>
+                <button type="button" onClick={() => {setUpsaleDialogOpen(false); setEditUpsaleDialogOpen(false); setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });}} className="neu-flat-sm neu-action-btn rounded-full p-2 text-[#656D76] hover:text-[#D1242F]">
+                  <X size={18} className="pointer-events-none" />
+                </button>
+              </div>
+
+              <form id="upsaleForm" onSubmit={editUpsaleDialogOpen ? handleEditUpsaleSubmit : handleUpsaleSubmit} className="p-6 space-y-4">
+                {[{ label: "Service Type", name: "serviceType" }, { label: "Amount", name: "amount" }].map((f) => (
+                  <div key={f.name} className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">{f.label}</label>
+                    <input required type={f.name === "amount" ? "number" : "text"} value={upsaleData[f.name]} onChange={(e) => setUpsaleData((p) => ({ ...p, [f.name]: e.target.value }))} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20" />
+                  </div>
+                ))}
+                {[{ label: "Details", name: "details" }, { label: "Comments", name: "comments" }].map((f) => (
+                  <div key={f.name} className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">{f.label}</label>
+                    <textarea rows={2} value={upsaleData[f.name]} onChange={(e) => setUpsaleData((p) => ({ ...p, [f.name]: e.target.value }))} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text resize-none custom-scrollbar relative z-20" />
+                  </div>
+                ))}
+              </form>
+
+              <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-4 shrink-0 relative z-20">
+                <button type="button" onClick={() => {setUpsaleDialogOpen(false); setEditUpsaleDialogOpen(false); setUpsaleData({ serviceType: "", amount: "", details: "", comments: "" });}} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">
+                  Cancel
+                </button>
+                <button type="submit" form="upsaleForm" className="neu-btn-primary px-8 py-2.5 rounded-lg text-sm font-bold text-white neu-action-btn">
+                  {editUpsaleDialogOpen ? "Save Package" : "Add Package"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. Delete Confirm Modal */}
+      <AnimatePresence>
+        {deleteConfirmationOpen && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={cancelDelete} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-2xl w-full max-w-sm flex flex-col relative z-10 p-8 text-center items-center"
+            >
+              <div className="neu-pressed-sm p-4 rounded-full text-[#D1242F] mb-4">
+                <AlertTriangle size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-[#1F2328] mb-2">Delete Project?</h2>
+              <p className="text-sm font-medium text-[#656D76] mb-8">
+                This action is permanent and cannot be undone. Are you sure you want to delete this project?
+              </p>
+              
+              <div className="flex gap-4 w-full relative z-20">
+                <button type="button" onClick={cancelDelete} className="flex-1 neu-flat neu-action-btn rounded-lg py-3 text-sm font-bold text-[#656D76]">
+                  Cancel
+                </button>
+                <button type="button" onClick={confirmDelete} className="flex-1 neu-flat neu-action-btn border border-[#D1242F]/30 rounded-lg py-3 text-sm font-bold text-[#D1242F]">
+                  Yes, Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Custom Snackbar ── */}
+      <AnimatePresence>
+        {snackbarOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-[99999] flex items-center gap-4 neu-flat rounded-xl p-4 montserrat-medium max-w-sm"
+          >
+            <div className={`neu-pressed-sm p-2 rounded-full shrink-0 ${snackbarSeverity === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>
+               {snackbarSeverity === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+            </div>
+            <span className={`text-xs font-bold ${snackbarSeverity === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>
+              {snackbarMessage}
+            </span>
+            <button type="button" onClick={() => setSnackbarOpen(false)} className="neu-flat-sm neu-action-btn rounded-lg p-1.5 text-[#656D76] ml-auto shrink-0">
+              <X size={14} className="pointer-events-none" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Kanban View */}
       {kanbanProject && (
         <ProjectKanban open={kanbanOpen} onClose={() => { setKanbanOpen(false); setKanbanProject(null); fetchAllData(true); }} project={kanbanProject} />
       )}
-    </Box>
-  );
-};
 
-export default ProjectList;
+      {/* Neumorphic CSS Rules & Bug Fixes */}
+      <style>{`
+        :root {
+          --neu-bg: #F0F4F8; 
+          --neu-light: #FFFFFF;
+          --neu-dark: #D1DCEB;
+        }
+        .neu-base { background-color: var(--neu-bg); }
+        .neu-flat {
+          background-color: var(--neu-bg);
+          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
+        }
+        .neu-flat-sm {
+          background-color: var(--neu-bg);
+          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+        }
+        .neu-pressed {
+          background-color: var(--neu-bg);
+          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
+        }
+        .neu-pressed-sm {
+          background-color: var(--neu-bg);
+          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
+        }
+        
+        /* Force Input Clickability and Text Selection globally */
+        input, textarea, select {
+          position: relative;
+          z-index: 20;
+          pointer-events: auto !important;
+          user-select: text !important;
+          -webkit-user-select: text !important;
+        }
+        
+        select {
+          cursor: pointer !important;
+          -moz-appearance: none; 
+          -webkit-appearance: none; 
+          appearance: none;
+        }
+
+        /* Fixed Interactive Buttons to Ensure Clickability */
+        .neu-action-btn { 
+          cursor: pointer; 
+          transition: all 0.2s ease; 
+          position: relative;
+          z-index: 20;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .neu-action-btn:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important;
+        }
+        .neu-btn-primary {
+          background-color: #0969DA;
+          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
+          border: none;
+          position: relative;
+          z-index: 20;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .neu-btn-primary:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Prevent SVG Icons from intercepting clicks */
+        button svg {
+          pointer-events: none !important;
+        }
+
+        input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
+          -webkit-text-fill-color: #1F2328 !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 4px 0;}
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
+      `}</style>
+    </div>
+  );
+}
