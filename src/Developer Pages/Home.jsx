@@ -1077,19 +1077,22 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 26 } },
 };
 
-// ── Improved Skeleton Loader ──────────────────────────────────────────────────
+// ── Advanced Neumorphic Skeleton Loader ──────────────────────────────────────
 const SkeletonDashboard = () => (
   <div className="min-h-screen neu-base flex flex-col montserrat-regular pb-12">
     {/* Navbar Skeleton */}
     <div className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
       <div className="flex items-center gap-3 w-full sm:w-1/3">
-        <div className="w-10 h-10 rounded-full neu-pressed animate-pulse"></div>
+        <div className="w-10 h-10 rounded-full neu-pressed skeleton-pulse flex-shrink-0"></div>
         <div className="space-y-2 flex-1">
-          <div className="h-3 neu-pressed rounded w-32 animate-pulse"></div>
-          <div className="h-2 neu-pressed rounded w-24 animate-pulse"></div>
+          <div className="h-3 neu-pressed rounded w-32 skeleton-pulse"></div>
+          <div className="h-2 neu-pressed rounded w-24 skeleton-pulse"></div>
         </div>
       </div>
-      <div className="neu-pressed h-10 w-full sm:w-1/2 lg:w-1/3 rounded-lg animate-pulse"></div>
+      <div className="flex gap-3 w-full sm:w-auto">
+        <div className="neu-pressed h-8 w-28 rounded-lg skeleton-pulse"></div>
+        <div className="neu-pressed h-8 w-32 rounded-lg skeleton-pulse"></div>
+      </div>
     </div>
 
     <div className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
@@ -1098,10 +1101,10 @@ const SkeletonDashboard = () => (
         {[1, 2, 3, 4].map(i => (
           <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
             <div className="space-y-3 w-1/2">
-              <div className="h-2 neu-pressed rounded w-full animate-pulse"></div>
-              <div className="h-6 neu-pressed rounded w-1/2 animate-pulse"></div>
+              <div className="h-2 neu-pressed rounded w-full skeleton-pulse"></div>
+              <div className="h-6 neu-pressed rounded w-1/2 skeleton-pulse"></div>
             </div>
-            <div className="w-12 h-12 neu-pressed rounded-lg animate-pulse"></div>
+            <div className="w-12 h-12 neu-pressed rounded-lg skeleton-pulse flex-shrink-0"></div>
           </div>
         ))}
       </div>
@@ -1113,21 +1116,33 @@ const SkeletonDashboard = () => (
         <div className="xl:col-span-2 neu-flat rounded-lg p-5 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="space-y-2 w-1/3">
-              <div className="h-3 neu-pressed rounded w-full animate-pulse"></div>
-              <div className="h-2 neu-pressed rounded w-2/3 animate-pulse"></div>
+              <div className="h-3 neu-pressed rounded w-full skeleton-pulse"></div>
+              <div className="h-2 neu-pressed rounded w-2/3 skeleton-pulse"></div>
             </div>
-            <div className="w-full sm:w-1/3 h-10 neu-pressed rounded-lg animate-pulse"></div>
+            <div className="flex gap-3 w-full sm:w-auto">
+               <div className="w-48 h-10 neu-pressed rounded-lg skeleton-pulse"></div>
+               <div className="w-24 h-10 neu-pressed rounded-lg skeleton-pulse"></div>
+            </div>
           </div>
           <div className="neu-pressed rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-[420px]">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="p-4 neu-flat rounded-md h-[140px] flex flex-col justify-between">
+              <div key={i} className="p-4 neu-flat rounded-md h-[150px] flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="h-3 neu-pressed rounded w-3/4 animate-pulse"></div>
-                  <div className="h-2 neu-pressed rounded w-1/2 animate-pulse"></div>
+                  <div className="flex justify-between items-start">
+                    <div className="h-3 neu-pressed rounded w-2/3 skeleton-pulse"></div>
+                    <div className="h-4 neu-pressed rounded w-12 skeleton-pulse"></div>
+                  </div>
+                  <div className="h-2 neu-pressed rounded w-1/2 skeleton-pulse mt-2"></div>
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30 mt-4">
-                  <div className="h-6 w-24 neu-pressed rounded animate-pulse"></div>
-                  <div className="h-4 w-16 neu-pressed rounded animate-pulse"></div>
+                  <div className="flex gap-2">
+                     <div className="h-6 w-24 neu-pressed rounded skeleton-pulse"></div>
+                     <div className="h-6 w-8 neu-pressed rounded skeleton-pulse"></div>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                     <div className="h-2 w-8 neu-pressed rounded skeleton-pulse"></div>
+                     <div className="h-3 w-12 neu-pressed rounded skeleton-pulse"></div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1136,16 +1151,16 @@ const SkeletonDashboard = () => (
 
         {/* Completed History Area Skeleton */}
         <div className="neu-flat rounded-lg p-5 flex flex-col gap-4">
-          <div className="h-3 neu-pressed rounded w-1/2 animate-pulse mt-1 mb-1"></div>
-          <div className="h-10 w-full neu-pressed rounded-lg animate-pulse"></div>
+          <div className="h-3 neu-pressed rounded w-1/2 skeleton-pulse mt-1 mb-1"></div>
+          <div className="h-10 w-full neu-pressed rounded-lg skeleton-pulse"></div>
           <div className="neu-pressed rounded-lg p-3 flex-1 min-h-[420px] flex flex-col gap-3">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4 h-[72px]">
                 <div className="flex-1 space-y-2.5">
-                  <div className="h-2.5 neu-pressed rounded w-full animate-pulse"></div>
-                  <div className="h-2 neu-pressed rounded w-2/3 animate-pulse"></div>
+                  <div className="h-3 neu-pressed rounded w-full skeleton-pulse"></div>
+                  <div className="h-2 neu-pressed rounded w-2/3 skeleton-pulse"></div>
                 </div>
-                <div className="w-8 h-8 rounded-full neu-pressed flex-shrink-0 animate-pulse"></div>
+                <div className="w-8 h-8 rounded-full neu-pressed flex-shrink-0 skeleton-pulse"></div>
               </div>
             ))}
           </div>
@@ -1156,10 +1171,14 @@ const SkeletonDashboard = () => (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {[1, 2].map(i => (
           <div key={i} className="neu-flat rounded-lg p-6 h-[340px] flex flex-col gap-6">
-             <div className="h-3 neu-pressed rounded w-1/2 animate-pulse"></div>
-             <div className="flex-1 neu-pressed rounded-lg animate-pulse"></div>
+             <div className="h-3 neu-pressed rounded w-1/2 skeleton-pulse"></div>
+             <div className="flex-1 neu-pressed rounded-lg skeleton-pulse"></div>
           </div>
         ))}
+        <div className="lg:col-span-2 neu-flat rounded-lg p-6 h-[340px] flex flex-col gap-6">
+             <div className="h-3 neu-pressed rounded w-1/4 skeleton-pulse"></div>
+             <div className="flex-1 neu-pressed rounded-lg skeleton-pulse"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -2079,6 +2098,14 @@ function App() {
           border-radius: 50%;
           animation: spin 0.75s linear infinite;
           vertical-align: middle;
+        }
+
+        @keyframes pulse-skeleton {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.7; }
+        }
+        .skeleton-pulse {
+          animation: pulse-skeleton 1.6s ease-in-out infinite;
         }
       `}</style>
     </div>

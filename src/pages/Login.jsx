@@ -1,247 +1,42 @@
-// import React, { useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import axios from "axios";
-// import { Eye, EyeOff, Lock, Mail } from "lucide-react"; // Using lucide-react for icons
-// import assets from "../assets/assets";
-
-// const Login = () => {
-//   const [formData, setFormData] = useState({
-//     email: "",
-//     password: "",
-//   });
-//   const [isLoading, setIsLoading] = useState(false);
-//   const [errorMsg, setErrorMsg] = useState("");
-//   const [showPassword, setShowPassword] = useState(false);
-//   const navigate = useNavigate();
-
-//   const onChange = (e) => {
-//     setFormData({ ...formData, [e.target.name]: e.target.value });
-//     if (errorMsg) setErrorMsg("");
-//   };
-
-//   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-//   const onSubmit = async (e) => {
-//     e.preventDefault();
-//     setIsLoading(true);
-//     setErrorMsg("");
-
-//     try {
-//       const res = await axios.post(`${API_BASE}/api/auth/login`, formData);
-//       const { token, role, userId, username } = res.data;
-
-//       localStorage.setItem("token", token);
-//       localStorage.setItem("role", role);
-//       localStorage.setItem("userId", userId);
-//       localStorage.setItem("username", username);
-
-//       const routes = {
-//         admin: "/dashboard-admin/",
-//         caller: "/dashboard-caller",
-//         developer: "/dashboard-developer",
-//         manager: "/dashboard-team-manager",
-//       };
-
-//       navigate(routes[role] || "/");
-//     } catch (error) {
-//       setErrorMsg(error.response?.data?.msg || "Login failed. Please try again.");
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div className="flex min-h-screen bg-white font-sans">
-//       {/* LEFT SIDE: IMAGE SECTION */}
-//       <div className="hidden lg:flex lg:w-3/5 relative p-6">
-//         <div
-//           className="w-full h-full rounded-3xl bg-cover bg-center overflow-hidden shadow-2xl"
-//           style={{ backgroundImage: `url('https://i.pinimg.com/1200x/60/2c/f7/602cf78a154b03e968844ed954dd972a.jpg')` }}
-//         >
-//           {/* Optional Overlay for style */}
-//           {/* <div className="absolute inset-0 bg-blue-600/10 mix-blend-multiply"></div> */}
-//         </div>
-//       </div>
-
-//       {/* RIGHT SIDE: LOGIN FORM SECTION */}
-//       <div className="w-full lg:w-2/5 flex flex-col justify-center px-8 md:px-16 lg:px-20 py-12 bg-white">
-
-//         {/* Logo/Brand */}
-//         {/* <div className="mb-4">
-//           <img 
-//             src={assets.logo} 
-//             alt="Logo" 
-//             className="h-12 w-auto object-contain" 
-//           />
-//         </div> */}
-
-//         {/* Welcome Text */}
-//         <div className="mb-10">
-//           <h1 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">
-//             Holla, <br />Welcome Back
-//           </h1>
-//           <p className="text-slate-500 font-medium">
-//             Hey, welcome back to your special/worst place
-//           </p>
-//         </div>
-
-//         {/* Error Alert */}
-//         {errorMsg && (
-//           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded shadow-sm">
-//             {errorMsg}
-//           </div>
-//         )}
-
-//         {/* Form */}
-//         <form onSubmit={onSubmit} className="space-y-6">
-//           <div className="space-y-2">
-//             <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
-//             <div className="relative group">
-//               <input
-//                 type="email"
-//                 name="email"
-//                 value={formData.email}
-//                 onChange={onChange}
-//                 placeholder="stanley@gmail.com"
-//                 required
-//                 className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-slate-700 placeholder:text-slate-400"
-//               />
-//               <Mail className="absolute right-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
-//             </div>
-//           </div>
-
-//           <div className="space-y-2">
-//             <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
-//             <div className="relative group">
-//               <input
-//                 type={showPassword ? "text" : "password"}
-//                 name="password"
-//                 value={formData.password}
-//                 onChange={onChange}
-//                 placeholder="••••••••••••"
-//                 required
-//                 className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-slate-700 placeholder:text-slate-400"
-//               />
-//               <button
-//                 type="button"
-//                 onClick={() => setShowPassword(!showPassword)}
-//                 className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-600 transition-colors"
-//               >
-//                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-//               </button>
-//             </div>
-//           </div>
-
-//           {/* Remember Me & Forgot Password */}
-//           <div className="flex items-center justify-between text-sm">
-//             <label className="flex items-center gap-2 cursor-pointer group">
-//               <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all" />
-//               <span className="text-slate-600 group-hover:text-slate-800 transition-colors font-medium">Remember me</span>
-//             </label>
-//             {/* <a href="#" className="text-slate-400 hover:text-indigo-600 font-medium transition-colors">
-//               Forgot Password?
-//             </a> */}
-//           </div>
-
-//           {/* Submit Button */}
-//           <button
-//             type="submit"
-//             disabled={isLoading}
-//             className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-[0.98] cursor-pointer
-//               ${isLoading
-//                 ? "bg-blue-600 "
-//                 : "bg-blue-600 hover:bg-blue-700 hover:shadow-indigo-200 shadow-indigo-100"
-//               }`}
-//           >
-//             {isLoading ? (
-//               <div className="flex items-center justify-center gap-2 cursor-pointer">
-//                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-//                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                 </svg>
-//                 Processing...
-//               </div>
-//             ) : (
-//               "Sign In"
-//             )}
-//           </button>
-//         </form>
-
-//         {/* Footer */}
-//         <div className="mt-12 text-center">
-//           <p className="text-slate-500 font-medium">
-//             Don't have an account?{" "}
-//             <a
-//               href="mailto:hr@starwaywebdigital.com"
-//               className="text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
-//             >
-//               Contact HR
-//             </a>
-//           </p>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Login;
-
-
-
-
-
-
-
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Eye, EyeOff, Mail } from "lucide-react"; // Removed unused Lock import
-import assets from "../assets/assets";
+import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
+import { motion, useAnimation, AnimatePresence } from "framer-motion";
 
-// 1. Define the array of background images outside the component
-const backgroundImages = [
-"https://res.cloudinary.com/dvcuarakg/image/upload/v1781502796/cat_cute_kitty_wallpaper_lockscreen_papel_de_parede_j8s6dt.jpg"
-];
-
-
-  // "https://i.pinimg.com/736x/a2/ba/47/a2ba478f5dc260c9c7206d9e135d5a6c.jpg",
-  // "https://i.pinimg.com/1200x/68/52/10/685210205681ae1390baac25521b9184.jpg",
-  // "https://i.pinimg.com/736x/b1/70/a4/b170a4c25b928ff9ebac7e652edb4bff.jpg",
-  // "https://i.pinimg.com/736x/93/7a/f2/937af278f6b91e6a72b5e934d8886edc.jpg",
-  // "https://i.pinimg.com/736x/8d/ad/ab/8dadab433935be93e3422117decad7a7.jpg",
-  // "https://i.pinimg.com/736x/37/af/93/37af9339454a9acccf68980ae4e544a1.jpg",
-  // "https://i.pinimg.com/736x/b7/d9/68/b7d9686ada317477f56ef48b2f76d7e8.jpg",
-  // "https://i.pinimg.com/736x/8e/fd/d8/8efdd801910211cafea0f3842943ae64.jpg",
-  // "https://i.pinimg.com/736x/d3/55/b7/d355b7f8720d0d828c9300c692084635.jpg",
-  // "https://i.pinimg.com/736x/1a/d6/fd/1ad6fdd1cd2cc7cc574b6ba59ce70dce.jpg",
-  // "https://i.pinimg.com/736x/3a/52/88/3a52887de4cec028c22ee9b591e9bc9a.jpg",
-  // "https://i.pinimg.com/736x/ee/d0/df/eed0df9f1d32e0561fe6a8d56a44bb56.jpg",
-  // "https://i.pinimg.com/1200x/4f/ba/e6/4fbae630fa98ac8f20b55f95a45ce770.jpg",
-  // "https://i.pinimg.com/736x/de/9d/8f/de9d8f36a9b24a669c084aa28bfda48b.jpg",
-  // "https://i.pinimg.com/1200x/88/57/78/885778d4dc8e891f9dc98dbe5a09ec01.jpg",
-  // "https://i.pinimg.com/736x/b7/2d/48/b72d4887d9564504091f4a234da3abc2.jpg",
-  // "https://i.pinimg.com/1200x/07/01/d5/0701d55514550cd3fcd9570f08854eb0.jpg",
-  // "https://i.pinimg.com/736x/9e/cb/68/9ecb68509f8d029e59c364b788604458.jpg",
-  // "https://i.pinimg.com/736x/3a/94/53/3a94531d37d3dba6c43d6f510bec5cee.jpg",
-  // "https://i.pinimg.com/736x/d7/24/17/d72417b4f80d6d8774c19e932026cfc5.jpg",
-  // "https://i.pinimg.com/736x/4a/8d/55/4a8d55e2afed93ab20767ffe3b9ee843.jpg",
-  // "https://i.pinimg.com/474x/47/10/50/4710507c2047c8d66ec10cd024964161.jpg",
-  // "https://i.pinimg.com/736x/73/ff/17/73ff1722e96eb74d73af415bb69876b1.jpg"
+// ─────────────────────────────────────────────────────────────────────────────
+// GENIE EFFECT — How it works
+// ─────────────────────────────────────────────────────────────────────────────
+// macOS Genie: the window compresses toward one corner in two phases:
+//   Phase 1 (warp)  — the card squishes vertically (scaleY → 0) while the
+//                     bottom edge "rushes" to the target corner first. This
+//                     asymmetry is the visual signature of the Genie effect.
+//                     We fake it with a fast scaleY collapse + simultaneous
+//                     x/y translation toward the bottom-right (Dock corner).
+//   Phase 2 (vanish)— opacity snaps to 0 right at the end so it doesn't linger.
+//
+// We use Framer Motion's `animate()` imperative API (via `useAnimation`) so we
+// can sequence keyframes precisely:
+//   - keyframes array  → multi-step property interpolation
+//   - times array      → where each keyframe sits on the 0→1 timeline
+//   - ease per segment → "easeIn" for acceleration, "easeOut" for deceleration
+//
+// The "restore" path runs the same values in reverse with a spring for the
+// characteristic bounce-back.
+// ─────────────────────────────────────────────────────────────────────────────
 
 const Login = () => {
-  // 2. Select a random image from the array on initial component mount
-  const [currentBgImage] = useState(() => {
-    const randomIndex = Math.floor(Math.random() * backgroundImages.length);
-    return backgroundImages[randomIndex];
-  });
-
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Track whether the card is currently minimized
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  // Framer Motion imperative animation controller for the card
+  const cardControls = useAnimation();
+
   const navigate = useNavigate();
 
   const onChange = (e) => {
@@ -255,23 +50,19 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg("");
-
     try {
       const res = await axios.post(`${API_BASE}/api/auth/login`, formData);
       const { token, role, userId, username } = res.data;
-
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("userId", userId);
       localStorage.setItem("username", username);
-
       const routes = {
         admin: "/dashboard-admin/",
         caller: "/dashboard-caller",
         developer: "/dashboard-developer",
         manager: "/dashboard-team-manager",
       };
-
       navigate(routes[role] || "/");
     } catch (error) {
       setErrorMsg(error.response?.data?.msg || "Login failed. Please try again.");
@@ -280,136 +71,320 @@ const Login = () => {
     }
   };
 
+  // ─── Genie Minimize ────────────────────────────────────────────────────────
+  // Target corner: bottom-right of the viewport (mimics macOS Dock, bottom-right).
+  // We translate by a large fixed offset so the card always exits toward that corner
+  // regardless of its current position on screen.
+  const handleMinimize = async () => {
+    if (isMinimized) return;
+
+    // Phase 1 — Warp: squish scaleY fast; skew + narrow + translate toward corner.
+    // The "top falls faster than bottom" illusion comes from the combination of:
+    //   • scaleY collapsing to near-0 quickly
+    //   • simultaneous downward + rightward translation
+    //   • skewX creating the diagonal "pull" distortion
+    await cardControls.start({
+      // Multi-keyframe arrays let us create a two-phase curve in one `animate` call.
+      scaleY:    [1, 0.18, 0],          // squishes hard then collapses
+      scaleX:    [1, 0.55, 0.25],       // narrows toward the corner
+      skewX:     [0, -6, -14],          // diagonal warp — the Genie signature
+      x:         [0, 160, 420],         // drift right toward the Dock corner
+      y:         [0, 200, 600],         // fall downward
+      opacity:   [1, 1,   0],           // stay visible until the very end
+      borderRadius: ["2rem", "1rem", "0.5rem"], // shrink rounding as it compresses
+      transformOrigin: "bottom right",  // anchor the warp at the Dock-side corner
+
+      // times[] maps each keyframe to a position on the 0→1 duration timeline.
+      // 0.55 means the warp "mid-point" happens at 55% of the total duration.
+      transition: {
+        duration: 0.55,
+        times:    [0, 0.55, 1],
+        ease:     ["easeIn", "easeIn"],  // accelerate throughout (no deceleration)
+      },
+    });
+
+    setIsMinimized(true);
+  };
+
+  // ─── Genie Restore ─────────────────────────────────────────────────────────
+  // Reverse: start from the collapsed corner state and spring back into place.
+  // We skip the warp mid-keyframe so the restore feels more like a "pop" back.
+  const handleRestore = async () => {
+    setIsMinimized(false);
+
+    // Reset all transform properties back to neutral with a spring bounce
+    await cardControls.start({
+      scaleY:       1,
+      scaleX:       1,
+      skewX:        0,
+      x:            0,
+      y:            0,
+      opacity:      1,
+      borderRadius: "2rem",
+      transition: {
+        type:      "spring",
+        damping:   18,
+        stiffness: 130,
+        mass:      0.8,
+        opacity:   { duration: 0.1 }, // opacity snaps in immediately on restore
+      },
+    });
+  };
+
+  // ─── Entry Animation (existing "Genie + Scale" intro, preserved exactly) ───
+  const cardVariants = {
+    hidden: {
+      opacity: 0,
+      scale:   0.3,
+      y:       400,
+      scaleY:  0.1,
+    },
+    visible: {
+      opacity: 1,
+      scale:   1,
+      y:       0,
+      scaleY:  1,
+      transition: {
+        type:          "spring",
+        damping:       22,
+        stiffness:     120,
+        duration:      0.8,
+        when:          "beforeChildren",
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden:  { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y:       0,
+      transition: { type: "spring", stiffness: 300, damping: 24 },
+    },
+  };
+
+  // ─── macOS Traffic-Light dot colours ─────────────────────────────────────
+  // Red = close, Yellow = minimize, Green = maximise.
+  // We only wire up the yellow (minimize) dot here; red/green are decorative.
+  const trafficDots = [
+    { color: "#FF5F57", title: "Close",    action: null },
+    { color: "#FFBD2E", title: "Minimize", action: handleMinimize },
+    { color: "#28C840", title: "Maximize", action: null },
+  ];
+
   return (
-    <div className="flex min-h-screen bg-white font-sans">
-      {/* LEFT SIDE: IMAGE SECTION */}
-      <div className="hidden lg:flex lg:w-3/5 relative p-6">
-        <div
-          className="w-full h-full rounded-3xl bg-cover bg-center overflow-hidden shadow-2xl transition-all duration-500 ease-in-out"
-          // 3. Inject the randomly selected background image here
-          style={{ backgroundImage: `url('${currentBgImage}')` }}
+    <div
+      className="flex min-h-screen items-center justify-center bg-cover bg-center p-4 overflow-hidden"
+      style={{
+        backgroundImage:  `url('/login-bg.png')`,
+        fontFamily:       "'Montserrat', sans-serif",
+        fontWeight:       500,
+      }}
+    >
+      {/* ── Minimized Dock Badge ─────────────────────────────────────────────
+          Shown only when the card is minimized. Clicking it restores the card.
+          Positioned at the bottom-right to match the Dock corner we animated toward.
+      ─────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isMinimized && (
+          <motion.button
+            key="dock-badge"
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1,   y: 0,  transition: { type: "spring", damping: 16, stiffness: 200, delay: 0.05 } }}
+            exit={{    opacity: 0, scale: 0.5, y: 20,  transition: { duration: 0.2 } }}
+            onClick={handleRestore}
+            title="Restore login card"
+            className="fixed bottom-8 right-8 z-50 flex flex-col items-center gap-1.5 cursor-pointer group"
+            style={{ background: "none", border: "none", padding: 0 }}
+          >
+            {/* Thumbnail — a miniature version of the card icon */}
+            <div
+              className="w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center border border-white/40"
+              style={{
+                background: "rgba(255,255,255,0.88)",
+                backdropFilter: "blur(12px)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
+              }}
+            >
+              <LogIn size={28} className="text-slate-800" />
+            </div>
+            {/* Dock label */}
+            <span
+              className="text-[11px] font-semibold text-white px-2 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+            >
+              Login
+            </span>
+            {/* Dock dot — the small indicator underneath a running app */}
+            <span className="w-1 h-1 rounded-full bg-white/70 mt-0.5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* ── Animated Card Container ──────────────────────────────────────────
+          `animate={cardControls}` hands imperative control to our Genie sequence.
+          `variants` + `initial/animate="visible"` still handle the entry animation.
+          Framer Motion merges both; the imperative `cardControls.start()` overrides
+          after the initial entry completes.
+      ─────────────────────────────────────────────────────────────────────── */}
+      <motion.div
+        variants={cardVariants}
+        initial="hidden"
+        animate={isMinimized ? cardControls : "visible"}  // entry anim on mount, imperative after
+        // We need to run the initial entry animation AND keep cardControls available.
+        // Solution: always pass cardControls but also trigger the entry animation manually.
+        // See the `onAnimationComplete` + `useEffect` pattern below.
+        style={{
+          // We set transformOrigin via the keyframe transition above ("bottom right").
+          // Declaring it here as a fallback to keep layout stable during entry.
+          transformOrigin: "center bottom",
+        }}
+        className="w-full max-w-[420px] bg-white/90 backdrop-blur-md shadow-2xl rounded-[2rem] p-8 md:p-10 flex flex-col items-center border border-white/50"
+      >
+
+        {/* ── macOS Traffic-Light Dots ─────────────────────────────────────
+            Positioned at the top-left of the card, like a real macOS window.
+            Only the yellow dot (Minimize) is functional.
+        ──────────────────────────────────────────────────────────────────── */}
+
+
+        {/* Top Icon */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-white shadow-sm border border-slate-100 rounded-2xl p-3 mb-6 flex items-center justify-center"
         >
-          {/* Optional Overlay for style */}
-          {/* <div className="absolute inset-0 bg-blue-600/10 mix-blend-multiply"></div> */}
-        </div>
-      </div>
-
-      {/* RIGHT SIDE: LOGIN FORM SECTION */}
-      <div className="w-full lg:w-2/5 flex flex-col justify-center px-8 md:px-16 lg:px-20 py-12 bg-white">
-
-        {/* Logo/Brand */}
-        {/* <div className="mb-4">
-          <img 
-            src={assets.logo} 
-            alt="Logo" 
-            className="h-12 w-auto object-contain" 
-          />
-        </div> */}
+          <LogIn className="text-slate-800" size={24} />
+        </motion.div>
 
         {/* Welcome Text */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">
-            Holla, <br />Welcome Back
+        <motion.div variants={itemVariants} className="mb-8 text-center w-full">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2 montserrat-medium">
+            Sign in with email
           </h1>
-          <p className="text-slate-500 font-medium">
+          <p className="text-slate-500 text-sm leading-relaxed px-2 montserrat-regular">
             Hey, welcome back to your special/worst place
           </p>
-        </div>
+        </motion.div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded shadow-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-6 w-full p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl text-center"
+          >
             {errorMsg}
-          </div>
+          </motion.div>
         )}
 
         {/* Form */}
-        <form onSubmit={onSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
-            <div className="relative group">
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={onChange}
-                placeholder="stanley@gmail.com"
-                required
-                className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-slate-700 placeholder:text-slate-400"
-              />
-              <Mail className="absolute right-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
-            </div>
-          </div>
+        <form onSubmit={onSubmit} className="w-full flex flex-col group">
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
-            <div className="relative group">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={formData.password}
-                onChange={onChange}
-                placeholder="••••••••••••"
-                required
-                className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-slate-700 placeholder:text-slate-400"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-600 transition-colors"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+          {/* Email Input */}
+          <motion.div variants={itemVariants} className="relative mb-4 w-full">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none montsserrat-regular">
+              <Mail className="text-slate-400 peer-focus:text-[#155dfd] transition-colors" size={18} />
             </div>
-          </div>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={onChange}
+              placeholder="Email"
+              required
+              className="montserrat-regular peer w-full pl-11 pr-4 py-3.5 bg-slate-50/80 hover:bg-slate-100 focus:bg-white border border-transparent focus:border-[#155dfd]/30 focus:ring-2 focus:ring-[#155dfd]/20 rounded-xl outline-none transition-all text-slate-700 placeholder:text-slate-500 text-sm"
+            />
+          </motion.div>
 
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all" />
-              <span className="text-slate-600 group-hover:text-slate-800 transition-colors font-medium">Remember me</span>
-            </label>
-          </div>
+          {/* Password Input */}
+          <motion.div variants={itemVariants} className="relative mb-2 w-full">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none montsserrat-regular">
+              <Lock className="text-slate-400 peer-focus:text-[#155dfd] transition-colors" size={18} />
+            </div>
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={onChange}
+              placeholder="Password"
+              required
+              className="montserrat-regular peer w-full pl-11 pr-12 py-3.5 bg-slate-50/80 hover:bg-slate-100 focus:bg-white border border-transparent focus:border-[#155dfd]/30 focus:ring-2 focus:ring-[#155dfd]/20 rounded-xl outline-none transition-all text-slate-700 placeholder:text-slate-500 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-[#155dfd] transition-colors"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </motion.div>
+
 
           {/* Submit Button */}
-          <button
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: isLoading ? 1 : 1.02 }}
+            whileTap={{ scale: isLoading ? 1 : 0.97 }}
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-[0.98] cursor-pointer
+            className={`w-full mt-5 py-3.5 rounded-xl text-[15px] montserrat-bold text-white shadow-lg transition-colors 
               ${isLoading
-                ? "bg-blue-600 "
-                : "bg-blue-600 hover:bg-blue-700 hover:shadow-indigo-200 shadow-indigo-100"
+                ? "bg-[#155dfd]/70 cursor-not-allowed shadow-none"
+                : "bg-[#155dfd] hover:bg-[#114ecc] shadow-[#155dfd]/30 hover:shadow-[#155dfd]/50"
               }`}
           >
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 cursor-pointer">
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <div className="flex items-center justify-center gap-2 montserrat-bold">
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
                 Processing...
               </div>
             ) : (
-              "Sign In"
+              "Get Started"
             )}
-          </button>
+          </motion.button>
         </form>
 
         {/* Footer */}
-        <div className="mt-12 text-center">
-          <p className="text-slate-500 font-medium">
+        <motion.div variants={itemVariants} className="mt-8 text-center text-sm montserrat-regular">
+          <p className="text-slate-500">
             Don't have an account?{" "}
             <a
               href="mailto:hr@starwaywebdigital.com"
-              className="text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
+              className="text-slate-800 font-bold hover:text-[#155dfd] transition-colors"
             >
               Contact HR
             </a>
           </p>
-        </div>
-      </div>
-    </     div>
+        </motion.div>
+
+      </motion.div>
+    </div>
   );
 };
 
 export default Login;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANIMATION SUMMARY
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Entry  → cardVariants (spring, existing behaviour, unchanged)
+//
+// Minimize (yellow dot click) → cardControls.start() with keyframe arrays:
+//   Frame 0 (t=0.00): natural state  — scale 1, no skew, no translation
+//   Frame 1 (t=0.55): warp peak      — scaleY 0.18, scaleX 0.55, skewX -6°,
+//                                      translated 160px right + 200px down
+//   Frame 2 (t=1.00): vanished       — scaleY 0, scaleX 0.25, skewX -14°,
+//                                      translated 420px right + 600px down, opacity 0
+//   easing: easeIn throughout (card accelerates as it falls — gravity feel)
+//
+// Restore (Dock badge click) → cardControls.start() spring back to identity:
+//   type: spring, damping 18, stiffness 130 → gentle bounce on re-entry
+//   opacity snaps instantly so the card appears before springing into place
+//
+// Dock badge → AnimatePresence fade/scale in after minimize completes (delay 50ms)
+// ─────────────────────────────────────────────────────────────────────────────

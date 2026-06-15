@@ -1864,7 +1864,7 @@ const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, current
           <div>
             <div style={{ fontSize: "0.65rem", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>New Task</div>
             <div style={{ fontSize: "1rem", fontWeight: 700, color: T.textPrimary }}>Create task</div>
-          </div>
+          </div>  
           <button onClick={onClose} className="neu-flat-sm neu-action-btn" style={{ cursor: "pointer", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: T.textSecondary, borderRadius: "50%" }}>&times;</button>
         </div>
 
