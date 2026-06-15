@@ -1457,7 +1457,6 @@
 
 
 
-
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import axios from "axios";
 import { differenceInCalendarDays, format } from "date-fns";
@@ -1942,18 +1941,11 @@ const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, current
 // ── Task Detail Modal ─────────────────────────────────────────────────────────
 const SidebarTaskDetailModal = ({ task, projectId, projectName, onClose, onTaskComplete }) => {
   const cfg = PRIORITY_CFG[task.priority] || PRIORITY_CFG.Medium;
-  const [completing, setCompleting] = useState(false);
 
-  const handleComplete = async () => {
-    setCompleting(true);
-    try {
-      await axios.post(`${API_BASE}/api/tasks/${projectId}/${task._id}/complete`, {}, { headers: authHeaders() });
-      onTaskComplete(task._id, projectId);
-      onClose();
-    } catch (err) {
-      console.error("Complete error:", err);
-      setCompleting(false);
-    }
+  // Instant trigger - No API await needed here anymore
+  const handleComplete = () => {
+    onTaskComplete(task, projectId);
+    onClose();
   };
 
   return (
@@ -2014,17 +2006,16 @@ const SidebarTaskDetailModal = ({ task, projectId, projectName, onClose, onTaskC
         </div>
 
         <div style={{ padding: "20px 24px", display: "flex", justifyContent: "flex-end", gap: 12 }}>
-          <IconBtn onClick={onClose} disabled={completing}>Close</IconBtn>
-          <button onClick={handleComplete} disabled={completing} className="neu-flat-sm neu-action-btn" style={{
+          <IconBtn onClick={onClose}>Close</IconBtn>
+          <button onClick={handleComplete} className="neu-flat-sm neu-action-btn" style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             padding: "10px 24px", borderRadius: T.radiusSm,
-            color: completing ? T.textDisabled : T.greenText,
+            color: T.greenText,
             fontSize: "0.82rem", fontWeight: 700,
-            cursor: completing ? "not-allowed" : "pointer",
+            cursor: "pointer",
             transition: "all 0.12s",
           }}>
-            {completing && <Spinner size={12} color={T.greenText} />}
-            {completing ? "Marking done…" : "✓ Mark as done"}
+            ✓ Mark as done
           </button>
         </div>
       </div>
@@ -2037,19 +2028,12 @@ const TaskCard = ({ task, projectId, projectName, onTaskComplete, onTaskClick, o
   const cfg = PRIORITY_CFG[task.priority] || PRIORITY_CFG.Medium;
   const urgency = getUrgency(task.deadline);
   const ustyle = urgency ? URGENCY_STYLES[urgency] : null;
-  const [completing, setCompleting] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
 
-  const handleComplete = async (e) => {
+  // Instant optimistic trigger - No API await needed here anymore
+  const handleComplete = (e) => {
     e.stopPropagation();
-    setCompleting(true);
-    try {
-      await axios.post(`${API_BASE}/api/tasks/${projectId}/${task._id}/complete`, {}, { headers: authHeaders() });
-      onTaskComplete(task._id, projectId);
-    } catch (err) {
-      console.error(err);
-      setCompleting(false);
-    }
+    onTaskComplete(task, projectId); 
   };
 
   const isKanbanLoading = openingKanbanId === projectId;
@@ -2112,16 +2096,15 @@ const TaskCard = ({ task, projectId, projectName, onTaskComplete, onTaskClick, o
 
             {/* Actions row */}
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <IconBtn onClick={handleComplete} disabled={completing} variant="success">
-                {completing && <Spinner size={8} color={T.greenText} />}
+              <IconBtn onClick={handleComplete} variant="success">
                 ✓ Done
               </IconBtn>
-              <IconBtn onClick={e => { e.stopPropagation(); setCommentOpen(true); }} disabled={completing}>
+              <IconBtn onClick={e => { e.stopPropagation(); setCommentOpen(true); }}>
                 Comment
               </IconBtn>
               <IconBtn
                 onClick={e => { e.stopPropagation(); onOpenKanban(projectId); }}
-                disabled={isKanbanLoading || completing}
+                disabled={isKanbanLoading}
                 variant="accent"
                 style={{ marginLeft: "auto" }}
               >
@@ -2287,22 +2270,39 @@ const Toast = ({ message, onHide }) => {
   );
 };
 
-// ── Skeleton loader ───────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="neu-flat" style={{
-    padding: "16px", borderRadius: T.radiusSm, marginBottom: 12,
-  }}>
+// ── Neumorphic Skeleton Loaders ──────────────────────────────────────────────────
+const SkeletonTaskCard = () => (
+  <div className="neu-flat" style={{ padding: "14px", borderRadius: T.radiusSm, marginBottom: 12 }}>
     <div style={{ display: "flex", gap: 12 }}>
-      <div className="neu-pressed" style={{ width: 10, height: 10, borderRadius: "50%", marginTop: 4 }} />
+      <div className="neu-pressed" style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 4, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
-        <div className="neu-pressed" style={{ height: 12, borderRadius: T.radiusXs, width: "72%", marginBottom: 8 }} />
-        <div className="neu-pressed" style={{ height: 10, borderRadius: T.radiusXs, width: "42%", marginBottom: 14 }} />
-        <div style={{ display: "flex", gap: 10 }}>
-          <div className="neu-pressed" style={{ height: 22, width: 50, borderRadius: T.radiusSm }} />
-          <div className="neu-pressed" style={{ height: 22, width: 64, borderRadius: T.radiusSm }} />
+        <div className="neu-pressed" style={{ height: 14, borderRadius: T.radiusXs, width: "85%", marginBottom: 6 }} />
+        <div className="neu-pressed" style={{ height: 14, borderRadius: T.radiusXs, width: "60%", marginBottom: 12 }} />
+        <div className="neu-pressed" style={{ height: 12, borderRadius: T.radiusXs, width: "35%", marginBottom: 16 }} />
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <div className="neu-pressed" style={{ height: 26, width: 65, borderRadius: T.radiusSm }} />
+          <div className="neu-pressed" style={{ height: 26, width: 65, borderRadius: T.radiusSm }} />
+          <div className="neu-pressed" style={{ height: 26, width: 70, borderRadius: T.radiusSm, marginLeft: "auto" }} />
         </div>
       </div>
     </div>
+  </div>
+);
+
+const SkeletonProjectCard = () => (
+  <div className="neu-flat" style={{ borderRadius: T.radius, marginBottom: 16, padding: "16px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+    <div className="neu-pressed" style={{ width: 38, height: 38, borderRadius: T.radiusSm, flexShrink: 0 }} />
+    <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div className="neu-pressed" style={{ height: 16, borderRadius: T.radiusXs, width: "40%" }} />
+        <div className="neu-pressed" style={{ height: 14, borderRadius: "20px", width: 60 }} />
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div className="neu-pressed" style={{ height: 18, borderRadius: "20px", width: 70 }} />
+        <div className="neu-pressed" style={{ height: 18, borderRadius: "20px", width: 90 }} />
+      </div>
+    </div>
+    <div className="neu-pressed" style={{ width: 12, height: 12, borderRadius: "50%" }} />
   </div>
 );
 
@@ -2419,15 +2419,43 @@ const DeveloperDashboard = () => {
 
   useEffect(() => { loadInitialData(); }, [loadInitialData]);
 
-  const handleTaskComplete = useCallback((taskId, projectId) => {
+const handleTaskComplete = useCallback(async (taskToComplete, projectId) => {
+    // 1. Instantly remove from Pending Tasks (Optimistic Update)
     setTasks(prev => {
-      const updated = { ...prev, [projectId]: (prev[projectId] || []).filter(t => t._id !== taskId) };
+      const updated = { ...prev, [projectId]: (prev[projectId] || []).filter(t => t._id !== taskToComplete._id) };
       sessionStorage.setItem(CACHE_KEYS.tasks, JSON.stringify(updated));
       return updated;
     });
+
+    // 2. Instantly add to Completions History (Optimistic Update)
+    setCompletions(prev => {
+      const mockCompletion = {
+        ...taskToComplete,
+        taskId: taskToComplete._id,
+        taskTitle: taskToComplete.title,
+        completedAt: new Date().toISOString(),
+        completedBy: { id: currentUserId, username: currentUsername },
+        projectId: projectId,
+        projectName: taskToComplete.projectName || projects.find(p => p._id === projectId)?.projectName
+      };
+      const updatedList = [mockCompletion, ...prev].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+      sessionStorage.setItem(CACHE_KEYS.completions, JSON.stringify(updatedList));
+      return updatedList;
+    });
+
     setToast("Task marked as done");
-    loadInitialData(true);
-  }, [loadInitialData, CACHE_KEYS]);
+
+    // 3. Make the API Call silently in the background
+    try {
+      await axios.post(`${API_BASE}/api/tasks/${projectId}/${taskToComplete._id}/complete`, {}, { headers: authHeaders() });
+      // Sync fresh data from server silently
+      loadInitialData(true);
+    } catch (err) {
+      console.error("Complete error:", err);
+      setToast("Failed to complete task");
+      loadInitialData(true); // Re-fetch to revert if the server request fails
+    }
+  }, [currentUserId, currentUsername, loadInitialData, CACHE_KEYS, projects]);
 
   const handleQuickAddSuccess = useCallback((newTask, projectId) => {
     setToast("Task created");
@@ -2626,10 +2654,17 @@ const DeveloperDashboard = () => {
 
             {/* Content area */}
             {loadingInitial ? (
-              <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                <div className="neu-flat" style={{ padding: "16px 24px", borderRadius: T.radius, display: "flex", alignItems: "center", gap: 10, color: T.textMuted, fontSize: "0.85rem", fontWeight: 600 }}>
-                  <Spinner size={16} color={T.accent} />
-                  Loading workspace…
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* Filter bar Skeleton */}
+                <div style={{ padding: "0 24px 16px", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div className="neu-pressed skeleton-pulse" style={{ height: 36, width: "100%", maxWidth: 200, borderRadius: T.radiusSm }} />
+                  <div className="neu-pressed skeleton-pulse" style={{ height: 36, width: 130, borderRadius: T.radiusSm }} />
+                  <div className="neu-pressed skeleton-pulse" style={{ height: 36, width: 130, borderRadius: T.radiusSm }} />
+                  <div className="neu-pressed skeleton-pulse" style={{ height: 36, width: 130, borderRadius: T.radiusSm }} />
+                </div>
+                {/* Projects list Skeleton */}
+                <div className="skeleton-pulse" style={{ flex: 1, overflowY: "auto", padding: "8px 24px 24px" }}>
+                  {[1, 2, 3, 4, 5].map(i => <SkeletonProjectCard key={i} />)}
                 </div>
               </div>
             ) : activeTab === "projects" ? (
@@ -2799,7 +2834,7 @@ const DeveloperDashboard = () => {
               <div className="neu-pressed" style={{ flex: 1, overflowY: "auto", padding: "16px", margin: "0 16px 16px", borderRadius: T.radiusSm }}>
                 {loadingInitial ? (
                   <div className="skeleton-pulse">
-                    {[1, 2, 3].map(v => <SkeletonCard key={v} />)}
+                    {[1, 2, 3, 4].map(v => <SkeletonTaskCard key={v} />)}
                   </div>
                 ) : allPendingTasks.length === 0 ? (
                   <div style={{ textAlign: "center", paddingTop: 60, color: T.textMuted }}>

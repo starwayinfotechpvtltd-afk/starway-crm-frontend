@@ -1077,16 +1077,87 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 26 } },
 };
 
-// ── Skeleton Loader ───────────────────────────────────────────────────────────
+// ── Improved Skeleton Loader ──────────────────────────────────────────────────
 const SkeletonDashboard = () => (
-  <div className="min-h-screen neu-base flex flex-col montserrat-regular">
-    <div className="h-16 neu-flat w-full animate-pulse text-center mb-6"></div>
-    <div className="p-6 max-w-[95%] mx-auto space-y-6 w-full flex-1">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+  <div className="min-h-screen neu-base flex flex-col montserrat-regular pb-12">
+    {/* Navbar Skeleton */}
+    <div className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
+      <div className="flex items-center gap-3 w-full sm:w-1/3">
+        <div className="w-10 h-10 rounded-full neu-pressed animate-pulse"></div>
+        <div className="space-y-2 flex-1">
+          <div className="h-3 neu-pressed rounded w-32 animate-pulse"></div>
+          <div className="h-2 neu-pressed rounded w-24 animate-pulse"></div>
+        </div>
+      </div>
+      <div className="neu-pressed h-10 w-full sm:w-1/2 lg:w-1/3 rounded-lg animate-pulse"></div>
+    </div>
+
+    <div className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
+      {/* Metrics Grid Skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="neu-flat p-5 rounded-lg animate-pulse h-24">
-            <div className="h-3 bg-[#D1DCEB] rounded w-1/2 mb-3"></div>
-            <div className="h-6 bg-[#D1DCEB] rounded w-1/4"></div>
+          <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
+            <div className="space-y-3 w-1/2">
+              <div className="h-2 neu-pressed rounded w-full animate-pulse"></div>
+              <div className="h-6 neu-pressed rounded w-1/2 animate-pulse"></div>
+            </div>
+            <div className="w-12 h-12 neu-pressed rounded-lg animate-pulse"></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Workspace Row Skeleton */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* Pending Tasks Area Skeleton */}
+        <div className="xl:col-span-2 neu-flat rounded-lg p-5 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-2 w-1/3">
+              <div className="h-3 neu-pressed rounded w-full animate-pulse"></div>
+              <div className="h-2 neu-pressed rounded w-2/3 animate-pulse"></div>
+            </div>
+            <div className="w-full sm:w-1/3 h-10 neu-pressed rounded-lg animate-pulse"></div>
+          </div>
+          <div className="neu-pressed rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-[420px]">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="p-4 neu-flat rounded-md h-[140px] flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="h-3 neu-pressed rounded w-3/4 animate-pulse"></div>
+                  <div className="h-2 neu-pressed rounded w-1/2 animate-pulse"></div>
+                </div>
+                <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30 mt-4">
+                  <div className="h-6 w-24 neu-pressed rounded animate-pulse"></div>
+                  <div className="h-4 w-16 neu-pressed rounded animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Completed History Area Skeleton */}
+        <div className="neu-flat rounded-lg p-5 flex flex-col gap-4">
+          <div className="h-3 neu-pressed rounded w-1/2 animate-pulse mt-1 mb-1"></div>
+          <div className="h-10 w-full neu-pressed rounded-lg animate-pulse"></div>
+          <div className="neu-pressed rounded-lg p-3 flex-1 min-h-[420px] flex flex-col gap-3">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4 h-[72px]">
+                <div className="flex-1 space-y-2.5">
+                  <div className="h-2.5 neu-pressed rounded w-full animate-pulse"></div>
+                  <div className="h-2 neu-pressed rounded w-2/3 animate-pulse"></div>
+                </div>
+                <div className="w-8 h-8 rounded-full neu-pressed flex-shrink-0 animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {[1, 2].map(i => (
+          <div key={i} className="neu-flat rounded-lg p-6 h-[340px] flex flex-col gap-6">
+             <div className="h-3 neu-pressed rounded w-1/2 animate-pulse"></div>
+             <div className="flex-1 neu-pressed rounded-lg animate-pulse"></div>
           </div>
         ))}
       </div>
@@ -1381,34 +1452,22 @@ function App() {
     }, 450);
   }, [projectsData]);
 
-  // ── Optimistic Actions ───────────────────────────────────────────────────────
+  // ── Process Task Action ───────────────────────────────────────────────────────
   const handleCompleteTask = async (taskId, projectId) => {
+    // 1. Turn on the loader for this specific task
     setCompletingTaskId(taskId);
     
-    // Optimistic UI Update
-    const taskToComplete = pendingTasks.find(t => t._id === taskId);
-    if (taskToComplete) {
-      const mockCompletion = {
-        ...taskToComplete,
-        _id: Math.random().toString(),
-        taskId: taskToComplete._id,
-        taskTitle: taskToComplete.title,
-        completedAt: new Date().toISOString(),
-        completedBy: { id: currentUserId, username }
-      };
-      
-      setPendingTasks(prev => prev.filter(t => t._id !== taskId));
-      setAllCompletions(prev => [mockCompletion, ...prev]);
-    }
-
     try {
       const token = localStorage.getItem("token");
+      // 2. Make the API request
       await axios.post(`${API_BASE}/api/tasks/${projectId}/${taskId}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      fetchDashboardData(true);
+      
+      // 3. Fetch fresh data to move the task naturally to completed
+      await fetchDashboardData(true);
     } catch (error) {
       console.error("Failed to complete task", error);
-      fetchDashboardData(true); 
     } finally {
+      // 4. Turn off the loader
       setCompletingTaskId(null);
     }
   };
@@ -1657,7 +1716,7 @@ function App() {
             {/* Task Workspace List */}
             <div className="p-4 mx-3 neu-pressed rounded-lg flex-1 min-h-[420px] overflow-y-auto max-h-[420px] custom-scrollbar">
               {globallyFilteredPending.length === 0 ? (
-                <div className="text-center py-20 text-xs text-[#8C959F] montserrat-medium">No pending tasks found. All caught up! 🎉</div>
+                <div className="text-center py-20 text-xs text-[#8C959F] montserrat-medium">No pending tasks found. Add some more!</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {globallyFilteredPending.map(task => {
@@ -1684,8 +1743,12 @@ function App() {
                               onClick={() => handleCompleteTask(task._id, task._projectId)}
                               className="flex items-center gap-1.5 text-[10px] montserrat-bold text-[#1A7F37] neu-flat neu-action-btn px-3 py-1.5 rounded-md transition-all disabled:opacity-50"
                             >
-                              {isCompleting ? <div className="btn-spinner mr-1" /> : <CheckIcon className="w-3.5 h-3.5 text-[#1A7F37]" strokeWidth={3} />}
-                              Mark As Done
+                              {isCompleting ? (
+                                <div className="btn-spinner mr-1 text-[#1A7F37]" />
+                              ) : (
+                                <CheckIcon className="w-3.5 h-3.5 text-[#1A7F37]" strokeWidth={3} />
+                              )}
+                              {isCompleting ? "Marking..." : "Mark As Done"}
                             </button>
                             
                             <button onClick={() => setCommentTask(task)} disabled={isCompleting} className="p-1.5 text-[#656D76] hover:text-[#0969DA] neu-flat neu-action-btn rounded-md transition-all disabled:opacity-50">
