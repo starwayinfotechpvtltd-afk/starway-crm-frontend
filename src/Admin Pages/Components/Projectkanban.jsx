@@ -1119,4 +1119,5 @@ export default function ProjectKanban({ open, onClose, project }) {
       `}</style>
     </AnimatePresence>
   );
+
 }
