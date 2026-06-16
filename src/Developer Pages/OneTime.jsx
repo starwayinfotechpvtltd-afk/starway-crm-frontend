@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, Suspense } from "react";
+import React, { useState, useCallback, useMemo, Suspense, useEffect } from "react";
 import axios from "axios";
 import { differenceInCalendarDays, format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -241,7 +241,8 @@ const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, current
 
         <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
           <button onClick={onClose} disabled={saving} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} className="neu-btn-primary px-8 py-2.5 rounded-lg text-sm font-bold text-white flex items-center gap-2 disabled:opacity-50 neu-action-btn">
+          {/* Using soft blue button here too for consistency */}
+          <button onClick={handleSubmit} disabled={saving} className="neu-btn-soft-blue px-8 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 neu-action-btn">
             {saving ? <Spinner /> : <Plus size={16} className="pointer-events-none" />} {saving ? "Creating…" : "Create task"}
           </button>
         </div>
@@ -256,7 +257,6 @@ const SidebarTaskDetailModal = ({ task, projectId, projectName, onClose, onTaskC
 
   const handleComplete = async () => {
     setCompleting(true);
-    // REMOVED AXIOS POST - Parent passes the Context's completeTask which handles API
     await onTaskComplete(task._id, projectId);
     setCompleting(false);
     onClose();
@@ -307,9 +307,7 @@ const TaskCard = ({ task, projectId, projectName, onTaskComplete, onTaskClick, o
   const handleComplete = async (e) => {
     e.stopPropagation();
     setCompleting(true);
-    // REMOVED AXIOS POST - Parent passes the Context's completeTask which handles API
     await onTaskComplete(task._id, projectId);
-    // No need to setCompleting(false) as the task component will unmount immediately
   };
 
   const isKanbanLoading = openingKanbanId === projectId;
@@ -398,7 +396,8 @@ const ProjectCard = ({ project, onAddTaskTrigger, onOpenKanban, openingKanbanId 
                   <button onClick={e => { e.stopPropagation(); onOpenKanban(project._id); }} disabled={isKanbanLoading} className="neu-flat neu-action-btn px-5 py-2.5 rounded-lg text-xs font-bold text-[#0969DA] flex items-center gap-2 disabled:opacity-50">
                     {isKanbanLoading ? <Spinner /> : <KanbanSquare size={14} className="pointer-events-none"/>} Open Board
                   </button>
-                  <button onClick={e => { e.stopPropagation(); onAddTaskTrigger(project._id); }} disabled={isKanbanLoading} className="neu-btn-primary px-5 py-2.5 rounded-lg text-xs font-bold text-white flex items-center gap-2 neu-action-btn disabled:opacity-50">
+                  {/* Using the soft blue button here too */}
+                  <button onClick={e => { e.stopPropagation(); onAddTaskTrigger(project._id); }} disabled={isKanbanLoading} className="neu-btn-soft-blue px-5 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2 neu-action-btn disabled:opacity-50">
                     <Plus size={14} className="pointer-events-none"/> Add Task
                   </button>
                 </div>
@@ -425,7 +424,7 @@ const FilterSelect = ({ label, value, onChange, options }) => (
   </div>
 );
 
-// ── Skeleton Loader Card ──────────────────────────────────────────────────────
+// ── Skeleton Loader Card for Sidebar ──────────────────────────────────────────
 const SkeletonCard = () => (
   <div className="neu-flat-sm rounded-xl p-4 mb-4">
     <div className="flex gap-2 flex-wrap mb-3">
@@ -446,7 +445,6 @@ const DeveloperDashboard = () => {
   const currentUserId = localStorage.getItem("userId");
   const currentUsername = localStorage.getItem("username") || "Developer";
 
-  // IMPORT THE SHARED GLOBAL DATA INSTEAD OF LOCAL CACHING
   const { 
     projects, 
     pendingTasks, 
@@ -476,13 +474,11 @@ const DeveloperDashboard = () => {
 
   const showToast = (msg, sev = "success") => setToast({ open: true, msg, sev });
 
-  // Replaced local API handling with the global Context completeTask
   const handleTaskComplete = async (taskId, projectId) => {
     await completeTask(taskId, projectId);
     showToast("Task marked as done! 🎉");
   };
 
-  // Replaced local API pushing with Context addTaskToState
   const handleQuickAddSuccess = (newTask, projectId) => {
     addTaskToState(newTask, projectId);
     showToast("Task created successfully");
@@ -498,8 +494,6 @@ const DeveloperDashboard = () => {
   }, [projects]);
 
   const allPendingTasks = useMemo(() => {
-    // The context provides a flat array of all user's pending tasks.
-    // We just need to sort them by Priority and Deadline as before.
     return [...pendingTasks].sort((a, b) => {
       const orderA = PRIORITY_ORDER[a.priority] || 99;
       const orderB = PRIORITY_ORDER[b.priority] || 99;
@@ -553,41 +547,52 @@ const DeveloperDashboard = () => {
         {/* ── LEFT: Main Workspace ── */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-[#D1DCEB]/50">
           
-          {/* Top Bar */}
+          {/* Top Bar (Visible even while loading) */}
           <div className="px-6 py-4 flex items-center justify-between border-b border-[#D1DCEB]/50 bg-[#F0F4F8] shrink-0 z-20 h-[72px]">
             <div className="neu-pressed p-1.5 rounded-lg inline-flex gap-2">
               <button onClick={() => setActiveTab("projects")} className={`px-5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn flex items-center gap-2 ${activeTab === "projects" ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-                Projects <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] text-[#656D76] pointer-events-none">{filteredProjects.length}</span>
+                Projects {!loadingInitial && <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] text-[#656D76] pointer-events-none">{filteredProjects.length}</span>}
               </button>
               <button onClick={() => setActiveTab("completed")} className={`px-5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn flex items-center gap-2 ${activeTab === "completed" ? "neu-flat text-[#1A7F37]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-                History <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] text-[#656D76] pointer-events-none">{completions.length}</span>
+                History {!loadingInitial && <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] text-[#656D76] pointer-events-none">{completions.length}</span>}
               </button>
             </div>
             
-            <button onClick={() => { setQuickAddInitialProject(""); setQuickAddModalOpen(true); }} className="neu-btn-primary px-5 py-2.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 neu-action-btn">
+            {/* The New Soft Blue Button */}
+            <button onClick={() => { setQuickAddInitialProject(""); setQuickAddModalOpen(true); }} className="neu-btn-soft-blue px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 neu-action-btn">
               <Plus size={14} className="pointer-events-none"/> New Task
             </button>
           </div>
 
           {/* Content Area */}
           {loadingInitial ? (
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="neu-flat rounded-2xl p-6 h-[80px] mb-8 flex gap-4">
-                    <Skeleton width="40%" height="32px" className="mt-2" />
-                    <Skeleton width="20%" height="32px" className="mt-2" />
-                    <Skeleton width="20%" height="32px" className="mt-2" />
-                </div>
-                {[1,2,3].map(i => (
-                    <div key={i} className="neu-flat rounded-2xl p-6 space-y-4">
-                        <div className="flex gap-4">
-                            <Skeleton width="40px" height="40px" rounded="rounded-xl" />
-                            <div className="flex-1 space-y-2">
-                                <Skeleton width="200px" height="18px" />
-                                <Skeleton width="120px" height="12px" />
-                            </div>
-                        </div>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Fake Filter Bar */}
+              <div className="p-5 border-b border-[#D1DCEB]/50 bg-[#F0F4F8] shrink-0 flex flex-wrap gap-4 items-end z-10">
+                <div className="flex-1 min-w-[200px]"><Skeleton width="100%" height="36px" /></div>
+                <div className="w-[130px]"><Skeleton width="100%" height="36px" /></div>
+                <div className="w-[130px]"><Skeleton width="100%" height="36px" /></div>
+                <div className="w-[130px]"><Skeleton width="100%" height="36px" /></div>
+              </div>
+              {/* Fake Project List */}
+              <div className="flex-1 p-6 space-y-5 overflow-hidden">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="neu-flat rounded-2xl p-5 flex items-center gap-4">
+                    <Skeleton width="40px" height="40px" rounded="rounded-xl" className="shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex gap-3 items-center">
+                        <Skeleton width="180px" height="16px" />
+                        <Skeleton width="50px" height="14px" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton width="70px" height="14px" />
+                        <Skeleton width="90px" height="14px" />
+                      </div>
                     </div>
+                    <Skeleton width="18px" height="18px" rounded="rounded-sm" />
+                  </div>
                 ))}
+              </div>
             </div>
           ) : activeTab === "projects" ? (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -652,7 +657,7 @@ const DeveloperDashboard = () => {
                           <div key={idx} className="neu-flat rounded-xl p-4 flex items-center gap-4 transition-all hover:bg-[#D1DCEB]/10 cursor-default">
                             <div className="w-8 h-8 rounded-full neu-btn-primary flex items-center justify-center shrink-0 text-white text-[10px] font-bold bg-[#1A7F37] shadow-none border-2 border-[#F0F4F8]">✓</div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-[#1F2328] mb-1 truncate">{item.taskTitle || item.title}</p>
+                              <p className="text-sm font-bold text-[#1F2328] mb-1 truncate">{item.taskTitle}</p>
                               <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider truncate">{item.projectName}</p>
                             </div>
                             <div className="text-right shrink-0">
@@ -727,7 +732,7 @@ const DeveloperDashboard = () => {
             onClose={() => { 
               setKanbanOpen(false); 
               setKanbanProject(null); 
-              refreshData(true); // Refreshes global state if any Kanban changes were made 
+              refreshData(true); 
             }}
             project={kanbanProject}
           />
@@ -782,8 +787,21 @@ const DeveloperDashboard = () => {
         
         .neu-btn-primary { background-color: #0969DA; box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3); border: none; }
         .neu-btn-primary:active:not(:disabled) { box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2); }
+        
+        /* Soft Ice Blue Neumorphic Button */
+        .neu-btn-soft-blue {
+          background-color: #E8F1FC;
+          color: #0969DA;
+          box-shadow: 4px 4px 8px var(--neu-dark), -4px -4px 8px var(--neu-light);
+          border: none;
+        }
+        .neu-btn-soft-blue:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px rgba(9, 105, 218, 0.2), inset -2px -2px 5px #FFFFFF;
+          background-color: #E0EBF8;
+        }
+
         .neu-action-btn { cursor: pointer; transition: all 0.2s ease; position: relative; z-index: 20; user-select: none; -webkit-user-select: none; }
-        .neu-action-btn:active:not(:disabled) { box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important; }
+        .neu-action-btn:active:not(:disabled, .neu-btn-soft-blue, .neu-btn-primary) { box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important; }
         
         input, textarea, select { position: relative; z-index: 20; pointer-events: auto !important; user-select: text !important; -webkit-user-select: text !important; }
         select { cursor: pointer !important; -moz-appearance: none; -webkit-appearance: none; appearance: none; }
@@ -795,7 +813,7 @@ const DeveloperDashboard = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 4px 0;}
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
 
-        /* Shimmer Animation */
+        /* Smoother Glass-like Shimmer Animation */
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
@@ -804,7 +822,7 @@ const DeveloperDashboard = () => {
           background: linear-gradient(
             90deg, 
             transparent 0%, 
-            rgba(255, 255, 255, 0.4) 50%, 
+            rgba(255, 255, 255, 0.5) 50%, 
             transparent 100%
           );
           animation: shimmer 1.8s infinite linear;
@@ -817,4 +835,4 @@ const DeveloperDashboard = () => {
   );
 }
 
-export default DeveloperDashboard;
+export default DeveloperDashboard;  

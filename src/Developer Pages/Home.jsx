@@ -1023,11 +1023,6 @@
 
 
 
-
-
-
-
-
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import {
   ClipboardDocumentCheckIcon,
@@ -1069,98 +1064,10 @@ import {
 } from "date-fns";
 import { useTasks } from "../TaskContext";
 
-// Lazy load the Kanban Board component
+// Lazy load the Kanban Board component to optimize initial asset delivery
 const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-// ── Global CSS Component (FIX FOR SKELETON LOADER) ─────────────────────────
-const NeumorphismStyles = () => (
-  <style>{`
-    :root {
-      --neu-bg: #F0F4F8; /* Professional light neutral */
-      --neu-light: #FFFFFF;
-      --neu-dark: #D1DCEB; /* Soft clear shadow */
-    }
-
-    .neu-base { background-color: var(--neu-bg); }
-
-    .neu-flat {
-      background-color: var(--neu-bg);
-      box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-    }
-
-    .neu-flat-sm {
-      background-color: var(--neu-bg);
-      box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-    }
-
-    .neu-pressed {
-      background-color: var(--neu-bg);
-      box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-    }
-
-    .neu-pressed-sm {
-      background-color: var(--neu-bg);
-      box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-    }
-
-    .neu-btn-primary {
-      background-color: #0969DA;
-      box-shadow: 2px 2px 6px rgba(9, 105, 218, 0.3);
-      border: none;
-    }
-
-    .neu-btn-primary:active {
-      box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15);
-    }
-
-    .neu-action-btn:active {
-      box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
-    }
-
-    input:-webkit-autofill,
-    input:-webkit-autofill:hover, 
-    input:-webkit-autofill:focus, 
-    input:-webkit-autofill:active {
-        -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-        -webkit-text-fill-color: #1F2328 !important;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .btn-spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid currentColor;
-      border-right-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-      vertical-align: middle;
-    }
-
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
-    }
-    
-    .skeleton-shimmer {
-      background: linear-gradient(
-        90deg, 
-        transparent 0%, 
-        rgba(255, 255, 255, 0.4) 50%, 
-        transparent 100%
-      );
-      animation: shimmer 1.8s infinite linear;
-    }
-  `}</style>
-);
 
 // ── Framer Motion Variants ───────────────────────────────────────────────────
 const containerVariants = {
@@ -1179,107 +1086,6 @@ const Skeleton = ({ width = "100%", height = "20px", rounded = "rounded-md", cla
     style={{ width, height }}
   >
     <div className="absolute inset-0 skeleton-shimmer" />
-  </div>
-);
-
-// ── Advanced Neumorphic Skeleton Loader ──────────────────────────────────────
-const SkeletonDashboard = () => (
-  <div className="min-h-screen neu-base flex flex-col montserrat-regular pb-12 overflow-hidden">
-    <NeumorphismStyles /> {/* Added missing CSS specifically for the loader */}
-    
-    <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
-      <div className="flex items-center gap-3 w-full sm:w-auto">
-        <Skeleton width="40px" height="40px" rounded="rounded-full" className="shrink-0" />
-        <div className="space-y-2">
-          <Skeleton width="140px" height="12px" />
-          <Skeleton width="100px" height="8px" />
-        </div>
-      </div>
-      <div className="flex gap-3 w-full sm:w-auto neu-pressed p-2 rounded-lg">
-        <Skeleton width="100px" height="24px" />
-        <Skeleton width="140px" height="24px" />
-      </div>
-    </nav>
-
-    <div className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-            <div className="space-y-3 w-full">
-              <Skeleton width="50%" height="10px" />
-              <Skeleton width="30%" height="24px" />
-            </div>
-            <Skeleton width="44px" height="44px" rounded="rounded-lg" className="shrink-0" />
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-2 neu-flat rounded-lg p-2 flex flex-col">
-          <div className="px-5 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="space-y-2 w-full sm:w-1/3">
-              <Skeleton width="120px" height="14px" />
-              <Skeleton width="80px" height="10px" />
-            </div>
-            <div className="flex gap-3 w-full sm:w-auto">
-              <Skeleton width="180px" height="36px" />
-              <Skeleton width="100px" height="36px" />
-            </div>
-          </div>
-          <div className="neu-pressed rounded-lg p-4 mx-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[400px]">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="p-4 neu-flat rounded-md h-[150px] flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <Skeleton width="70%" height="14px" />
-                    <Skeleton width="45px" height="18px" />
-                  </div>
-                  <Skeleton width="40%" height="10px" />
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30">
-                  <div className="flex gap-2">
-                    <Skeleton width="80px" height="28px" />
-                    <Skeleton width="32px" height="28px" />
-                  </div>
-                  <Skeleton width="60px" height="12px" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="neu-flat rounded-lg p-2 flex flex-col">
-          <div className="px-5 py-6 space-y-4">
-            <Skeleton width="140px" height="14px" />
-            <Skeleton width="100%" height="36px" />
-          </div>
-          <div className="neu-pressed rounded-lg p-3 mx-3 mb-4 flex-1 min-h-[400px] flex flex-col gap-3">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4">
-                <div className="flex-1 space-y-3">
-                  <Skeleton width="90%" height="12px" />
-                  <Skeleton width="50%" height="10px" />
-                </div>
-                <Skeleton width="32px" height="32px" rounded="rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {[1, 2].map(i => (
-          <div key={i} className="neu-flat rounded-lg p-6 space-y-6">
-            <Skeleton width="180px" height="14px" />
-            <div className="neu-pressed rounded-lg h-64 flex items-end justify-around p-4">
-                {[1,2,3,4,5,6].map(bar => (
-                    <Skeleton key={bar} width="25px" height={`${Math.random() * 60 + 20}%`} rounded="rounded-t-md" />
-                ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
   </div>
 );
 
@@ -1442,7 +1248,7 @@ export default function Home() {
   const currentUserId = localStorage.getItem("userId");
   const username = localStorage.getItem("username") || "Developer";
 
-  // Use Global Context
+  // USE THE SHARED CONTEXT INSTEAD OF LOCAL DATA FETCHING
   const { projects, pendingTasks, completions, loading, completeTask, addTaskToState, refreshData } = useTasks();
 
   // Global Filter States
@@ -1474,6 +1280,7 @@ export default function Home() {
     setCompletedVisibleCount(10);
   }, [globalTimeFilter, globalProjectFilter, globalCustomDates]);
 
+  // Total active derived directly from context projects
   const totalActiveProjectsCount = useMemo(() => {
     return projects.filter(p => p.status !== "Closed").length;
   }, [projects]);
@@ -1495,12 +1302,12 @@ export default function Home() {
   // ── Process Task Action ───────────────────────────────────────────────────────
   const handleCompleteTask = async (taskId, projectId) => {
     setCompletingTaskId(taskId);
-    await completeTask(taskId, projectId); 
+    await completeTask(taskId, projectId); // Calling context method
     setCompletingTaskId(null);
   };
 
   const handleQuickAddSuccess = (newTask, projectId) => {
-    addTaskToState(newTask, projectId); 
+    addTaskToState(newTask, projectId); // Calling context method
   };
 
   // ── Global Filter Logic ──────────────────────────────────────────────────────
@@ -1604,12 +1411,8 @@ export default function Home() {
     }
   };
 
-  // The Skeleton loader now displays beautifully
-  if (loading) return <SkeletonDashboard />;
-
   return (
     <div className="neu-base min-h-screen montserrat-regular antialiased text-[#1F2328] pb-12 flex flex-col relative">
-      <NeumorphismStyles /> {/* Re-injected CSS for main page render */}
 
       {/* ── Global Top Navbar ── */}
       <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
@@ -1676,261 +1479,336 @@ export default function Home() {
       <main className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
 
         {/* --- Metrics Overview Grid --- */}
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-            <div>
-              <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Active Projects</p>
-              <p className="text-2xl montserrat-bold text-[#1F2328] mt-1">{totalActiveProjectsCount}</p>
-            </div>
-            <div className="p-3 neu-pressed rounded-lg"><ClipboardDocumentCheckIcon className="h-6 w-6 text-[#0969DA]" /></div>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
+                <div className="w-full space-y-2">
+                  <Skeleton width="60%" height="10px" />
+                  <Skeleton width="30%" height="28px" />
+                </div>
+                <Skeleton width="48px" height="48px" rounded="rounded-lg" className="shrink-0 ml-4" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Active Projects</p>
+                <p className="text-2xl montserrat-bold text-[#1F2328] mt-1">{totalActiveProjectsCount}</p>
+              </div>
+              <div className="p-3 neu-pressed rounded-lg"><ClipboardDocumentCheckIcon className="h-6 w-6 text-[#0969DA]" /></div>
+            </motion.div>
+            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Pending Tasks</p>
+                <p className="text-2xl montserrat-bold text-[#0969DA] mt-1">{globallyFilteredPending.length}</p>
+              </div>
+              <div className="p-3 neu-pressed rounded-lg"><ClockIcon className="h-6 w-6 text-[#0969DA]" /></div>
+            </motion.div>
+            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Overdue</p>
+                <p className="text-2xl montserrat-bold text-[#D1242F] mt-1">{globallyFilteredOverdue.length}</p>
+              </div>
+              <div className="p-3 neu-pressed rounded-lg"><ExclamationCircleIcon className="h-6 w-6 text-[#D1242F]" /></div>
+            </motion.div>
+            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Completed Tasks</p>
+                <p className="text-2xl montserrat-bold text-[#1A7F37] mt-1">{globallyFilteredCompletions.length}</p>
+              </div>
+              <div className="p-3 neu-pressed rounded-lg"><CheckBadgeIcon className="h-6 w-6 text-[#1A7F37]" /></div>
+            </motion.div>
           </motion.div>
-          <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-            <div>
-              <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Pending Tasks</p>
-              <p className="text-2xl montserrat-bold text-[#0969DA] mt-1">{globallyFilteredPending.length}</p>
-            </div>
-            <div className="p-3 neu-pressed rounded-lg"><ClockIcon className="h-6 w-6 text-[#0969DA]" /></div>
-          </motion.div>
-          <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-            <div>
-              <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Overdue</p>
-              <p className="text-2xl montserrat-bold text-[#D1242F] mt-1">{globallyFilteredOverdue.length}</p>
-            </div>
-            <div className="p-3 neu-pressed rounded-lg"><ExclamationCircleIcon className="h-6 w-6 text-[#D1242F]" /></div>
-          </motion.div>
-          <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-            <div>
-              <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Completed Tasks</p>
-              <p className="text-2xl montserrat-bold text-[#1A7F37] mt-1">{globallyFilteredCompletions.length}</p>
-            </div>
-            <div className="p-3 neu-pressed rounded-lg"><CheckBadgeIcon className="h-6 w-6 text-[#1A7F37]" /></div>
-          </motion.div>
-        </motion.div>
+        )}
 
         {/* --- Primary Workspace: Pending Workspace Docket & Completions History --- */}
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {loading ? (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
+            <div className="xl:col-span-2 neu-flat rounded-lg p-2 flex flex-col">
+              <div className="px-5 py-6 flex justify-between items-center">
+                <div className="space-y-2">
+                  <Skeleton width="160px" height="14px" />
+                  <Skeleton width="90px" height="10px" />
+                </div>
+                <Skeleton width="120px" height="36px" rounded="rounded-md" />
+              </div>
+              <div className="neu-pressed rounded-lg p-4 mx-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[420px]">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="p-4 neu-flat rounded-md h-[140px] flex flex-col justify-between">
+                    <div>
+                      <Skeleton width="80%" height="16px" className="mb-2" />
+                      <Skeleton width="50%" height="12px" />
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30">
+                      <div className="flex gap-2">
+                        <Skeleton width="70px" height="24px" rounded="rounded-md" />
+                        <Skeleton width="36px" height="24px" rounded="rounded-md" />
+                      </div>
+                      <Skeleton width="50px" height="14px" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="neu-flat rounded-lg p-2 flex flex-col">
+              <div className="px-5 py-6">
+                <Skeleton width="150px" height="14px" />
+              </div>
+              <div className="neu-pressed rounded-lg p-3 mx-3 mb-4 flex-1 min-h-[420px] flex flex-col gap-3">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton width="85%" height="14px" />
+                      <Skeleton width="45%" height="10px" />
+                    </div>
+                    <Skeleton width="32px" height="32px" rounded="rounded-full" className="shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* Unified Action Work Board System */}
+            <div className="xl:col-span-2 neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
+              <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">My Pending Tasks</h3>
+                  <span className="text-[10px] text-[#656D76] montserrat-medium pl-1">{globallyFilteredPending.length} Tasks Scheduled</span>
+                </div>
 
-          {/* Unified Action Work Board System */}
-          <div className="xl:col-span-2 neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
-            <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">My Pending Tasks</h3>
-                <span className="text-[10px] text-[#656D76] montserrat-medium pl-1">{globallyFilteredPending.length} Tasks Scheduled</span>
+                <div className="flex gap-4 items-center w-full sm:w-auto">
+                  <div className="relative flex-1 sm:flex-initial">
+                    <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
+                    <input
+                      type="text"
+                      value={pendingSearchQuery}
+                      onChange={e => setPendingSearchQuery(e.target.value)}
+                      placeholder="Search tasks..."
+                      className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
+                    />
+                  </div>
+                  {/* BEAUTIFUL SLIGHTLY BLUISH NEUMORPHIC BUTTON */}
+                  <button onClick={() => setAddTaskModalOpen(true)} className="flex items-center gap-1.5 text-xs montserrat-bold py-2.5 px-4 rounded-md transition-all flex-shrink-0 neu-action-btn neu-btn-soft-blue">
+                    <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} /> Add Task
+                  </button>
+                </div>
               </div>
 
-              <div className="flex gap-4 items-center w-full sm:w-auto">
-                <div className="relative flex-1 sm:flex-initial">
+              {/* Task Workspace List */}
+              <div className="p-4 mx-3 neu-pressed rounded-lg flex-1 min-h-[420px] overflow-y-auto max-h-[420px] custom-scrollbar">
+                {globallyFilteredPending.length === 0 ? (
+                  <div className="text-center py-20 text-xs text-[#8C959F] montserrat-medium">No pending tasks found. Add some more!</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {globallyFilteredPending.map(task => {
+                      const isOverdue = task.deadline && differenceInCalendarDays(new Date(task.deadline), new Date()) < 0;
+                      const isCompleting = completingTaskId === task._id;
+                      const isKanbanLoading = openingKanbanId === task._projectId;
+
+                      return (
+                        <div key={task._id} className={`p-4 neu-flat rounded-md transition-all relative flex flex-col justify-between ${isOverdue ? "border-l-4 border-l-[#D1242F] border-transparent" : "border-l-4 border-l-transparent"}`}>
+                          <div>
+                            <div className="flex justify-between items-start gap-2 mb-2">
+                              <span className="text-xs montserrat-bold text-[#1F2328] leading-tight block break-words">{task.title}</span>
+                              <span className={`text-[8px] montserrat-bold uppercase px-2 py-1 rounded-md flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                                {task.priority}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-[#656D76] montserrat-bold block truncate mb-5">{task._projectName}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-3 mt-auto border-t border-[#D1DCEB]/30">
+                            <div className="flex gap-3">
+                              <button
+                                disabled={isCompleting}
+                                onClick={() => handleCompleteTask(task._id, task._projectId)}
+                                className="flex items-center gap-1.5 text-[10px] montserrat-bold text-[#1A7F37] neu-flat neu-action-btn px-3 py-1.5 rounded-md transition-all disabled:opacity-50"
+                              >
+                                {isCompleting ? (
+                                  <div className="btn-spinner mr-1 text-[#1A7F37]" />
+                                ) : (
+                                  <CheckIcon className="w-3.5 h-3.5 text-[#1A7F37]" strokeWidth={3} />
+                                )}
+                                {isCompleting ? "Marking..." : "Mark As Done"}
+                              </button>
+
+                              <button onClick={() => setCommentTask(task)} disabled={isCompleting} className="p-1.5 text-[#656D76] hover:text-[#0969DA] neu-flat neu-action-btn rounded-md transition-all disabled:opacity-50">
+                                <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {task.deadline && (
+                                <span className={`text-[9px] montserrat-bold flex items-center ${isOverdue ? 'text-[#D1242F]' : 'text-[#656D76]'}`}>
+                                  {isOverdue ? 'Overdue' : format(new Date(task.deadline), "MMM d")}
+                                </span>
+                              )}
+                              <button
+                                disabled={isKanbanLoading || isCompleting}
+                                onClick={() => handleOpenKanban(task._projectId)}
+                                className="text-[10px] text-[#0969DA] flex items-center gap-1 montserrat-bold cursor-pointer disabled:opacity-50 hover:opacity-70 transition-opacity"
+                              >
+                                {isKanbanLoading && <div className="btn-spinner" />}
+                                Kanban ↗
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Completed History List */}
+            <div className="neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
+              <div className="px-5 py-4 flex flex-col gap-4 flex-shrink-0">
+                <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">Completed History ({globallyFilteredCompletions.length})</h3>
+
+                <div className="relative w-full">
                   <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
                   <input
                     type="text"
-                    value={pendingSearchQuery}
-                    onChange={e => setPendingSearchQuery(e.target.value)}
-                    placeholder="Search tasks..."
+                    value={completedSearchQuery}
+                    onChange={e => setCompletedSearchQuery(e.target.value)}
+                    placeholder="Search completions..."
                     className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
                   />
                 </div>
-                <button onClick={() => setAddTaskModalOpen(true)} className="flex items-center gap-1.5 text-white neu-btn-primary text-xs montserrat-bold py-2.5 px-4 rounded-md transition-all flex-shrink-0">
-                  <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} /> Add Task
-                </button>
               </div>
-            </div>
 
-            {/* Task Workspace List */}
-            <div className="p-4 mx-3 neu-pressed rounded-lg flex-1 min-h-[420px] overflow-y-auto max-h-[420px] custom-scrollbar">
-              {globallyFilteredPending.length === 0 ? (
-                <div className="text-center py-20 text-xs text-[#8C959F] montserrat-medium">No pending tasks found. Add some more!</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {globallyFilteredPending.map(task => {
-                    const isOverdue = task.deadline && differenceInCalendarDays(new Date(task.deadline), new Date()) < 0;
-                    const isCompleting = completingTaskId === task._id;
-                    const isKanbanLoading = openingKanbanId === task._projectId;
-
-                    return (
-                      <div key={task._id} className={`p-4 neu-flat rounded-md transition-all relative flex flex-col justify-between ${isOverdue ? "border-l-4 border-l-[#D1242F] border-transparent" : "border-l-4 border-l-transparent"}`}>
-                        <div>
-                          <div className="flex justify-between items-start gap-2 mb-2">
-                            <span className="text-xs montserrat-bold text-[#1F2328] leading-tight block break-words">{task.title}</span>
-                            <span className={`text-[8px] montserrat-bold uppercase px-2 py-1 rounded-md flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-                              {task.priority}
-                            </span>
-                          </div>
-                          <span className="text-[9px] text-[#656D76] montserrat-bold block truncate mb-5">{task._projectName}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-3 mt-auto border-t border-[#D1DCEB]/30">
-                          <div className="flex gap-3">
-                            <button
-                              disabled={isCompleting}
-                              onClick={() => handleCompleteTask(task._id, task._projectId)}
-                              className="flex items-center gap-1.5 text-[10px] montserrat-bold text-[#1A7F37] neu-flat neu-action-btn px-3 py-1.5 rounded-md transition-all disabled:opacity-50"
-                            >
-                              {isCompleting ? (
-                                <div className="btn-spinner mr-1 text-[#1A7F37]" />
-                              ) : (
-                                <CheckIcon className="w-3.5 h-3.5 text-[#1A7F37]" strokeWidth={3} />
-                              )}
-                              {isCompleting ? "Marking..." : "Mark As Done"}
-                            </button>
-
-                            <button onClick={() => setCommentTask(task)} disabled={isCompleting} className="p-1.5 text-[#656D76] hover:text-[#0969DA] neu-flat neu-action-btn rounded-md transition-all disabled:opacity-50">
-                              <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {task.deadline && (
-                              <span className={`text-[9px] montserrat-bold flex items-center ${isOverdue ? 'text-[#D1242F]' : 'text-[#656D76]'}`}>
-                                {isOverdue ? 'Overdue' : format(new Date(task.deadline), "MMM d")}
-                              </span>
-                            )}
-                            <button
-                              disabled={isKanbanLoading || isCompleting}
-                              onClick={() => handleOpenKanban(task._projectId)}
-                              className="text-[10px] text-[#0969DA] flex items-center gap-1 montserrat-bold cursor-pointer disabled:opacity-50 hover:opacity-70 transition-opacity"
-                            >
-                              {isKanbanLoading && <div className="btn-spinner" />}
-                              Kanban ↗
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Completed History List */}
-          <div className="neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
-            <div className="px-5 py-4 flex flex-col gap-4 flex-shrink-0">
-              <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">Completed History ({globallyFilteredCompletions.length})</h3>
-
-              <div className="relative w-full">
-                <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
-                <input
-                  type="text"
-                  value={completedSearchQuery}
-                  onChange={e => setCompletedSearchQuery(e.target.value)}
-                  placeholder="Search completions..."
-                  className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
-                />
-              </div>
-            </div>
-
-            <div className="max-h-[420px] mx-3 p-3 neu-pressed rounded-lg overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-3">
-              {globallyFilteredCompletions.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#656D76] montserrat-medium">No completions found.</div>
-              ) : (
-                <>
-                  {globallyFilteredCompletions.slice(0, completedVisibleCount).map((task) => (
-                    <div
-                      key={task._id || task.taskId}
-                      className="p-3 neu-flat rounded-md cursor-pointer flex justify-between items-center gap-4 neu-action-btn transition-all"
-                      onClick={() => { setSelectedCompletedTask(task); setOpenTaskDialog(true); }}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs montserrat-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
-                        <p className="text-[9px] text-[#656D76] mt-1 uppercase tracking-wider montserrat-bold truncate">
-                          {projects.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
-                        </p>
-                        <div className="flex gap-4 items-center mt-2.5 text-[10px] text-[#656D76] montserrat-medium">
-                          <span className="flex items-center"><ClockIcon className="w-3 h-3 mr-1" />{format(new Date(task.completedAt), "MMM d")}</span>
-                        </div>
-                      </div>
-
-                      <button className="flex items-center justify-center neu-pressed w-8 h-8 rounded-full text-[#656D76] flex-shrink-0">
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {completedVisibleCount < globallyFilteredCompletions.length && (
-                    <div className="p-2 text-center mt-2">
-                      <button
-                        onClick={() => setCompletedVisibleCount(prev => prev + 10)}
-                        className="text-xs montserrat-bold text-[#0969DA] hover:opacity-70 transition-opacity"
+              <div className="max-h-[420px] mx-3 p-3 neu-pressed rounded-lg overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-3">
+                {globallyFilteredCompletions.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[#656D76] montserrat-medium">No completions found.</div>
+                ) : (
+                  <>
+                    {globallyFilteredCompletions.slice(0, completedVisibleCount).map((task) => (
+                      <div
+                        key={task._id || task.taskId}
+                        className="p-3 neu-flat rounded-md cursor-pointer flex justify-between items-center gap-4 neu-action-btn transition-all"
+                        onClick={() => { setSelectedCompletedTask(task); setOpenTaskDialog(true); }}
                       >
-                        Load More
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs montserrat-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
+                          <p className="text-[9px] text-[#656D76] mt-1 uppercase tracking-wider montserrat-bold truncate">
+                            {projects.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
+                          </p>
+                          <div className="flex gap-4 items-center mt-2.5 text-[10px] text-[#656D76] montserrat-medium">
+                            <span className="flex items-center"><ClockIcon className="w-3 h-3 mr-1" />{format(new Date(task.completedAt), "MMM d")}</span>
+                          </div>
+                        </div>
+
+                        <button className="flex items-center justify-center neu-pressed w-8 h-8 rounded-full text-[#656D76] flex-shrink-0">
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {completedVisibleCount < globallyFilteredCompletions.length && (
+                      <div className="p-2 text-center mt-2">
+                        <button
+                          onClick={() => setCompletedVisibleCount(prev => prev + 10)}
+                          className="text-xs montserrat-bold text-[#0969DA] hover:opacity-70 transition-opacity"
+                        >
+                          Load More
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* --- Visual Analysis Row --- */}
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-          <div className="neu-flat rounded-lg p-6">
-            <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed vs Pending Assignments</h3>
-            <div className="h-64 w-full">
-              {projectBarData.length === 0 ? (
-                <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No data matches current operations.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={projectBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} tickFormatter={(v) => v.length > 12 ? v.substring(0, 11) + "..." : v} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-                    <Legend wrapperStyle={{ fontSize: '11px', pt: 10 }} />
-                    <Bar dataKey="Completed" fill="#1A7F37" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                    <Bar dataKey="Pending" fill="#0969DA" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="neu-flat rounded-lg p-6">
-            <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed Tasks Sorted By Priority</h3>
-            <div className="h-64 w-full">
-              {globallyFilteredCompletions.length === 0 ? (
-                <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No tasks completed within current filters.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={priorityBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                    <XAxis dataKey="priority" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-                    <Bar dataKey="Completed" fill="#BF8700" radius={[4, 4, 0, 0]} maxBarSize={45} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 neu-flat rounded-lg p-6 mb-8">
-            <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Daily Completions Progress Tracker</h3>
-            <div className="h-64 w-full">
-              {dailyCompletionData.length === 0 ? (
-                <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">
-                  No completed tasks listed in this date range.
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+            {[1, 2].map(i => (
+              <div key={i} className="neu-flat rounded-lg p-6 space-y-6">
+                <Skeleton width="200px" height="14px" />
+                <div className="neu-pressed rounded-lg h-64 flex items-end justify-around p-4">
+                  {[1, 2, 3, 4, 5, 6].map(bar => (
+                    <Skeleton key={bar} width="35px" height={`${Math.random() * 60 + 20}%`} rounded="rounded-t-md" />
+                  ))}
                 </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dailyCompletionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8250DF" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#8250DF" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-                    <Area type="monotone" dataKey="Completed" stroke="#8250DF" fillOpacity={1} fill="url(#colorCompleted)" strokeWidth={3} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+              </div>
+            ))}
           </div>
-        </motion.div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="neu-flat rounded-lg p-6">
+              <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed vs Pending Assignments</h3>
+              <div className="h-64 w-full">
+                {projectBarData.length === 0 ? (
+                  <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No data matches current operations.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={projectBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} tickFormatter={(v) => v.length > 12 ? v.substring(0, 11) + "..." : v} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
+                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
+                      <Legend wrapperStyle={{ fontSize: '11px', pt: 10 }} />
+                      <Bar dataKey="Completed" fill="#1A7F37" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="Pending" fill="#0969DA" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="neu-flat rounded-lg p-6">
+              <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed Tasks Sorted By Priority</h3>
+              <div className="h-64 w-full">
+                {globallyFilteredCompletions.length === 0 ? (
+                  <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No tasks completed within current filters.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={priorityBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
+                      <XAxis dataKey="priority" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
+                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
+                      <Bar dataKey="Completed" fill="#BF8700" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 neu-flat rounded-lg p-6 mb-8">
+              <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Daily Completions Progress Tracker</h3>
+              <div className="h-64 w-full">
+                {dailyCompletionData.length === 0 ? (
+                  <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">
+                    No completed tasks listed in this date range.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dailyCompletionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8250DF" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#8250DF" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
+                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
+                      <Area type="monotone" dataKey="Completed" stroke="#8250DF" fillOpacity={1} fill="url(#colorCompleted)" strokeWidth={3} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
       </main>
 
@@ -2017,12 +1895,119 @@ export default function Home() {
             onClose={() => {
               setKanbanOpen(false);
               setKanbanProject(null);
-              refreshData(true); // <-- Now calling the context refresh when closing Kanban
+              refreshData(true);
             }}
             project={kanbanProject}
           />
         </Suspense>
       )}
+
+      {/* Global Neumorphism CSS & Scrollbar Styles */}
+      <style>{`
+        :root {
+          --neu-bg: #F0F4F8; /* Professional light neutral */
+          --neu-light: #FFFFFF;
+          --neu-dark: #D1DCEB; /* Soft clear shadow */
+        }
+
+        .neu-base {
+          background-color: var(--neu-bg);
+        }
+
+        /* Subtle, structural drop shadows rather than floaty bubbles */
+        .neu-flat {
+          background-color: var(--neu-bg);
+          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
+        }
+
+        .neu-flat-sm {
+          background-color: var(--neu-bg);
+          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+        }
+
+        /* Soft debossing */
+        .neu-pressed {
+          background-color: var(--neu-bg);
+          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
+        }
+
+        .neu-pressed-sm {
+          background-color: var(--neu-bg);
+          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
+        }
+
+        /* Primary standard-looking button */
+        .neu-btn-primary {
+          background-color: #0969DA;
+          box-shadow: 2px 2px 6px rgba(9, 105, 218, 0.3);
+          border: none;
+        }
+
+        .neu-btn-primary:active {
+          box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Soft Ice Blue Neumorphic Button */
+        .neu-btn-soft-blue {
+          background-color: #E8F1FC;
+          color: #0969DA;
+          box-shadow: 4px 4px 8px var(--neu-dark), -4px -4px 8px var(--neu-light);
+        }
+
+        .neu-btn-soft-blue:active:not(:disabled) {
+          box-shadow: inset 2px 2px 5px rgba(9, 105, 218, 0.2), inset -2px -2px 5px #FFFFFF;
+          background-color: #E0EBF8;
+        }
+
+        .neu-action-btn:active {
+          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
+        }
+
+        /* Prevent auto-fill background from overriding transparency */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
+            -webkit-text-fill-color: #1F2328 !important;
+        }
+
+        /* Scoped Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .btn-spinner {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          border: 2px solid currentColor;
+          border-right-color: transparent;
+          border-radius: 50%;
+          animation: spin 0.75s linear infinite;
+          vertical-align: middle;
+        }
+
+        /* Advanced Shimmer Effect */
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .skeleton-shimmer {
+          background: linear-gradient(
+            90deg, 
+            transparent 0%, 
+            rgba(255, 255, 255, 0.5) 50%, 
+            transparent 100%
+          );
+          animation: shimmer 1.8s infinite linear;
+        }
+      `}</style>
     </div>
   );
 }
