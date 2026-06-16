@@ -19,7 +19,7 @@
 //   Box,
 // } from "@mui/material";
 // import axios from "axios";
-// import { motion, AnimatePresence } from "framer-motion";
+// import { motion } from "framer-motion";
 // import {
 //   BarChart,
 //   Bar,
@@ -37,6 +37,7 @@
 //   isThisWeek, isThisMonth, subMonths, subDays, isWithinInterval,
 //   startOfDay, endOfDay
 // } from "date-fns";
+// import { useTasks } from "../TaskContext";
 
 // // Lazy load the Kanban Board component to optimize initial asset delivery
 // const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
@@ -53,91 +54,115 @@
 //   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 26 } },
 // };
 
-// // ── Reusable Neumorphic Skeleton Component ───────────────────────────────────
+// // ── Improved Neumorphic Skeleton Component ───────────────────────────────────
 // const Skeleton = ({ width = "100%", height = "20px", rounded = "rounded-md", className = "" }) => (
-//   <div className={`neu-pressed skeleton-pulse ${rounded} ${className}`} style={{ width, height }} />
+//   <div 
+//     className={`neu-pressed-sm relative overflow-hidden ${rounded} ${className}`} 
+//     style={{ width, height }}
+//   >
+//     <div className="absolute inset-0 skeleton-shimmer" />
+//   </div>
 // );
 
 // // ── Advanced Neumorphic Skeleton Loader ──────────────────────────────────────
 // const SkeletonDashboard = () => (
 //   <div className="min-h-screen neu-base flex flex-col montserrat-regular pb-12 overflow-hidden">
+//     {/* Navbar Skeleton */}
 //     <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
 //       <div className="flex items-center gap-3 w-full sm:w-auto">
 //         <Skeleton width="40px" height="40px" rounded="rounded-full" className="shrink-0" />
 //         <div className="space-y-2">
-//           <Skeleton width="180px" height="14px" />
-//           <Skeleton width="120px" height="10px" />
+//           <Skeleton width="140px" height="12px" />
+//           <Skeleton width="100px" height="8px" />
 //         </div>
 //       </div>
-//       <div className="flex flex-wrap gap-3 w-full sm:w-auto neu-pressed p-2 rounded-lg">
-//         <Skeleton width="110px" height="24px" rounded="rounded" />
-//         <Skeleton width="140px" height="24px" rounded="rounded" />
-//         <Skeleton width="160px" height="24px" rounded="rounded" />
+//       <div className="flex gap-3 w-full sm:w-auto neu-pressed p-2 rounded-lg">
+//         <Skeleton width="100px" height="24px" />
+//         <Skeleton width="140px" height="24px" />
 //       </div>
 //     </nav>
+
 //     <div className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
+//       {/* Metrics Grid Skeleton */}
 //       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 //         {[1, 2, 3, 4].map(i => (
 //           <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
 //             <div className="space-y-3 w-full">
-//               <Skeleton width="60%" height="10px" />
-//               <Skeleton width="30%" height="28px" rounded="rounded-lg" />
+//               <Skeleton width="50%" height="10px" />
+//               <Skeleton width="30%" height="24px" />
 //             </div>
-//             <Skeleton width="48px" height="48px" rounded="rounded-lg" className="shrink-0 ml-4" />
+//             <Skeleton width="44px" height="44px" rounded="rounded-lg" className="shrink-0" />
 //           </div>
 //         ))}
 //       </div>
+
 //       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-//         <div className="xl:col-span-2 neu-flat rounded-lg p-5 flex flex-col gap-5">
-//           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#D1DCEB]/50 pb-3">
+//         {/* Main Task Board Skeleton */}
+//         <div className="xl:col-span-2 neu-flat rounded-lg p-2 flex flex-col">
+//           <div className="px-5 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
 //             <div className="space-y-2 w-full sm:w-1/3">
-//               <Skeleton width="140px" height="14px" />
-//               <Skeleton width="100px" height="10px" />
+//               <Skeleton width="120px" height="14px" />
+//               <Skeleton width="80px" height="10px" />
 //             </div>
 //             <div className="flex gap-3 w-full sm:w-auto">
-//               <Skeleton width="200px" height="36px" rounded="rounded-md" />
-//               <Skeleton width="110px" height="36px" rounded="rounded-md" />
+//               <Skeleton width="180px" height="36px" />
+//               <Skeleton width="100px" height="36px" />
 //             </div>
 //           </div>
-//           <div className="neu-pressed rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-[420px]">
+//           <div className="neu-pressed rounded-lg p-4 mx-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[400px]">
 //             {[1, 2, 3, 4].map(i => (
-//               <div key={i} className="p-4 neu-flat rounded-md h-[160px] flex flex-col justify-between">
-//                 <div className="space-y-3">
-//                   <div className="flex justify-between items-start">
+//               <div key={i} className="p-4 neu-flat rounded-md h-[150px] flex flex-col justify-between">
+//                 <div>
+//                   <div className="flex justify-between items-start mb-4">
 //                     <Skeleton width="70%" height="14px" />
-//                     <Skeleton width="40px" height="18px" rounded="rounded" />
+//                     <Skeleton width="45px" height="18px" />
 //                   </div>
 //                   <Skeleton width="40%" height="10px" />
 //                 </div>
-//                 <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30 mt-4">
+//                 <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30">
 //                   <div className="flex gap-2">
-//                     <Skeleton width="90px" height="28px" rounded="rounded-md" />
-//                     <Skeleton width="32px" height="28px" rounded="rounded-md" />
+//                     <Skeleton width="80px" height="28px" />
+//                     <Skeleton width="32px" height="28px" />
 //                   </div>
-//                   <div className="flex gap-2 items-center">
-//                     <Skeleton width="35px" height="12px" />
-//                     <Skeleton width="50px" height="12px" />
-//                   </div>
+//                   <Skeleton width="60px" height="12px" />
 //                 </div>
 //               </div>
 //             ))}
 //           </div>
 //         </div>
-//         <div className="neu-flat rounded-lg p-5 flex flex-col gap-4">
-//           <Skeleton width="160px" height="14px" className="mt-1 mb-2" />
-//           <Skeleton width="100%" height="36px" rounded="rounded-md" />
-//           <div className="neu-pressed rounded-lg p-3 flex-1 min-h-[420px] flex flex-col gap-3">
+
+//         {/* Sidebar History Skeleton */}
+//         <div className="neu-flat rounded-lg p-2 flex flex-col">
+//           <div className="px-5 py-6 space-y-4">
+//             <Skeleton width="140px" height="14px" />
+//             <Skeleton width="100%" height="36px" />
+//           </div>
+//           <div className="neu-pressed rounded-lg p-3 mx-3 mb-4 flex-1 min-h-[400px] flex flex-col gap-3">
 //             {[1, 2, 3, 4, 5].map(i => (
-//               <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4 h-[72px]">
-//                 <div className="flex-1 space-y-2.5">
-//                   <Skeleton width="85%" height="12px" />
-//                   <Skeleton width="45%" height="10px" />
+//               <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4">
+//                 <div className="flex-1 space-y-3">
+//                   <Skeleton width="90%" height="12px" />
+//                   <Skeleton width="50%" height="10px" />
 //                 </div>
-//                 <Skeleton width="32px" height="32px" rounded="rounded-full" className="shrink-0" />
+//                 <Skeleton width="32px" height="32px" rounded="rounded-full" />
 //               </div>
 //             ))}
 //           </div>
 //         </div>
+//       </div>
+
+//       {/* Chart Row Skeleton */}
+//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+//         {[1, 2].map(i => (
+//           <div key={i} className="neu-flat rounded-lg p-6 space-y-6">
+//             <Skeleton width="180px" height="14px" />
+//             <div className="neu-pressed rounded-lg h-64 flex items-end justify-around p-4">
+//                 {[1,2,3,4,5,6].map(bar => (
+//                     <Skeleton key={bar} width="25px" height={`${Math.random() * 60 + 20}%`} rounded="rounded-t-md" />
+//                 ))}
+//             </div>
+//           </div>
+//         ))}
 //       </div>
 //     </div>
 //   </div>
@@ -301,7 +326,9 @@
 // export default function Home() {
 //   const currentUserId = localStorage.getItem("userId");
 //   const username = localStorage.getItem("username") || "Developer";
-//   const CACHE_KEY = `dev_dash_cache_${currentUserId}`;
+
+//   // USE THE SHARED CONTEXT INSTEAD OF LOCAL DATA FETCHING
+//   const { projects, pendingTasks, completions, loading, completeTask, addTaskToState, refreshData } = useTasks();
 
 //   // Global Filter States
 //   const [globalTimeFilter, setGlobalTimeFilter] = useState("Last 2 Weeks");
@@ -312,14 +339,7 @@
 //   const [pendingSearchQuery, setPendingSearchQuery] = useState("");
 //   const [completedSearchQuery, setCompletedSearchQuery] = useState("");
 
-//   // Core Data States
-//   const [totalActiveProjectsCount, setTotalActiveProjectsCount] = useState(0);
-//   const [projectsData, setProjectsData] = useState([]);
-//   const [pendingTasks, setPendingTasks] = useState([]);
-//   const [allCompletions, setAllCompletions] = useState([]);
-
 //   // UI & Pagination States
-//   const [loading, setLoading] = useState(true);
 //   const [completingTaskId, setCompletingTaskId] = useState(null);
 //   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
 //   const [completedVisibleCount, setCompletedVisibleCount] = useState(10);
@@ -339,87 +359,15 @@
 //     setCompletedVisibleCount(10);
 //   }, [globalTimeFilter, globalProjectFilter, globalCustomDates]);
 
-//   // ── Data Fetching & Local Storage Caching ────────────────────────────────────
-//   const fetchDashboardData = useCallback(async (isSilent = false) => {
-//     if (!isSilent) setLoading(true);
-//     try {
-//       const token = localStorage.getItem("token");
-//       if (!token) return;
-//       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-
-//       const [dashRes, totalRes] = await Promise.allSettled([
-//         axios.get(`${API_BASE}/api/reports/dashboard`, authHeader),
-//         axios.get(`${API_BASE}/api/newproject/projects/total-active`, authHeader)
-//       ]);
-
-//       let fetchedProjects = [];
-//       let allPending = [];
-//       let allCompletedList = [];
-//       let activeCount = totalRes.status === "fulfilled" ? totalRes.value.data.length : 0;
-
-//       if (dashRes.status === "fulfilled") {
-//         const { projects, tasks, completions } = dashRes.value.data;
-//         fetchedProjects = projects || [];
-
-//         // Map Pending Tasks
-//         allPending = (tasks || [])
-//           .filter(t => t.status !== "Done" && t.assignedTo?.id?.toString() === currentUserId?.toString())
-//           .map(t => ({ ...t, _projectId: t.projectId, _projectName: t.projectName }));
-
-//         // Map Completions
-//         allCompletedList = (completions || [])
-//           .filter(c => c.completedBy?.id?.toString() === currentUserId?.toString())
-//           .map(c => ({ ...c, _projectId: c.projectId }));
-
-//         // Sort Data
-//         allPending.sort((a, b) => new Date(a.deadline || '2099-01-01') - new Date(b.deadline || '2099-01-01'));
-//         allCompletedList.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-//       }
-
-//       setProjectsData(fetchedProjects);
-//       setTotalActiveProjectsCount(activeCount);
-//       setPendingTasks(allPending);
-//       setAllCompletions(allCompletedList);
-
-//       // Save to Local Cache
-//       sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-//         projectsData: fetchedProjects,
-//         totalActiveProjectsCount: activeCount,
-//         pendingTasks: allPending,
-//         allCompletions: allCompletedList,
-//         timestamp: new Date().getTime()
-//       }));
-
-//     } catch (err) {
-//       console.error("Dashboard Fetch Error", err);
-//     } finally {
-//       if (!isSilent) setLoading(false);
-//     }
-//   }, [currentUserId, CACHE_KEY]);
-
-//   useEffect(() => {
-//     const cachedData = sessionStorage.getItem(CACHE_KEY);
-//     if (cachedData) {
-//       try {
-//         const parsed = JSON.parse(cachedData);
-//         setProjectsData(parsed.projectsData || []);
-//         setTotalActiveProjectsCount(parsed.totalActiveProjectsCount || 0);
-//         setPendingTasks(parsed.pendingTasks || []);
-//         setAllCompletions(parsed.allCompletions || []);
-//         setLoading(false);
-//         fetchDashboardData(true);
-//       } catch (e) {
-//         fetchDashboardData();
-//       }
-//     } else {
-//       fetchDashboardData();
-//     }
-//   }, [fetchDashboardData, CACHE_KEY]);
+//   // Total active derived directly from context projects
+//   const totalActiveProjectsCount = useMemo(() => {
+//     return projects.filter(p => p.status !== "Closed").length;
+//   }, [projects]);
 
 //   // ── Kanban Action ────────────────────────────────────────────────────────────
 //   const handleOpenKanban = useCallback((pId) => {
 //     setOpeningKanbanId(pId);
-//     const targetProject = projectsData.find(p => p._id === pId);
+//     const targetProject = projects.find(p => p._id === pId);
 
 //     setTimeout(() => {
 //       if (targetProject) {
@@ -428,31 +376,17 @@
 //       }
 //       setOpeningKanbanId(null);
 //     }, 450);
-//   }, [projectsData]);
+//   }, [projects]);
 
 //   // ── Process Task Action ───────────────────────────────────────────────────────
 //   const handleCompleteTask = async (taskId, projectId) => {
 //     setCompletingTaskId(taskId);
-//     try {
-//       const token = localStorage.getItem("token");
-//       await axios.post(`${API_BASE}/api/tasks/${projectId}/${taskId}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
-//       await fetchDashboardData(true);
-//     } catch (error) {
-//       console.error("Failed to complete task", error);
-//     } finally {
-//       setCompletingTaskId(null);
-//     }
+//     await completeTask(taskId, projectId); // Calling context method
+//     setCompletingTaskId(null);
 //   };
 
 //   const handleQuickAddSuccess = (newTask, projectId) => {
-//     const project = projectsData.find(p => p._id === projectId);
-//     const mappedTask = { ...newTask, _projectId: projectId, _projectName: project?.projectName };
-
-//     setPendingTasks(prev => {
-//       const arr = [...prev, mappedTask];
-//       return arr.sort((a, b) => new Date(a.deadline || '2099-01-01') - new Date(b.deadline || '2099-01-01'));
-//     });
-//     fetchDashboardData(true);
+//     addTaskToState(newTask, projectId); // Calling context method
 //   };
 
 //   // ── Global Filter Logic ──────────────────────────────────────────────────────
@@ -483,7 +417,7 @@
 //   }, [globalTimeFilter, globalCustomDates]);
 
 //   const globallyFilteredCompletions = useMemo(() => {
-//     let list = allCompletions;
+//     let list = completions;
 //     if (globalProjectFilter !== "All") list = list.filter(c => c._projectId === globalProjectFilter);
 //     list = list.filter(c => isDateInRange(c.completedAt));
 //     if (completedSearchQuery.trim()) {
@@ -491,7 +425,7 @@
 //       list = list.filter(c => (c.taskTitle || c.title || "").toLowerCase().includes(query));
 //     }
 //     return list;
-//   }, [allCompletions, globalProjectFilter, isDateInRange, completedSearchQuery]);
+//   }, [completions, globalProjectFilter, isDateInRange, completedSearchQuery]);
 
 //   const globallyFilteredPending = useMemo(() => {
 //     let list = pendingTasks;
@@ -517,7 +451,7 @@
 
 //   // ── Chart Data Calculations ──────────────────────────────────────────────────
 //   const projectBarData = useMemo(() => {
-//     const targetProjects = globalProjectFilter === "All" ? projectsData : projectsData.filter(p => p._id === globalProjectFilter);
+//     const targetProjects = globalProjectFilter === "All" ? projects : projects.filter(p => p._id === globalProjectFilter);
 //     return targetProjects.map(p => ({
 //       name: p.projectName,
 //       Completed: globallyFilteredCompletions.filter(c => c._projectId === p._id).length,
@@ -525,7 +459,7 @@
 //     })).filter(p => p.Completed > 0 || p.Pending > 0)
 //       .sort((a, b) => (b.Completed + b.Pending) - (a.Completed + a.Pending))
 //       .slice(0, 10);
-//   }, [projectsData, globallyFilteredCompletions, globallyFilteredPending, globalProjectFilter]);
+//   }, [projects, globallyFilteredCompletions, globallyFilteredPending, globalProjectFilter]);
 
 //   const priorityBarData = useMemo(() => {
 //     const priorities = ["Critical", "High", "Medium", "Low"];
@@ -556,6 +490,7 @@
 //     }
 //   };
 
+//   // Replace old local skeleton loader variable with context loading state
 //   if (loading) return <SkeletonDashboard />;
 
 //   return (
@@ -608,7 +543,7 @@
 //               className="bg-transparent border-none text-[11px] montserrat-bold text-[#1F2328] outline-none cursor-pointer py-1 max-w-[180px]"
 //             >
 //               <option value="All" className="bg-[#F0F4F8]">All Projects</option>
-//               {projectsData.map(p => <option key={p._id} value={p._id} className="bg-[#F0F4F8]">{p.projectName}</option>)}
+//               {projects.map(p => <option key={p._id} value={p._id} className="bg-[#F0F4F8]">{p.projectName}</option>)}
 //             </select>
 //           </div>
 //         </div>
@@ -617,7 +552,7 @@
 //       <AddTaskModal
 //         open={addTaskModalOpen}
 //         onClose={() => setAddTaskModalOpen(false)}
-//         projects={projectsData.filter(p => p.status !== "Closed")}
+//         projects={projects.filter(p => p.status !== "Closed")}
 //         onSuccess={handleQuickAddSuccess}
 //         currentUserId={currentUserId}
 //         currentUsername={username}
@@ -783,7 +718,7 @@
 //                       <div className="min-w-0 flex-1">
 //                         <p className="text-xs montserrat-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
 //                         <p className="text-[9px] text-[#656D76] mt-1 uppercase tracking-wider montserrat-bold truncate">
-//                           {projectsData.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
+//                           {projects.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
 //                         </p>
 //                         <div className="flex gap-4 items-center mt-2.5 text-[10px] text-[#656D76] montserrat-medium">
 //                           <span className="flex items-center"><ClockIcon className="w-3 h-3 mr-1" />{format(new Date(task.completedAt), "MMM d")}</span>
@@ -905,7 +840,7 @@
 //                   <Box className="neu-pressed p-4 rounded-md">
 //                     <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Project Space</Typography>
 //                     <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#0969DA' }}>
-//                       {projectsData.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
+//                       {projects.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
 //                     </Typography>
 //                   </Box>
 //                   <Box className="neu-pressed p-4 rounded-md">
@@ -967,7 +902,7 @@
 //             onClose={() => {
 //               setKanbanOpen(false);
 //               setKanbanProject(null);
-//               fetchDashboardData(true);
+//               refreshData(true); // <-- Now calling the context refresh when closing Kanban
 //             }}
 //             project={kanbanProject}
 //           />
@@ -1053,17 +988,31 @@
 //           vertical-align: middle;
 //         }
 
-//         @keyframes pulse-skeleton {
-//           0%, 100% { opacity: 0.4; }
-//           50% { opacity: 0.7; }
+//         /* Advanced Shimmer Effect */
+//         @keyframes shimmer {
+//           0% { transform: translateX(-100%); }
+//           100% { transform: translateX(100%); }
 //         }
-//         .skeleton-pulse {
-//           animation: pulse-skeleton 1.6s ease-in-out infinite;
+//         .skeleton-shimmer {
+//           background: linear-gradient(
+//             90deg, 
+//             transparent 0%, 
+//             rgba(255, 255, 255, 0.4) 50%, 
+//             transparent 100%
+//           );
+//           animation: shimmer 1.8s infinite linear;
 //         }
 //       `}</style>
 //     </div>
 //   );
 // }
+
+
+
+
+
+
+
 
 
 
@@ -1100,7 +1049,7 @@ import {
   Box,
 } from "@mui/material";
 import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   BarChart,
   Bar,
@@ -1118,11 +1067,100 @@ import {
   isThisWeek, isThisMonth, subMonths, subDays, isWithinInterval,
   startOfDay, endOfDay
 } from "date-fns";
+import { useTasks } from "../TaskContext";
 
-// Lazy load the Kanban Board component to optimize initial asset delivery
+// Lazy load the Kanban Board component
 const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+
+// ── Global CSS Component (FIX FOR SKELETON LOADER) ─────────────────────────
+const NeumorphismStyles = () => (
+  <style>{`
+    :root {
+      --neu-bg: #F0F4F8; /* Professional light neutral */
+      --neu-light: #FFFFFF;
+      --neu-dark: #D1DCEB; /* Soft clear shadow */
+    }
+
+    .neu-base { background-color: var(--neu-bg); }
+
+    .neu-flat {
+      background-color: var(--neu-bg);
+      box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
+    }
+
+    .neu-flat-sm {
+      background-color: var(--neu-bg);
+      box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+    }
+
+    .neu-pressed {
+      background-color: var(--neu-bg);
+      box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
+    }
+
+    .neu-pressed-sm {
+      background-color: var(--neu-bg);
+      box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
+    }
+
+    .neu-btn-primary {
+      background-color: #0969DA;
+      box-shadow: 2px 2px 6px rgba(9, 105, 218, 0.3);
+      border: none;
+    }
+
+    .neu-btn-primary:active {
+      box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    .neu-action-btn:active {
+      box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
+        -webkit-text-fill-color: #1F2328 !important;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    
+    .skeleton-shimmer {
+      background: linear-gradient(
+        90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.4) 50%, 
+        transparent 100%
+      );
+      animation: shimmer 1.8s infinite linear;
+    }
+  `}</style>
+);
 
 // ── Framer Motion Variants ───────────────────────────────────────────────────
 const containerVariants = {
@@ -1147,7 +1185,8 @@ const Skeleton = ({ width = "100%", height = "20px", rounded = "rounded-md", cla
 // ── Advanced Neumorphic Skeleton Loader ──────────────────────────────────────
 const SkeletonDashboard = () => (
   <div className="min-h-screen neu-base flex flex-col montserrat-regular pb-12 overflow-hidden">
-    {/* Navbar Skeleton */}
+    <NeumorphismStyles /> {/* Added missing CSS specifically for the loader */}
+    
     <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
       <div className="flex items-center gap-3 w-full sm:w-auto">
         <Skeleton width="40px" height="40px" rounded="rounded-full" className="shrink-0" />
@@ -1163,7 +1202,6 @@ const SkeletonDashboard = () => (
     </nav>
 
     <div className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
-      {/* Metrics Grid Skeleton */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map(i => (
           <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
@@ -1177,7 +1215,6 @@ const SkeletonDashboard = () => (
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Main Task Board Skeleton */}
         <div className="xl:col-span-2 neu-flat rounded-lg p-2 flex flex-col">
           <div className="px-5 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="space-y-2 w-full sm:w-1/3">
@@ -1211,7 +1248,6 @@ const SkeletonDashboard = () => (
           </div>
         </div>
 
-        {/* Sidebar History Skeleton */}
         <div className="neu-flat rounded-lg p-2 flex flex-col">
           <div className="px-5 py-6 space-y-4">
             <Skeleton width="140px" height="14px" />
@@ -1231,7 +1267,6 @@ const SkeletonDashboard = () => (
         </div>
       </div>
 
-      {/* Chart Row Skeleton */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {[1, 2].map(i => (
           <div key={i} className="neu-flat rounded-lg p-6 space-y-6">
@@ -1406,7 +1441,9 @@ const AddTaskModal = ({ open, onClose, projects, onSuccess, currentUserId, curre
 export default function Home() {
   const currentUserId = localStorage.getItem("userId");
   const username = localStorage.getItem("username") || "Developer";
-  const CACHE_KEY = `dev_dash_cache_${currentUserId}`;
+
+  // Use Global Context
+  const { projects, pendingTasks, completions, loading, completeTask, addTaskToState, refreshData } = useTasks();
 
   // Global Filter States
   const [globalTimeFilter, setGlobalTimeFilter] = useState("Last 2 Weeks");
@@ -1417,14 +1454,7 @@ export default function Home() {
   const [pendingSearchQuery, setPendingSearchQuery] = useState("");
   const [completedSearchQuery, setCompletedSearchQuery] = useState("");
 
-  // Core Data States
-  const [totalActiveProjectsCount, setTotalActiveProjectsCount] = useState(0);
-  const [projectsData, setProjectsData] = useState([]);
-  const [pendingTasks, setPendingTasks] = useState([]);
-  const [allCompletions, setAllCompletions] = useState([]);
-
   // UI & Pagination States
-  const [loading, setLoading] = useState(true);
   const [completingTaskId, setCompletingTaskId] = useState(null);
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
   const [completedVisibleCount, setCompletedVisibleCount] = useState(10);
@@ -1444,87 +1474,14 @@ export default function Home() {
     setCompletedVisibleCount(10);
   }, [globalTimeFilter, globalProjectFilter, globalCustomDates]);
 
-  // ── Data Fetching & Local Storage Caching ────────────────────────────────────
-  const fetchDashboardData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-
-      const [dashRes, totalRes] = await Promise.allSettled([
-        axios.get(`${API_BASE}/api/reports/dashboard`, authHeader),
-        axios.get(`${API_BASE}/api/newproject/projects/total-active`, authHeader)
-      ]);
-
-      let fetchedProjects = [];
-      let allPending = [];
-      let allCompletedList = [];
-      let activeCount = totalRes.status === "fulfilled" ? totalRes.value.data.length : 0;
-
-      if (dashRes.status === "fulfilled") {
-        const { projects, tasks, completions } = dashRes.value.data;
-        fetchedProjects = projects || [];
-
-        // Map Pending Tasks
-        allPending = (tasks || [])
-          .filter(t => t.status !== "Done" && t.assignedTo?.id?.toString() === currentUserId?.toString())
-          .map(t => ({ ...t, _projectId: t.projectId, _projectName: t.projectName }));
-
-        // Map Completions
-        allCompletedList = (completions || [])
-          .filter(c => c.completedBy?.id?.toString() === currentUserId?.toString())
-          .map(c => ({ ...c, _projectId: c.projectId }));
-
-        // Sort Data
-        allPending.sort((a, b) => new Date(a.deadline || '2099-01-01') - new Date(b.deadline || '2099-01-01'));
-        allCompletedList.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-      }
-
-      setProjectsData(fetchedProjects);
-      setTotalActiveProjectsCount(activeCount);
-      setPendingTasks(allPending);
-      setAllCompletions(allCompletedList);
-
-      // Save to Local Cache
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-        projectsData: fetchedProjects,
-        totalActiveProjectsCount: activeCount,
-        pendingTasks: allPending,
-        allCompletions: allCompletedList,
-        timestamp: new Date().getTime()
-      }));
-
-    } catch (err) {
-      console.error("Dashboard Fetch Error", err);
-    } finally {
-      if (!isSilent) setLoading(false);
-    }
-  }, [currentUserId, CACHE_KEY]);
-
-  useEffect(() => {
-    const cachedData = sessionStorage.getItem(CACHE_KEY);
-    if (cachedData) {
-      try {
-        const parsed = JSON.parse(cachedData);
-        setProjectsData(parsed.projectsData || []);
-        setTotalActiveProjectsCount(parsed.totalActiveProjectsCount || 0);
-        setPendingTasks(parsed.pendingTasks || []);
-        setAllCompletions(parsed.allCompletions || []);
-        setLoading(false);
-        fetchDashboardData(true);
-      } catch (e) {
-        fetchDashboardData();
-      }
-    } else {
-      fetchDashboardData();
-    }
-  }, [fetchDashboardData, CACHE_KEY]);
+  const totalActiveProjectsCount = useMemo(() => {
+    return projects.filter(p => p.status !== "Closed").length;
+  }, [projects]);
 
   // ── Kanban Action ────────────────────────────────────────────────────────────
   const handleOpenKanban = useCallback((pId) => {
     setOpeningKanbanId(pId);
-    const targetProject = projectsData.find(p => p._id === pId);
+    const targetProject = projects.find(p => p._id === pId);
 
     setTimeout(() => {
       if (targetProject) {
@@ -1533,31 +1490,17 @@ export default function Home() {
       }
       setOpeningKanbanId(null);
     }, 450);
-  }, [projectsData]);
+  }, [projects]);
 
   // ── Process Task Action ───────────────────────────────────────────────────────
   const handleCompleteTask = async (taskId, projectId) => {
     setCompletingTaskId(taskId);
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(`${API_BASE}/api/tasks/${projectId}/${taskId}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      await fetchDashboardData(true);
-    } catch (error) {
-      console.error("Failed to complete task", error);
-    } finally {
-      setCompletingTaskId(null);
-    }
+    await completeTask(taskId, projectId); 
+    setCompletingTaskId(null);
   };
 
   const handleQuickAddSuccess = (newTask, projectId) => {
-    const project = projectsData.find(p => p._id === projectId);
-    const mappedTask = { ...newTask, _projectId: projectId, _projectName: project?.projectName };
-
-    setPendingTasks(prev => {
-      const arr = [...prev, mappedTask];
-      return arr.sort((a, b) => new Date(a.deadline || '2099-01-01') - new Date(b.deadline || '2099-01-01'));
-    });
-    fetchDashboardData(true);
+    addTaskToState(newTask, projectId); 
   };
 
   // ── Global Filter Logic ──────────────────────────────────────────────────────
@@ -1588,7 +1531,7 @@ export default function Home() {
   }, [globalTimeFilter, globalCustomDates]);
 
   const globallyFilteredCompletions = useMemo(() => {
-    let list = allCompletions;
+    let list = completions;
     if (globalProjectFilter !== "All") list = list.filter(c => c._projectId === globalProjectFilter);
     list = list.filter(c => isDateInRange(c.completedAt));
     if (completedSearchQuery.trim()) {
@@ -1596,7 +1539,7 @@ export default function Home() {
       list = list.filter(c => (c.taskTitle || c.title || "").toLowerCase().includes(query));
     }
     return list;
-  }, [allCompletions, globalProjectFilter, isDateInRange, completedSearchQuery]);
+  }, [completions, globalProjectFilter, isDateInRange, completedSearchQuery]);
 
   const globallyFilteredPending = useMemo(() => {
     let list = pendingTasks;
@@ -1622,7 +1565,7 @@ export default function Home() {
 
   // ── Chart Data Calculations ──────────────────────────────────────────────────
   const projectBarData = useMemo(() => {
-    const targetProjects = globalProjectFilter === "All" ? projectsData : projectsData.filter(p => p._id === globalProjectFilter);
+    const targetProjects = globalProjectFilter === "All" ? projects : projects.filter(p => p._id === globalProjectFilter);
     return targetProjects.map(p => ({
       name: p.projectName,
       Completed: globallyFilteredCompletions.filter(c => c._projectId === p._id).length,
@@ -1630,7 +1573,7 @@ export default function Home() {
     })).filter(p => p.Completed > 0 || p.Pending > 0)
       .sort((a, b) => (b.Completed + b.Pending) - (a.Completed + a.Pending))
       .slice(0, 10);
-  }, [projectsData, globallyFilteredCompletions, globallyFilteredPending, globalProjectFilter]);
+  }, [projects, globallyFilteredCompletions, globallyFilteredPending, globalProjectFilter]);
 
   const priorityBarData = useMemo(() => {
     const priorities = ["Critical", "High", "Medium", "Low"];
@@ -1661,10 +1604,12 @@ export default function Home() {
     }
   };
 
+  // The Skeleton loader now displays beautifully
   if (loading) return <SkeletonDashboard />;
 
   return (
     <div className="neu-base min-h-screen montserrat-regular antialiased text-[#1F2328] pb-12 flex flex-col relative">
+      <NeumorphismStyles /> {/* Re-injected CSS for main page render */}
 
       {/* ── Global Top Navbar ── */}
       <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
@@ -1713,7 +1658,7 @@ export default function Home() {
               className="bg-transparent border-none text-[11px] montserrat-bold text-[#1F2328] outline-none cursor-pointer py-1 max-w-[180px]"
             >
               <option value="All" className="bg-[#F0F4F8]">All Projects</option>
-              {projectsData.map(p => <option key={p._id} value={p._id} className="bg-[#F0F4F8]">{p.projectName}</option>)}
+              {projects.map(p => <option key={p._id} value={p._id} className="bg-[#F0F4F8]">{p.projectName}</option>)}
             </select>
           </div>
         </div>
@@ -1722,7 +1667,7 @@ export default function Home() {
       <AddTaskModal
         open={addTaskModalOpen}
         onClose={() => setAddTaskModalOpen(false)}
-        projects={projectsData.filter(p => p.status !== "Closed")}
+        projects={projects.filter(p => p.status !== "Closed")}
         onSuccess={handleQuickAddSuccess}
         currentUserId={currentUserId}
         currentUsername={username}
@@ -1888,7 +1833,7 @@ export default function Home() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs montserrat-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
                         <p className="text-[9px] text-[#656D76] mt-1 uppercase tracking-wider montserrat-bold truncate">
-                          {projectsData.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
+                          {projects.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
                         </p>
                         <div className="flex gap-4 items-center mt-2.5 text-[10px] text-[#656D76] montserrat-medium">
                           <span className="flex items-center"><ClockIcon className="w-3 h-3 mr-1" />{format(new Date(task.completedAt), "MMM d")}</span>
@@ -2010,7 +1955,7 @@ export default function Home() {
                   <Box className="neu-pressed p-4 rounded-md">
                     <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Project Space</Typography>
                     <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#0969DA' }}>
-                      {projectsData.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
+                      {projects.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
                     </Typography>
                   </Box>
                   <Box className="neu-pressed p-4 rounded-md">
@@ -2072,107 +2017,12 @@ export default function Home() {
             onClose={() => {
               setKanbanOpen(false);
               setKanbanProject(null);
-              fetchDashboardData(true);
+              refreshData(true); // <-- Now calling the context refresh when closing Kanban
             }}
             project={kanbanProject}
           />
         </Suspense>
       )}
-
-      {/* Global Neumorphism CSS & Scrollbar Styles */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; /* Professional light neutral */
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB; /* Soft clear shadow */
-        }
-
-        .neu-base {
-          background-color: var(--neu-bg);
-        }
-
-        /* Subtle, structural drop shadows rather than floaty bubbles */
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-
-        /* Soft debossing */
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-
-        /* Primary standard-looking button (no weird floating color glow) */
-        .neu-btn-primary {
-          background-color: #0969DA;
-          box-shadow: 2px 2px 6px rgba(9, 105, 218, 0.3);
-          border: none;
-        }
-
-        .neu-btn-primary:active {
-          box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15);
-        }
-
-        .neu-action-btn:active {
-          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
-        }
-
-        /* Prevent auto-fill background from overriding transparency */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active{
-            -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-            -webkit-text-fill-color: #1F2328 !important;
-        }
-
-        /* Scoped Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .btn-spinner {
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          border: 2px solid currentColor;
-          border-right-color: transparent;
-          border-radius: 50%;
-          animation: spin 0.75s linear infinite;
-          vertical-align: middle;
-        }
-
-        /* Advanced Shimmer Effect */
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .skeleton-shimmer {
-          background: linear-gradient(
-            90deg, 
-            transparent 0%, 
-            rgba(255, 255, 255, 0.4) 50%, 
-            transparent 100%
-          );
-          animation: shimmer 1.8s infinite linear;
-        }
-      `}</style>
     </div>
   );
 }
