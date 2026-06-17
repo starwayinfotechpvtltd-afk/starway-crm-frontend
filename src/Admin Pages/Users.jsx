@@ -11,6 +11,17 @@ import {
   FilterList,
 } from "@mui/icons-material";
 
+// Color generator for fallback avatars
+const DEV_PALETTE = [
+  "#0969DA", "#1A7F37", "#BF8700", "#D1242F", "#8b5cf6", "#06b6d4", "#ec4899", "#1F2328"
+];
+const stringToColor = (s) => {
+  if (!s) return DEV_PALETTE[0];
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+  return DEV_PALETTE[Math.abs(h) % DEV_PALETTE.length];
+};
+
 export default function UserTable() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -31,6 +42,11 @@ export default function UserTable() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  
+  // Profile Picture Viewing State
+  const [viewAvatarUser, setViewAvatarUser] = useState(null);
+
+  // Leave states
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [leaveBalance, setLeaveBalance] = useState(0);
@@ -137,13 +153,6 @@ export default function UserTable() {
       user.username.toLowerCase().includes(search.toLowerCase()) &&
       (roleFilter ? user.role === roleFilter : true)
   );
-
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
 
   const fetchLeaveHistory = async (userId) => {
     try {
@@ -254,9 +263,27 @@ export default function UserTable() {
 
   const renderMobileCard = (user, index) => (
     <div key={user._id} className="neu-flat rounded-lg p-5 mb-5 flex flex-col gap-4">
-      <div>
-        <h3 className="text-xl font-bold text-[#1F2328] mb-1">{user.username}</h3>
-        <p className="text-sm font-medium text-[#656D76]">{user.email}</p>
+      <div className="flex items-center gap-3">
+        {user.avatar ? (
+          <img 
+            src={user.avatar} 
+            alt={user.username} 
+            onClick={() => setViewAvatarUser(user)}
+            className="w-12 h-12 rounded-full object-cover neu-flat shadow-sm cursor-pointer hover:scale-105 transition-transform" 
+          />
+        ) : (
+          <div 
+            onClick={() => setViewAvatarUser(user)}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl neu-flat shadow-sm cursor-pointer hover:scale-105 transition-transform" 
+            style={{ background: stringToColor(user.username) }}
+          >
+            {user.username?.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div>
+          <h3 className="text-xl font-bold text-[#1F2328] mb-0.5 leading-tight">{user.username}</h3>
+          <p className="text-sm font-medium text-[#656D76]">{user.email}</p>
+        </div>
       </div>
       
       <div className="grid grid-cols-2 gap-4 text-sm font-medium text-[#1F2328]">
@@ -310,10 +337,10 @@ export default function UserTable() {
 
   return (
     <div className="w-full min-h-screen neu-base p-4 sm:p-6 md:p-8 montserrat-regular text-[#1F2328]">
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+      <div className="flex flex-col gap-6 w-full mx-auto"> {/* Changed to Full Width */}
         
         {/* Filters Section */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-end relative z-10">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-end relative z-10 w-full">
           <div className="w-full sm:flex-1">
             <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Search Users</label>
             <div className="flex items-center neu-pressed rounded-md px-3 py-2.5 relative z-10">
@@ -348,7 +375,7 @@ export default function UserTable() {
 
         {/* Data Display */}
         {isMobile ? (
-          <div>
+          <div className="w-full">
             {filteredUsers.map((user, index) => renderMobileCard(user, index))}
           </div>
         ) : (
@@ -357,8 +384,8 @@ export default function UserTable() {
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">#</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Username</th>
+                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 w-12">#</th>
+                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 min-w-[200px]">Username</th>
                     <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Email</th>
                     <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Role</th>
                     {!isTablet && <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Joining Date</th>}
@@ -371,15 +398,33 @@ export default function UserTable() {
                     <tr key={user._id} className="border-b border-[#D1DCEB]/30 last:border-0 hover:bg-[#D1DCEB]/10 transition-colors">
                       <td className="p-4 text-sm font-medium text-[#656D76]">{index + 1}</td>
                       <td className="p-4">
-                        {editMode === user._id ? (
-                          <input
-                            className="w-full neu-pressed rounded-md p-2 text-sm font-medium text-[#1F2328] outline-none relative z-20 cursor-text"
-                            value={editData.username}
-                            onChange={(e) => setEditData({ ...editData, username: e.target.value })}
-                          />
-                        ) : (
-                          <span className="text-sm font-medium text-[#1F2328]">{user.username}</span>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {user.avatar ? (
+                            <img 
+                              src={user.avatar} 
+                              alt={user.username} 
+                              onClick={() => setViewAvatarUser(user)}
+                              className="w-12 h-12 rounded-full object-cover neu-flat-sm cursor-pointer hover:scale-110 transition-transform" 
+                            />
+                          ) : (
+                            <div 
+                              onClick={() => setViewAvatarUser(user)}
+                              className="w-56 h-56 rounded-full flex items-center justify-center text-white font-bold text-sm neu-flat-sm cursor-pointer hover:scale-110 transition-transform" 
+                              style={{ background: stringToColor(user.username) }}
+                            >
+                              {user.username?.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          {editMode === user._id ? (
+                            <input
+                              className="w-full neu-pressed rounded-md p-2 text-sm font-medium text-[#1F2328] outline-none relative z-20 cursor-text"
+                              value={editData.username}
+                              onChange={(e) => setEditData({ ...editData, username: e.target.value })}
+                            />
+                          ) : (
+                            <span className="text-sm font-bold text-[#1F2328]">{user.username}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         {editMode === user._id ? (
@@ -406,7 +451,7 @@ export default function UserTable() {
                             <option value="manager">Team Manager</option>
                           </select>
                         ) : (
-                          <span className="neu-pressed-sm rounded-md px-2 py-1 text-sm font-medium text-[#1F2328] capitalize">{user.role}</span>
+                          <span className="neu-pressed-sm rounded-md px-2 py-1 text-xs font-bold text-[#1F2328] capitalize">{user.role}</span>
                         )}
                       </td>
                       {!isTablet && (
@@ -475,6 +520,37 @@ export default function UserTable() {
           </div>
         )}
       </div>
+
+      {/* ── 56x56 Profile Viewer Modal ── */}
+      {viewAvatarUser && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-[#F0F4F8]/80 backdrop-blur-sm p-4" onClick={() => setViewAvatarUser(null)}>
+          <div className="neu-flat rounded-2xl p-6 w-full max-w-[340px] flex flex-col items-center justify-center gap-4 relative z-[60]" onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setViewAvatarUser(null)} className="absolute top-3 left-0 neu-flat-sm neu-action-btn rounded-full p-1 text-[#656D76] hover:text-[#D1242F]">
+              <Close fontSize="small" className="pointer-events-none" />
+            </button>
+            <div className="mt-3">
+              {viewAvatarUser.avatar ? (
+                <img 
+                  src={viewAvatarUser.avatar} 
+                  alt="pfp" 
+                  className="w-56 h-56 rounded-full object-cover neu-flat shadow-sm" 
+                />
+              ) : (
+                <div 
+                  className="w-56 h-56 rounded-full flex items-center justify-center text-white font-bold text-2xl neu-flat shadow-sm" 
+                  style={{ background: stringToColor(viewAvatarUser.username) }}
+                >
+                  {viewAvatarUser.username?.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="text-center">
+              <p className="text-base font-bold text-[#1F2328] mb-0.5">{viewAvatarUser.username}</p>
+              <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider">{viewAvatarUser.role}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {open && (

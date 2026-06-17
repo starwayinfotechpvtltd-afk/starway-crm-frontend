@@ -71,6 +71,27 @@ const stringToColor = (s) => {
   return DEV_PALETTE[Math.abs(h) % DEV_PALETTE.length];
 };
 
+// ── Date Helpers for Modal ─────────────────────────────────────────────────────
+const isToday = (dateString) => {
+  if (!dateString) return false;
+  const d = new Date(dateString);
+  const today = new Date();
+  return d.getDate() === today.getDate() && 
+         d.getMonth() === today.getMonth() && 
+         d.getFullYear() === today.getFullYear();
+};
+
+const isThisWeek = (dateString) => {
+  if (!dateString) return false;
+  const d = new Date(dateString);
+  const now = new Date();
+  // Get Monday of the current week
+  const day = now.getDay() || 7; 
+  if (day !== 1) now.setHours(-24 * (day - 1));
+  now.setHours(0,0,0,0);
+  return d >= now && d <= new Date();
+};
+
 // ── Shared components ──────────────────────────────────────────────────────────
 const Badge = ({ label, color }) => (
   <span
@@ -162,6 +183,34 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ── CUSTOM RECHARTS X-AXIS TICK WITH AVATAR ──
+const CustomXAxisTick = ({ x, y, payload, devMap, onUserClick }) => {
+  const username = payload.value;
+  const avatarUrl = devMap[username];
+  const IMG_SIZE = 40; // Increased size to make it bigger and sharper
+  
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {avatarUrl ? (
+        <foreignObject x={-(IMG_SIZE/2)} y={4} width={IMG_SIZE} height={IMG_SIZE} style={{ cursor: 'pointer', overflow: 'visible' }} onClick={(e) => { e.stopPropagation(); onUserClick(username); }}>
+          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%' }}>
+            <img src={avatarUrl} alt={username} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', imageRendering: 'high-quality', boxShadow: '3px 3px 6px #D1DCEB, -3px -3px 6px #FFFFFF' }} />
+          </div>
+        </foreignObject>
+      ) : (
+        <foreignObject x={-(IMG_SIZE/2)} y={4} width={IMG_SIZE} height={IMG_SIZE} style={{ cursor: 'pointer', overflow: 'visible' }} onClick={(e) => { e.stopPropagation(); onUserClick(username); }}>
+          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', backgroundColor: stringToColor(username), color: 'white', fontSize: '16px', fontWeight: 'bold', boxShadow: '3px 3px 6px #D1DCEB, -3px -3px 6px #FFFFFF' }}>
+            {username.charAt(0).toUpperCase()}
+          </div>
+        </foreignObject>
+      )}
+      <text x={0} y={IMG_SIZE + 16} dy={0} textAnchor="middle" fill="#656D76" fontSize={10} fontWeight={700} style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onUserClick(username); }}>
+        {username}
+      </text>
+    </g>
+  );
+};
+
 const EmptyState = ({ message }) => (
   <div className="flex flex-col items-center justify-center py-12 text-[#656D76]">
     <div className="neu-pressed-sm p-4 rounded-full mb-3">
@@ -172,7 +221,7 @@ const EmptyState = ({ message }) => (
 );
 
 // ── Completed/Pending split list ───────────────────────────────────────────────
-function SplitTaskList({ tasks, onTaskClick, datePreset }) {
+function SplitTaskList({ tasks, onTaskClick, onUserClick, datePreset }) {
   const [pendingPage, setPendingPage]     = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
   const PAGE = 8;
@@ -241,10 +290,14 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
                 </div>
                 <div className="flex items-center justify-between pt-2 mt-0.5 border-t border-[#D1DCEB]/50 relative z-10">
                   <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0 shadow-sm" style={{backgroundColor: stringToColor(t.assignedTo?.username)}}>
-                      {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                    <span className="text-[10px] font-bold text-[#656D76]">{t.assignedTo?.username || "Unassigned"}</span>
+                    {t.assignedTo?.avatar ? (
+                      <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm cursor-pointer hover:scale-105 transition-transform" />
+                    ) : (
+                      <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(t.assignedTo?.username)}}>
+                        {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="text-[10px] font-bold text-[#656D76] cursor-pointer hover:text-[#0969DA] transition-colors">{t.assignedTo?.username || "Unassigned"}</span>
                   </div>
                   <div className="flex items-center gap-2 text-[#656D76]">
                     {(t.comments?.length > 0) && <span className="flex items-center gap-1 text-[9px] font-bold"><MessageSquare size={10}/> {t.comments.length}</span>}
@@ -286,10 +339,14 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
               </div>
               <div className="flex items-center justify-between pt-2 mt-0.5 border-t border-[#D1DCEB]/50 relative z-10">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0 shadow-sm bg-[#1A7F37]">
-                    {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-                  </div>
-                  <span className="text-[10px] font-bold text-[#1A7F37]">{t.assignedTo?.username || "Unassigned"}</span>
+                  {t.assignedTo?.avatar ? (
+                    <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm grayscale group-hover:grayscale-0 transition-all cursor-pointer hover:scale-105" />
+                  ) : (
+                    <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm bg-[#1A7F37] cursor-pointer hover:scale-105 transition-transform">
+                      {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="text-[10px] font-bold text-[#1A7F37] cursor-pointer hover:underline">{t.assignedTo?.username || "Unassigned"}</span>
                 </div>
                 {t.completedAt && <span className="text-[8px] font-bold text-[#656D76] uppercase tracking-wider">{fnsFormat(new Date(t.completedAt), "MMM d, yyyy")}</span>}
               </div>
@@ -303,7 +360,7 @@ function SplitTaskList({ tasks, onTaskClick, datePreset }) {
 }
 
 // ── Overdue Task List ─────────────────────────────────────────────────────────
-function OverdueTaskList({ tasks, onTaskClick }) {
+function OverdueTaskList({ tasks, onTaskClick, onUserClick }) {
   const overdue = useMemo(
     () => tasks.filter(t => checkIsOverdue(t.deadline, t.status)).sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
     [tasks]
@@ -343,8 +400,14 @@ function OverdueTaskList({ tasks, onTaskClick }) {
                 </div>
                 <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#D1242F] transition-colors truncate mb-1">{t.title}</p>
                 <div className="flex items-center gap-1.5">
-                  <User size={10} className="text-[#656D76]"/>
-                  <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{t.assignedTo?.username || "Unassigned"}</span>
+                  {t.assignedTo?.avatar ? (
+                    <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-7 h-7 rounded-full object-cover shrink-0 neu-pressed-sm cursor-pointer hover:scale-105 transition-transform" />
+                  ) : (
+                    <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(t.assignedTo?.username)}}>
+                      {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider cursor-pointer hover:text-[#0969DA] transition-colors">{t.assignedTo?.username || "Unassigned"}</span>
                 </div>
               </div>
               <div className="text-[10px] font-bold text-[#D1242F] shrink-0 flex items-center gap-1.5 relative z-10 neu-pressed-sm p-2 rounded-md border border-[#D1242F]/20">
@@ -378,6 +441,9 @@ export default function DeveloperReports() {
   const [customTo,         setCustomTo]         = useState("");
   const [activeTab,        setActiveTab]        = useState("tasks");
   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
+  
+  // New State for User Details Modal
+  const [selectedUserStats, setSelectedUserStats] = useState(null);
 
   const fetchReportData = useCallback(async (preset, cFrom, cTo, isSilent = false) => {
     const presetObj = DATE_PRESETS.find(d => d.label === preset);
@@ -430,6 +496,25 @@ export default function DeveloperReports() {
   useEffect(() => {
     fetchReportData(datePreset, customFrom, customTo);
   }, [datePreset, customFrom, customTo, fetchReportData]);
+
+  // Extract Avatars Mapping globally to easily pass to charts
+  const devMap = useMemo(() => {
+    const map = {};
+    allTasks.forEach(t => {
+      if (t.assignedTo?.username && t.assignedTo?.avatar) {
+        map[t.assignedTo.username] = t.assignedTo.avatar;
+      }
+      if (t.createdBy?.username && t.createdBy?.avatar) {
+        map[t.createdBy.username] = t.createdBy.avatar;
+      }
+    });
+    completions.forEach(c => {
+      if (c.completedBy?.username && c.completedBy?.avatar) {
+        map[c.completedBy.username] = c.completedBy.avatar;
+      }
+    });
+    return map;
+  }, [allTasks, completions]);
 
   const handleTaskClick = async (task) => {
     setSelectedTaskDetails({ ...task, commentsLoading: true });
@@ -583,6 +668,34 @@ export default function DeveloperReports() {
     });
   }, [developers, allTasks, selectedProject, fromDate, toDate]);
 
+  // ── Handler for opening the customized User Details Modal ──
+  const handleUserClick = (username) => {
+    if (!username || username === "Unknown") return;
+    
+    // Find absolute stats for this user regardless of global date filters
+    const userTasks = allTasks.filter(t => t.assignedTo?.username === username);
+    
+    const doneToday = userTasks.filter(t => t.status === "Done" && isToday(t.completedAt || t.updatedAt)).length;
+    const doneThisWeek = userTasks.filter(t => t.status === "Done" && isThisWeek(t.completedAt || t.updatedAt)).length;
+    const totalTasksAssigned = userTasks.length;
+
+    // Get unique projects contributed to
+    const projectsSet = new Set();
+    userTasks.forEach(t => {
+      if (t.projectName) projectsSet.add(t.projectName);
+    });
+    const projectsContributed = Array.from(projectsSet);
+
+    setSelectedUserStats({
+      dev: username,
+      avatar: devMap[username],
+      doneToday,
+      doneThisWeek,
+      totalTasksAssigned,
+      projectsContributed,
+    });
+  };
+
   if (loading && allTasks.length === 0) return <PageLoader />;
 
   return (
@@ -707,13 +820,13 @@ export default function DeveloperReports() {
                 <h2 className="text-base font-bold text-[#1F2328]">Tasks Overview</h2>
                 <span className="neu-pressed-sm rounded-md px-3 py-1.5 text-[10px] font-bold text-[#656D76]">{filteredTasks.length} tasks matching</span>
               </div>
-              {filteredTasks.length === 0 ? <EmptyState message="No tasks match your filters" /> : <SplitTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} datePreset={datePreset} />}
+              {filteredTasks.length === 0 ? <EmptyState message="No tasks match your filters" /> : <SplitTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} onUserClick={handleUserClick} datePreset={datePreset} />}
             </motion.div>
           )}
 
           {activeTab === "overdue" && (
             <motion.div key="overdue" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-4 relative z-10">
-              <OverdueTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} />
+              <OverdueTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} onUserClick={handleUserClick} />
             </motion.div>
           )}
 
@@ -730,10 +843,10 @@ export default function DeveloperReports() {
                   <h3 className="text-base font-bold text-[#1F2328] mb-1">Completions in Period</h3>
                   <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-6">Tasks marked Done · {datePreset}</p>
                   {completionBarData.length === 0 ? <EmptyState message="No completions in this period" /> : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={completionBarData} barCategoryGap="30%" margin={{ top:10, right:10, left:0, bottom:0 }}>
+                    <ResponsiveContainer width="100%" height={290}>
+                      <BarChart data={completionBarData} barCategoryGap="30%" margin={{ top:10, right:10, left:0, bottom:55 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                        <XAxis dataKey="name" tick={{ fill:"#656D76", fontSize:10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="name" tick={<CustomXAxisTick devMap={devMap} onUserClick={handleUserClick} />} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill:"#656D76", fontSize:10, fontWeight: 700 }} axisLine={false} tickLine={false} />
                         <Tooltip cursor={{ fill: 'rgba(209, 220, 235, 0.3)' }} content={<CustomTooltip />} />
                         <Bar dataKey="Completed" radius={[4,4,0,0]}>
@@ -748,9 +861,9 @@ export default function DeveloperReports() {
                   <h3 className="text-base font-bold text-[#1F2328] mb-1">Total Contribution</h3>
                   <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-6">% of Completed Tasks per Developer</p>
                   {devPieData.length === 0 ? <EmptyState message="No completed tasks match filters" /> : (
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={290}>
                       <PieChart>
-                        <Pie data={devPieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="none" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                        <Pie data={devPieData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} dataKey="value" stroke="none" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                           {devPieData.map((_, i) => <Cell key={i} fill={DEV_PALETTE[i % DEV_PALETTE.length]} />)}
                         </Pie>
                         <Tooltip content={<CustomTooltip />} />
@@ -764,10 +877,10 @@ export default function DeveloperReports() {
                 <h3 className="text-base font-bold text-[#1F2328] mb-1">Task Breakdown</h3>
                 <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-6">Completed vs Pending (Currently Open)</p>
                 {devBarData.length === 0 ? <EmptyState message="No tasks match filters" /> : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={devBarData} barCategoryGap="25%" margin={{ top:10, right:10, left:0, bottom:0 }}>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={devBarData} barCategoryGap="25%" margin={{ top:10, right:10, left:0, bottom:55 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                      <XAxis dataKey="name" tick={{ fill:"#656D76", fontSize:10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                      <XAxis dataKey="name" tick={<CustomXAxisTick devMap={devMap} onUserClick={handleUserClick} />} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill:"#656D76", fontSize:10, fontWeight: 700 }} axisLine={false} tickLine={false} />
                       <Tooltip cursor={{ fill: 'rgba(209, 220, 235, 0.3)' }} content={<CustomTooltip />} />
                       <Legend wrapperStyle={{ fontSize: 10, fontWeight: 700, color: '#656D76', paddingTop: '10px' }} />
@@ -781,14 +894,18 @@ export default function DeveloperReports() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {devCardData.length === 0 && <EmptyState message="No developer data yet" />}
                 {devCardData.map(({ dev, i, pendingTasks, doneTasks, overdueCount, total, pct }) => (
-                  <motion.div key={dev} initial={{ opacity:0, scale:0.97 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i * 0.05 }} className="neu-flat rounded-xl p-4">
+                  <motion.div key={dev} initial={{ opacity:0, scale:0.97 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i * 0.05 }} className="neu-flat rounded-xl p-4 cursor-pointer group hover:-translate-y-0.5 transition-transform" onClick={() => handleUserClick(dev)}>
                     <div className="flex items-center gap-4 mb-4 border-b border-[#D1DCEB]/50 pb-4">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg neu-flat shadow-sm" style={{ background: DEV_PALETTE[i % DEV_PALETTE.length] }}>
-                        {dev[0]?.toUpperCase()}
-                      </div>
+                      {devMap[dev] ? (
+                        <img src={devMap[dev]} alt={dev} className="w-14 h-14 rounded-full object-cover neu-flat shadow-sm group-hover:scale-105 transition-transform" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-2xl neu-flat shadow-sm group-hover:scale-105 transition-transform" style={{ background: DEV_PALETTE[i % DEV_PALETTE.length] }}>
+                          {dev[0]?.toUpperCase()}
+                        </div>
+                      )}
                       <div>
-                        <p className="text-base font-bold text-[#1F2328]">{dev}</p>
-                        <p className="text-[10px] font-bold text-[#656D76] mt-0.5">{total} total tasks</p>
+                        <p className="text-lg font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors">{dev}</p>
+                        <p className="text-xs font-bold text-[#656D76] mt-0.5">{total} total tasks</p>
                       </div>
                     </div>
                     <div className="mb-5 neu-pressed rounded-lg p-3.5">
@@ -824,6 +941,65 @@ export default function DeveloperReports() {
         </AnimatePresence>
       </div>
 
+      {/* ── User Details Modal ── */}
+      <AnimatePresence>
+        {selectedUserStats && (
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedUserStats(null)} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
+              className="neu-flat rounded-xl w-full max-w-sm flex flex-col relative z-10 overflow-hidden"
+            >
+              <button type="button" onClick={() => setSelectedUserStats(null)} className="absolute max-w-max top-4 left-4 z-20 neu-flat-sm neu-action-btn rounded-full p-2 text-[#656D76] hover:text-[#D1242F]">
+                <X size={16} className="pointer-events-none" />
+              </button>
+
+              <div className="p-6 flex flex-col items-center bg-[#F0F4F8]">
+                {/* Big Centered Avatar */}
+                <div className="relative mb-4 mt-2">
+                  {selectedUserStats.avatar ? (
+                    <img src={selectedUserStats.avatar} alt={selectedUserStats.dev} className="w-58 h-58 rounded-full object-cover neu-flat border-4 border-[#F0F4F8]" />
+                  ) : (
+                    <div className="w-48 h-48 rounded-full flex items-center justify-center text-white font-bold text-4xl neu-flat border-4 border-[#F0F4F8]" style={{ background: stringToColor(selectedUserStats.dev) }}>
+                      {selectedUserStats.dev?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <h2 className="text-2xl font-bold text-[#1F2328]">{selectedUserStats.dev}</h2>
+                <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider mt-1">Developer Profile</p>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-3 gap-3 w-full mt-6 mb-5">
+                  <div className="neu-pressed rounded-lg p-3 text-center">
+                    <p className="font-bold text-xl text-[#1A7F37]">{selectedUserStats.doneToday}</p>
+                    <p className="text-[9px] font-bold text-[#656D76] uppercase mt-1 tracking-wider">Done Today</p>
+                  </div>
+                  <div className="neu-pressed rounded-lg p-3 text-center">
+                    <p className="font-bold text-xl text-[#0969DA]">{selectedUserStats.doneThisWeek}</p>
+                    <p className="text-[9px] font-bold text-[#656D76] uppercase mt-1 tracking-wider">This Week</p>
+                  </div>
+                  <div className="neu-pressed rounded-lg p-3 text-center">
+                    <p className="font-bold text-xl text-[#1F2328]">{selectedUserStats.totalTasksAssigned}</p>
+                    <p className="text-[9px] font-bold text-[#656D76] uppercase mt-1 tracking-wider">Total Tasks</p>
+                  </div>
+                </div>
+
+                {/* Projects List */}
+                <div className="neu-flat-sm rounded-lg p-4 w-full">
+                  <h3 className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-3">Projects Contributed To</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUserStats.projectsContributed.length > 0 ? (
+                       selectedUserStats.projectsContributed.map(p => <Badge key={p} label={p} color="#0969DA" />)
+                    ) : (
+                       <span className="text-xs font-bold text-[#1F2328]">No projects yet</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Task Details Modal ── */}
       <AnimatePresence>
         {selectedTaskDetails && (
@@ -858,25 +1034,57 @@ export default function DeveloperReports() {
                   </div>
                   <div>
                     <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Assignee</p>
-                    <p className="text-xs font-bold text-[#1F2328]">{selectedTaskDetails.assignedTo?.username}</p>
+                    <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.assignedTo?.username)}>
+                      {selectedTaskDetails.assignedTo?.avatar ? (
+                        <img src={selectedTaskDetails.assignedTo.avatar} alt="assignee" className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm group-hover:scale-105 transition-transform" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.assignedTo?.username)}}>
+                           {selectedTaskDetails.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                        </div>
+                      )}
+                      <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors">{selectedTaskDetails.assignedTo?.username}</p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Created By</p>
-                    <p className="text-xs font-bold text-[#1F2328]">{selectedTaskDetails.createdBy?.username}</p>
+                    <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.createdBy?.username)}>
+                      {selectedTaskDetails.createdBy?.avatar ? (
+                        <img src={selectedTaskDetails.createdBy.avatar} alt="creator" className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm group-hover:scale-105 transition-transform" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.createdBy?.username)}}>
+                           {selectedTaskDetails.createdBy?.username?.charAt(0).toUpperCase() || "?"}
+                        </div>
+                      )}
+                      <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors">{selectedTaskDetails.createdBy?.username}</p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Deadline</p>
-                    <p className={`text-xs font-bold ${checkIsOverdue(selectedTaskDetails.deadline, selectedTaskDetails.status) ? "text-[#D1242F]" : "text-[#1F2328]"}`}>
+                    <p className={`text-xs font-bold mt-1 ${checkIsOverdue(selectedTaskDetails.deadline, selectedTaskDetails.status) ? "text-[#D1242F]" : "text-[#1F2328]"}`}>
                       {selectedTaskDetails.deadline ? fnsFormat(new Date(selectedTaskDetails.deadline), "MMM d, yyyy") : "None"}
                     </p>
                   </div>
                   {selectedTaskDetails.status === "Done" && selectedTaskDetails.completedAt && (
                     <div className="sm:col-span-4 neu-pressed-sm rounded-md p-3 flex items-center gap-2 mt-2 bg-[#1A7F37]/5 border border-[#1A7F37]/20">
                       <div className="neu-flat-sm p-1.5 rounded-full text-[#1A7F37] flex-shrink-0"><CheckCircle2 size={12} /></div>
-                      <p className="text-[11px] text-[#1A7F37] font-bold">
-                        Completed on {fnsFormat(new Date(selectedTaskDetails.completedAt), "MMM d, yyyy · h:mm a")}
-                        {selectedTaskDetails.completedBy?.username && ` by ${selectedTaskDetails.completedBy.username}`}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-[11px] text-[#1A7F37] font-bold">
+                          Completed on {fnsFormat(new Date(selectedTaskDetails.completedAt), "MMM d, yyyy · h:mm a")}
+                        </p>
+                        {selectedTaskDetails.completedBy?.username && (
+                          <div className="flex items-center gap-1 ml-1 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.completedBy?.username)}>
+                            <span className="text-[11px] text-[#1A7F37] font-bold">by</span>
+                            {selectedTaskDetails.completedBy?.avatar ? (
+                              <img src={selectedTaskDetails.completedBy.avatar} alt="completed by" className="w-7 h-7 rounded-full object-cover shrink-0 inline-block neu-pressed-sm group-hover:scale-105 transition-transform" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.completedBy?.username)}}>
+                                 {selectedTaskDetails.completedBy?.username?.charAt(0).toUpperCase() || "?"}
+                              </div>
+                            )}
+                            <span className="text-[11px] text-[#1A7F37] font-bold group-hover:underline transition-all">{selectedTaskDetails.completedBy.username}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -916,11 +1124,15 @@ export default function DeveloperReports() {
                       ) : selectedTaskDetails.comments.map((comment, idx) => (
                         <div key={idx} className="neu-flat-sm rounded-lg p-3.5">
                           <div className="flex items-center justify-between mb-2 border-b border-[#D1DCEB]/30 pb-1.5">
-                            <span className="text-[11px] font-bold text-[#1F2328] flex items-center gap-1.5">
-                               <div className="w-5 h-5 rounded-full neu-pressed-sm flex items-center justify-center text-[8px] text-[#0969DA]">
-                                 {(comment.createdBy?.username || comment.user?.username || "U")[0].toUpperCase()}
-                               </div>
-                              {comment.createdBy?.username || comment.user?.username || "Unknown"}
+                            <span className="text-[11px] font-bold text-[#1F2328] flex items-center gap-2 cursor-pointer group" onClick={() => handleUserClick(comment.createdBy?.username || comment.user?.username)}>
+                               {comment.createdBy?.avatar || comment.user?.avatar ? (
+                                 <img src={comment.createdBy?.avatar || comment.user?.avatar} alt="User" className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm group-hover:scale-105 transition-transform" />
+                               ) : (
+                                 <div className="w-8 h-8 rounded-full neu-pressed-sm flex items-center justify-center text-[12px] font-bold text-white shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(comment.createdBy?.username || comment.user?.username)}}>
+                                   {(comment.createdBy?.username || comment.user?.username || "U")[0].toUpperCase()}
+                                 </div>
+                               )}
+                              <span className="group-hover:text-[#0969DA] transition-colors">{comment.createdBy?.username || comment.user?.username || "Unknown"}</span>
                             </span>
                             <span className="text-[9px] font-bold text-[#656D76]">{comment.createdAt ? fnsFormat(new Date(comment.createdAt), "MMM d, h:mm a") : ""}</span>
                           </div>
