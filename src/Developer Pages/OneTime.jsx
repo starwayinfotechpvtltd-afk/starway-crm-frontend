@@ -539,7 +539,7 @@ const DeveloperDashboard = () => {
   const urgentCount = allPendingTasks.filter(t => ["critical", "high"].includes(getUrgency(t.deadline))).length;
 
   return (
-    <div className="h-[93vh] w-full flex flex-col overflow-hidden neu-base montserrat-regular text-[#1F2328] relative">
+    <div className="h-[92.7vh] w-full flex flex-col overflow-hidden neu-base montserrat-regular text-[#1F2328] relative">
       
       {/* ── Main Layout Split ── */}
       <div className="flex-1 flex overflow-hidden">
