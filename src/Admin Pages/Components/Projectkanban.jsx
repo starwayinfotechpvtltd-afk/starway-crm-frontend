@@ -1156,14 +1156,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { 
   format, isBefore, addDays, startOfMonth, endOfMonth, 
-  eachDayOfInterval, getDay, isSameDay, isToday, differenceInCalendarDays 
+  eachDayOfInterval, getDay, isSameDay, isToday, differenceInCalendarDays,
+  addMonths, subMonths
 } from "date-fns";
 import {
   X, Plus, Trash2, Edit, CheckCircle2, Link as LinkIcon, 
   Calendar, History, KanbanSquare, BarChart, List, 
   Send, MessageSquare, Filter, Loader2, ChevronDown, 
   AlertCircle, AlertTriangle, ArrowRight, ArrowDown, ArrowUp, Flag,
-  FolderDot, ChevronLeft, ChevronRight, ChevronUp
+  FolderDot, ChevronLeft, ChevronRight, ChevronUp, Edit3, User
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
@@ -1198,8 +1199,9 @@ const stringToColor = (s) => {
   for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
   return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
 };
+const getAvatarBg = stringToColor;
 
-const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "x-timezone-offset": new Date().getTimezoneOffset().toString() });
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
 // Helper to check if a task is within 2 hours of creation
@@ -1544,6 +1546,389 @@ const KanbanColumn = ({ column, tasks, currentUserId, isCreator, isAdmin, isDeve
   );
 };
 
+// ── Scheduled Tasks Helper ────────────────────────────────────────────────────
+const isScheduledTaskEditable = (task) => {
+  if (!task || !task.scheduledDates || task.scheduledDates.length === 0) return false;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return task.scheduledDates.some(d => new Date(d) >= tomorrow);
+};
+
+// ── Custom Neumorphic Multi-Date Calendar ──────────────────────────────────────
+const ScheduleCalendar = ({ selectedDates, onChange }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startPad = getDay(monthStart);
+
+  const toggleDate = (date) => {
+    const isSelected = selectedDates.some((d) => isSameDay(new Date(d), date));
+    if (isSelected) {
+      onChange(selectedDates.filter((d) => !isSameDay(new Date(d), date)));
+    } else {
+      onChange([...selectedDates, date]);
+    }
+  };
+
+  const isSelected = (date) => selectedDates.some((d) => isSameDay(new Date(d), date));
+  const isPast = (date) => isBefore(date, startOfMonth(new Date())) || (isBefore(date, new Date()) && !isToday(date));
+
+  return (
+    <div className="neu-pressed rounded-xl p-4 w-full">
+      <div className="flex justify-between items-center mb-4">
+        <button type="button" onClick={handlePrevMonth} className="neu-flat-sm neu-action-btn p-1.5 rounded-lg text-[#656D76]">
+          <ChevronLeft size={14} className="pointer-events-none" />
+        </button>
+        <span className="text-xs font-bold text-[#1F2328]">{format(currentMonth, "MMMM yyyy")}</span>
+        <button type="button" onClick={handleNextMonth} className="neu-flat-sm neu-action-btn p-1.5 rounded-lg text-[#656D76]">
+          <ChevronRight size={14} className="pointer-events-none" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <span key={d} className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{d}</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: startPad }).map((_, i) => (
+          <div key={`pad-${i}`} className="aspect-square opacity-0 pointer-events-none" />
+        ))}
+        {days.map((day) => {
+          const active = isSelected(day);
+          const disabled = isPast(day);
+          return (
+            <button
+              type="button"
+              key={day.toISOString()}
+              disabled={disabled}
+              onClick={() => toggleDate(day)}
+              className={`aspect-square rounded-lg text-[10px] font-bold flex items-center justify-center transition-all ${
+                active 
+                  ? "neu-btn-primary text-white" 
+                  : disabled 
+                    ? "text-[#656D76]/30 cursor-not-allowed neu-pressed-sm" 
+                    : "neu-flat-sm text-[#1F2328] hover:text-[#0969DA]"
+              }`}
+            >
+              {format(day, "d")}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ── ScheduledTaskCard ──────────────────────────────────────────────────────────
+const ScheduledTaskCard = ({ task, onEdit, onDelete }) => {
+  const isEditable = isScheduledTaskEditable(task);
+
+  const deadlineLabel = task.deadlineOffset === 0 
+    ? "Same day" 
+    : task.deadlineOffset === 1 
+      ? "Next day" 
+      : `+${task.deadlineOffset} days`;
+
+  return (
+    <div className="neu-flat rounded-xl p-5 mb-4 group transition-transform hover:-translate-y-0.5 flex flex-col justify-between">
+      <div>
+        <h4 className="text-sm font-bold text-[#1F2328] mb-3 leading-snug group-hover:text-[#0969DA] transition-colors">{task.title}</h4>
+        
+        {task.description && (
+          <p className="text-[10px] font-medium text-[#656D76] mb-4 line-clamp-2 leading-relaxed">
+            {task.description}
+          </p>
+        )}
+
+        <div className="space-y-3 mb-4">
+          <div>
+            <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider block mb-1.5">Scheduled Dates</span>
+            <div className="flex flex-wrap gap-1.5">
+              {task.scheduledDates.map((d, index) => (
+                <span key={index} className="neu-pressed-sm px-2.5 py-1 rounded text-[8px] font-bold text-[#0969DA] bg-[#E8F1FC]/50 uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={10} className="shrink-0" /> {format(new Date(d), "MMM d, yyyy")}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">Deadline</span>
+            <span className="neu-pressed-sm px-2.5 py-1 rounded text-[8px] font-bold text-[#1A7F37] bg-[#1A7F37]/5 uppercase tracking-wider">
+              {deadlineLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#D1DCEB]/50">
+        {isEditable ? (
+          <>
+            <button onClick={() => onEdit(task)} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#0969DA] flex items-center gap-1.5">
+              <Edit3 size={12} className="pointer-events-none"/> Edit
+            </button>
+            <button onClick={() => onDelete(task._id)} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#D1242F] flex items-center gap-1.5">
+              <Trash2 size={12} className="pointer-events-none"/> Delete
+            </button>
+          </>
+        ) : (
+          <span className="text-[9px] font-bold text-[#656D76] italic opacity-60">Locked (Today/Live task)</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── EditScheduledTaskModal ────────────────────────────────────────────────────
+const EditScheduledTaskModal = ({ task, onClose, onSuccess }) => {
+  const [form, setForm] = useState({
+    title: task.title,
+    description: task.description || "",
+    priority: task.priority || "Medium",
+  });
+  const [scheduledDates, setScheduledDates] = useState(task.scheduledDates.map(d => new Date(d)));
+  const [deadlineOffset, setDeadlineOffset] = useState(task.deadlineOffset || 0);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+  const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "x-timezone-offset": new Date().getTimezoneOffset().toString() });
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) { setErrors({ title: "Required" }); return; }
+    if (scheduledDates.length === 0) { setErrors({ calendar: "At least one date is required" }); return; }
+    setSaving(true);
+    try {
+      await axios.put(`${API_BASE}/api/scheduled-tasks/${task._id}`, {
+        title: form.title,
+        description: form.description,
+        priority: form.priority,
+        scheduledDates,
+        deadlineOffset
+      }, { headers: authHeaders() });
+      
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error("Edit scheduled task error:", err);
+      setErrors({ api: err.response?.data?.message || "Failed to update scheduled task" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
+      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-lg flex flex-col relative z-10 max-h-[90vh] overflow-hidden">
+        <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
+          <h2 className="text-xl font-bold text-[#1F2328]">Edit Scheduled Task</h2>
+          <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]"><X size={18} className="pointer-events-none" /></button>
+        </div>
+
+        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+          {errors.api && <div className="p-3 neu-pressed rounded-xl text-xs font-bold text-[#D1242F]">{errors.api}</div>}
+          
+          <div className="relative">
+            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Task Title <span className="text-[#D1242F]">*</span></label>
+            <input value={form.title} onChange={e => set("title", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text" />
+            {errors.title && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.title}</span>}
+          </div>
+
+          <div className="relative">
+            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Description</label>
+            <textarea value={form.description} onChange={e => set("description", e.target.value)} disabled={saving} placeholder="Context or criteria..." rows={3} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none resize-none custom-scrollbar cursor-text" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Priority</label>
+              <select value={form.priority} onChange={e => set("priority", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
+            </div>
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Relative Deadline</label>
+              <div className="relative">
+                <select value={deadlineOffset} onChange={e => setDeadlineOffset(parseInt(e.target.value))} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                  <option value={0}>Same day</option>
+                  <option value={1}>Next day</option>
+                  <option value={2}>After 2 days</option>
+                  <option value={3}>After 3 days</option>
+                  <option value={5}>After 5 days</option>
+                  <option value={7}>After 7 days</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1 block">Scheduled Dates <span className="text-[#D1242F]">*</span></label>
+            <ScheduleCalendar selectedDates={scheduledDates} onChange={setScheduledDates} />
+            {errors.calendar && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.calendar}</span>}
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
+          <button onClick={onClose} disabled={saving} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} className="neu-btn-soft-blue px-8 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 neu-action-btn">
+            {saving ? <Spinner /> : <CheckCircle2 size={16} className="pointer-events-none" />} {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// ── DevStatsDialog ────────────────────────────────────────────────────────────
+const DevStatsDialog = ({ open, onClose, developer, tasks }) => {
+  if (!developer) return null;
+
+  const devTasks = tasks.filter(t => t.assignedTo?.id === developer.id);
+  const total = devTasks.length;
+  const todo = devTasks.filter(t => t.status === "Todo").length;
+  const wip = devTasks.filter(t => t.status === "In Progress").length;
+  const done = devTasks.filter(t => t.status === "Done").length;
+
+  const priorityBreakdown = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+  devTasks.forEach(t => {
+    if (priorityBreakdown[t.priority] !== undefined) {
+      priorityBreakdown[t.priority]++;
+    }
+  });
+
+  const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+  const initials = (developer.username || "").slice(0, 2).toUpperCase();
+  const avatarBg = getAvatarBg(developer.username || "");
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-0 cursor-pointer" />
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-lg flex flex-col relative z-10 max-h-[90vh] overflow-hidden">
+            
+            {/* Header */}
+            <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md" style={{ backgroundColor: avatarBg }}>
+                  {initials}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#1F2328]">{developer.username}</h3>
+                  <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider">Developer Statistics</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]"><X size={18} className="pointer-events-none" /></button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+              
+              {/* Progress Summary */}
+              <div className="neu-pressed rounded-xl p-5 flex items-center gap-6">
+                {/* Circular Progress Ring */}
+                <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="40" cy="40" r="34" stroke="#D1DCEB" strokeWidth="6" fill="transparent" />
+                    <circle 
+                      cx="40" cy="40" r="34" stroke="#0969DA" strokeWidth="6" fill="transparent"
+                      strokeDasharray={2 * Math.PI * 34}
+                      strokeDashoffset={2 * Math.PI * 34 * (1 - completionRate / 100)}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span className="absolute text-sm font-bold text-[#1F2328]">{completionRate}%</span>
+                </div>
+
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-[#1F2328] mb-1">Completion Rate</h4>
+                  <p className="text-xs font-medium text-[#656D76]">
+                    Developer completed {done} of {total} assigned tasks in this project.
+                  </p>
+                </div>
+              </div>
+
+              {/* Numeric Stats Grid */}
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: "To Do", val: todo, color: "#BF8700" },
+                  { label: "In Progress", val: wip, color: "#0969DA" },
+                  { label: "Done", val: done, color: "#1A7F37" },
+                ].map(s => (
+                  <div key={s.label} className="neu-flat-sm rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">{s.label}</p>
+                    <span className="text-xl font-bold" style={{ color: s.color }}>{s.val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Priority Breakdown (Bar Charts) */}
+              <div>
+                <h4 className="text-xs font-bold text-[#1F2328] uppercase tracking-wider mb-3">Tasks by Priority</h4>
+                <div className="space-y-3.5 neu-pressed rounded-xl p-5">
+                  {Object.entries(priorityBreakdown).map(([prio, count]) => {
+                    const pct = total > 0 ? (count / total) * 100 : 0;
+                    return (
+                      <div key={prio} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-xs font-bold">
+                          <span className="text-[#1F2328] flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: prio === "Critical" ? "#D1242F" : prio === "High" ? "#BF8700" : prio === "Medium" ? "#0969DA" : "#656D76" }} /> {prio}
+                          </span>
+                          <span className="text-[#656D76]">{count} tasks ({Math.round(pct)}%)</span>
+                        </div>
+                        <div className="w-full h-2 bg-[#D1DCEB] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: prio === "Critical" ? "#D1242F" : prio === "High" ? "#BF8700" : prio === "Medium" ? "#0969DA" : "#656D76" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active Tasks List */}
+              <div>
+                <h4 className="text-xs font-bold text-[#1F2328] uppercase tracking-wider mb-3">Active Tasks</h4>
+                {devTasks.filter(t => t.status !== "Done").length === 0 ? (
+                  <p className="text-xs font-bold text-[#656D76] italic p-4 neu-pressed rounded-xl text-center">No active tasks assigned.</p>
+                ) : (
+                  <div className="space-y-2.5 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                    {devTasks.filter(t => t.status !== "Done").map(t => (
+                      <div key={t._id} className="neu-flat-sm rounded-xl p-3 flex justify-between items-center gap-4 text-xs font-bold">
+                        <span className="text-[#1F2328] truncate">{t.title}</span>
+                        <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0" style={{ color: t.status === "Todo" ? "#BF8700" : t.status === "In Progress" ? "#0969DA" : "#1A7F37" }}>
+                          {t.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end shrink-0">
+              <button onClick={onClose} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Close</button>
+            </div>
+
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 // ── Task Form Dialog ──────────────────────────────────────────────────────────
 const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDevelopers, isCreator, isAdmin, isDeveloper, currentUserId, currentUsername, isSubmitting }) => {
 
@@ -1553,6 +1938,9 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
 
   const [form, setForm] = useState(blankForm);
   const [linkInput, setLinkInput] = useState("");
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDates, setScheduledDates] = useState([]);
+  const [deadlineOffset, setDeadlineOffset] = useState(0);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -1562,8 +1950,12 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
         priority: initialData.priority || "Medium", deadline: initialData.deadline ? format(new Date(initialData.deadline), "yyyy-MM-dd") : "",
         assignedTo: initialData.assignedTo || { id: currentUserId, username: currentUsername },
       });
+      setIsScheduled(false);
     } else {
       setForm(blankForm());
+      setIsScheduled(false);
+      setScheduledDates([]);
+      setDeadlineOffset(0);
     }
     setLinkInput(""); setErrors({});
   }, [open, initialData, currentUserId, currentUsername, blankForm]);
@@ -1582,9 +1974,22 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    onSubmit({ ...form, deadline: form.deadline || null });
+    if (isScheduled) {
+      if (!form.title.trim()) { setErrors({ title: "Title is required" }); return; }
+      if (scheduledDates.length === 0) { setErrors({ calendar: "At least one date is required" }); return; }
+      onSubmit({
+        title: form.title,
+        description: form.description,
+        priority: form.priority,
+        scheduledDates,
+        deadlineOffset,
+        assignedTo: form.assignedTo
+      }, true);
+    } else {
+      const errs = validate();
+      if (Object.keys(errs).length) { setErrors(errs); return; }
+      onSubmit({ ...form, deadline: form.deadline || null }, false);
+    }
   };
 
   const canAssignToOthers = isAdmin || isCreator;
@@ -1596,16 +2001,38 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
           <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
-            className="neu-flat rounded-2xl w-full max-w-xl flex flex-col relative z-10 max-h-[90vh] overflow-hidden"
+            className={`neu-flat rounded-2xl w-full flex flex-col relative z-10 max-h-[90vh] overflow-hidden transition-all duration-300 ${isScheduled ? "max-w-lg" : "max-w-xl"}`}
           >
             <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
-              <h2 className="text-xl font-bold text-[#1F2328]">{initialData ? "Edit Task" : "Create New Task"}</h2>
+              <h2 className="text-xl font-bold text-[#1F2328]">{initialData ? "Edit Task" : (isScheduled ? "Schedule New Task" : "Create New Task")}</h2>
               <button type="button" onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]">
                 <X size={18} className="pointer-events-none" />
               </button>
             </div>
 
             <form id="taskForm" onSubmit={handleSubmit} className="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-6">
+              {!initialData && (
+                <div className="flex gap-4 items-center justify-between p-3 neu-pressed rounded-xl relative z-20">
+                  <span className="text-xs font-bold text-[#1F2328]">Task Scheduling</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsScheduled(false)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn ${!isScheduled ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}
+                    >
+                      Regular
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsScheduled(true)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn ${isScheduled ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}
+                    >
+                      Schedule
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="relative z-20">
                 <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Task Title <span className="text-[#D1242F]">*</span></label>
                 <input autoFocus type="text" value={form.title} onChange={e => set("title", e.target.value)} placeholder="What needs to be done?" className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20" />
@@ -1627,11 +2054,29 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
                     <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30" />
                   </div>
                 </div>
-                <div className="relative z-20">
-                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Deadline <span className="text-[#D1242F]">*</span></label>
-                  <input type="date" min={todayStr()} value={form.deadline} onChange={e => set("deadline", e.target.value)} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20" />
-                  {errors.deadline && <span className="text-[9px] font-bold text-[#D1242F] mt-1.5 block">{errors.deadline}</span>}
-                </div>
+                
+                {isScheduled ? (
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Relative Deadline</label>
+                    <div className="relative">
+                      <select value={deadlineOffset} onChange={e => setDeadlineOffset(parseInt(e.target.value))} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent relative z-20">
+                        <option value={0}>Same day</option>
+                        <option value={1}>Next day</option>
+                        <option value={2}>After 2 days</option>
+                        <option value={3}>After 3 days</option>
+                        <option value={5}>After 5 days</option>
+                        <option value={7}>After 7 days</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Deadline <span className="text-[#D1242F]">*</span></label>
+                    <input type="date" min={todayStr()} value={form.deadline} onChange={e => set("deadline", e.target.value)} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20" />
+                    {errors.deadline && <span className="text-[9px] font-bold text-[#D1242F] mt-1.5 block">{errors.deadline}</span>}
+                  </div>
+                )}
               </div>
 
               <div className="relative z-20">
@@ -1644,29 +2089,39 @@ const TaskFormDialog = ({ open, onClose, onSubmit, initialData, projectDeveloper
                 </div>
               </div>
 
-              <div className="relative z-20">
-                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Reference Links</label>
-                <div className="flex gap-2 mb-3 relative z-30">
-                  <input type="text" value={linkInput} onChange={e => setLinkInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }} placeholder="https://..." className="flex-1 neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-40" />
-                  <button type="button" onClick={addLink} className="neu-flat neu-action-btn px-4 rounded-md text-xs font-bold text-[#0969DA] relative z-40">Add Link</button>
+              {!isScheduled && (
+                <div className="relative z-20">
+                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Reference Links</label>
+                  <div className="flex gap-2 mb-3 relative z-30">
+                    <input type="text" value={linkInput} onChange={e => setLinkInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }} placeholder="https://..." className="flex-1 neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-40" />
+                    <button type="button" onClick={addLink} className="neu-flat neu-action-btn px-4 rounded-md text-xs font-bold text-[#0969DA] relative z-40">Add Link</button>
+                  </div>
+                  <div className="space-y-2">
+                    {form.links.map((link, i) => (
+                      <div key={i} className="flex items-center gap-2 neu-pressed-sm rounded-md p-2 pl-3">
+                        <LinkIcon size={12} className="text-[#0969DA] shrink-0" />
+                        <span className="text-xs font-bold text-[#0969DA] truncate flex-1">{link}</span>
+                        <button type="button" onClick={() => removeLink(i)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#D1242F]"><X size={12} className="pointer-events-none"/></button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {form.links.map((link, i) => (
-                    <div key={i} className="flex items-center gap-2 neu-pressed-sm rounded-md p-2 pl-3">
-                      <LinkIcon size={12} className="text-[#0969DA] shrink-0" />
-                      <span className="text-xs font-bold text-[#0969DA] truncate flex-1">{link}</span>
-                      <button type="button" onClick={() => removeLink(i)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#D1242F]"><X size={12} className="pointer-events-none"/></button>
-                    </div>
-                  ))}
+              )}
+
+              {isScheduled && (
+                <div className="space-y-4 pt-2 relative z-20">
+                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1 block">Scheduled Dates <span className="text-[#D1242F]">*</span></label>
+                  <ScheduleCalendar selectedDates={scheduledDates} onChange={setScheduledDates} />
+                  {errors.calendar && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.calendar}</span>}
                 </div>
-              </div>
+              )}
             </form>
 
             <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-4 shrink-0 relative z-20">
               <button type="button" onClick={onClose} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
               <button type="submit" form="taskForm" disabled={isSubmitting} className="neu-btn-primary px-8 py-2.5 rounded-lg text-sm font-bold text-white neu-action-btn flex items-center gap-2 disabled:opacity-50">
                 {isSubmitting ? <Loader2 size={16} className="animate-spin pointer-events-none" /> : <CheckCircle2 size={16} className="pointer-events-none" />}
-                {initialData ? "Save Changes" : "Create Task"}
+                {initialData ? "Save Changes" : (isScheduled ? "Schedule Task" : "Create Task")}
               </button>
             </div>
           </motion.div>
@@ -1996,9 +2451,11 @@ const CompletionHistoryDialog = ({ open, onClose, projectId }) => {
 // ── MAIN KANBAN (Exported Component) ──────────────────────────────────────────
 export default function ProjectKanban({ open, onClose, project }) {
   const [tasks, setTasks] = useState([]);
+  const [scheduledTasks, setScheduledTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [editingScheduledTask, setEditingScheduledTask] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [detailTask, setDetailTask] = useState(null);
   const [activeTab, setActiveTab] = useState("kanban");
@@ -2007,6 +2464,7 @@ export default function ProjectKanban({ open, onClose, project }) {
   const [filterPriority, setFilterPriority] = useState("all");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false); 
   const [snack, setSnack] = useState({ open:false, msg:"", severity:"success" });
+  const [selectedDevStats, setSelectedDevStats] = useState(null);
   
   const dragTask = useRef(null);
 
@@ -2048,10 +2506,36 @@ export default function ProjectKanban({ open, onClose, project }) {
     }
   }, [project?._id]);
 
+  const fetchScheduledTasks = useCallback(async () => {
+    if (!project?._id) return;
+    try {
+      const r = await axios.get(`${API_BASE}/api/scheduled-tasks?projectId=${project._id}`, { headers:authHeaders() });
+      setScheduledTasks(r.data || []);
+    } catch {
+      setScheduledTasks([]);
+    }
+  }, [project?._id]);
+
+  const handleDeleteScheduledTask = async (taskId) => {
+    if (!window.confirm("Are you sure you want to delete this scheduled task?")) return;
+    try {
+      await axios.delete(`${API_BASE}/api/scheduled-tasks/${taskId}`, { headers: authHeaders() });
+      toast("Scheduled task deleted");
+      fetchScheduledTasks();
+    } catch (err) {
+      toast(err.response?.data?.message || "Failed to delete scheduled task", "error");
+    }
+  };
+
   useEffect(() => { 
-    if (open) fetchTasks(true); 
-    else setTasks([]); 
-  }, [open, fetchTasks]);
+    if (open) {
+      fetchTasks(true); 
+      fetchScheduledTasks();
+    } else {
+      setTasks([]); 
+      setScheduledTasks([]);
+    }
+  }, [open, fetchTasks, fetchScheduledTasks]);
 
   const filteredTasks = useMemo(() => tasks.filter(t => {
     if (filterUser     !== "all" && t.assignedTo?.id !== filterUser) return false;
@@ -2064,22 +2548,35 @@ export default function ProjectKanban({ open, onClose, project }) {
   const hasFilters    = filterUser !== "all" || filterStatus !== "all" || filterPriority !== "all";
 
   // CRUD Handlers
-  const handleTaskSubmit = async formData => {
+  const handleTaskSubmit = async (formData, isSch) => {
     setIsSubmittingTask(true);
     try {
-      if (editingTask) {
+      if (isSch) {
+        await axios.post(`${API_BASE}/api/scheduled-tasks`, {
+          projectId: project._id,
+          title: formData.title,
+          description: formData.description,
+          priority: formData.priority,
+          scheduledDates: formData.scheduledDates,
+          deadlineOffset: formData.deadlineOffset,
+          assignedTo: formData.assignedTo
+        }, { headers:authHeaders() });
+        toast("Scheduled task created successfully");
+        fetchScheduledTasks();
+      } else if (editingTask) {
         await axios.put(`${API_BASE}/api/tasks/${project._id}/${editingTask._id}`, formData, { headers:authHeaders() });
         toast("Task updated successfully");
+        fetchTasks(false);
       } else {
         await axios.post(`${API_BASE}/api/tasks/${project._id}`, formData, { headers:authHeaders() });
         toast("Task created successfully");
+        fetchTasks(false);
       }
       setTaskFormOpen(false); 
       setEditingTask(null); 
       if (detailTask && editingTask) {
          setDetailTask({...detailTask, ...formData});
       }
-      fetchTasks(false); 
     } catch (err) { 
       toast(err.response?.data?.message || "Failed to save task","error"); 
     } finally {
@@ -2138,6 +2635,7 @@ export default function ProjectKanban({ open, onClose, project }) {
     { id:"list",     label:"List",     Icon:List         },
     { id:"calendar", label:"Calendar", Icon:Calendar     },
     { id:"chart",    label:"Charts",   Icon:BarChart     },
+    { id:"scheduled",label:"Scheduled",Icon:History      },
   ];
 
   return (
@@ -2178,13 +2676,35 @@ export default function ProjectKanban({ open, onClose, project }) {
             {/* Tab Bar & Filters */}
             <div className="px-4 sm:px-6 py-3 border-b border-[#D1DCEB]/50 flex flex-col xl:flex-row justify-between xl:items-center gap-4 shrink-0 bg-[#F0F4F8] z-20 relative">
               
-              {/* Tabs */}
-              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1 xl:pb-0">
-                {TABS.map(({ id, label, Icon }) => (
-                  <button key={id} onClick={() => setActiveTab(id)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 shrink-0 neu-action-btn ${activeTab === id ? "neu-pressed text-[#0969DA]" : "neu-flat-sm text-[#656D76]"}`}>
-                    <Icon size={14} className="pointer-events-none" /> {label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-4 flex-1">
+                {/* Tabs */}
+                <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1 xl:pb-0">
+                  {TABS.map(({ id, label, Icon }) => (
+                    <button key={id} onClick={() => setActiveTab(id)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 shrink-0 neu-action-btn ${activeTab === id ? "neu-pressed text-[#0969DA]" : "neu-flat-sm text-[#656D76]"}`}>
+                      <Icon size={14} className="pointer-events-none" /> {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Developer Avatars */}
+                <div className="flex items-center gap-1.5 pl-4 border-l border-[#D1DCEB]/35">
+                  {projectDevelopers.map(dev => {
+                    const initials = (dev.username || "").slice(0, 2).toUpperCase();
+                    const avatarBg = getAvatarBg(dev.username || "");
+                    return (
+                      <button
+                        type="button"
+                        key={dev.id}
+                        onClick={() => setSelectedDevStats(dev)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md neu-action-btn border-2 border-white hover:scale-110 transition-all shrink-0"
+                        style={{ backgroundColor: avatarBg }}
+                        title={`${dev.username} - View Stats`}
+                      >
+                        {initials}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Filters */}
@@ -2248,6 +2768,35 @@ export default function ProjectKanban({ open, onClose, project }) {
                     
                     {activeTab === "chart" && <ChartTab tasks={filteredTasks} projectDevelopers={projectDevelopers} />}
                     
+                    {activeTab === "scheduled" && (
+                      <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h3 className="text-base font-bold text-[#1F2328]">Scheduled Project Tasks</h3>
+                          <span className="neu-pressed-sm px-2.5 py-1 rounded-md text-[10px] font-bold text-[#0969DA]">{scheduledTasks.length} scheduled</span>
+                        </div>
+                        {scheduledTasks.length === 0 ? (
+                          <div className="text-center py-20 flex flex-col items-center">
+                            <div className="neu-pressed-sm p-6 rounded-full mb-4 text-[#656D76] opacity-50"><History size={32}/></div>
+                            <p className="text-lg font-bold text-[#1F2328] mb-1">No Scheduled Tasks</p>
+                            <p className="text-xs font-medium text-[#656D76]">Use the Add Task button to schedule future tasks.</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {scheduledTasks.map(t => (
+                              <ScheduledTaskCard
+                                key={t._id}
+                                task={t}
+                                onEdit={(task) => {
+                                  setEditingScheduledTask(task);
+                                }}
+                                onDelete={handleDeleteScheduledTask}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                   </motion.div>
                 </AnimatePresence>
               )}
@@ -2274,6 +2823,26 @@ export default function ProjectKanban({ open, onClose, project }) {
       />
       
       <CompletionHistoryDialog open={historyOpen} onClose={() => setHistoryOpen(false)} projectId={project?._id} />
+
+      {editingScheduledTask && (
+        <EditScheduledTaskModal
+          task={editingScheduledTask}
+          onClose={() => setEditingScheduledTask(null)}
+          onSuccess={() => {
+            toast("Scheduled task updated");
+            fetchScheduledTasks();
+          }}
+        />
+      )}
+
+      {selectedDevStats && (
+        <DevStatsDialog
+          open={!!selectedDevStats}
+          onClose={() => setSelectedDevStats(null)}
+          developer={selectedDevStats}
+          tasks={tasks}
+        />
+      )}
 
       {/* Snackbar */}
       <AnimatePresence>

@@ -140,6 +140,15 @@ export const TaskProvider = ({ children }) => {
     if (!isSilent) setLoading(true);
 
     try {
+      // Process go-live scheduled tasks before loading dashboard data
+      try {
+        await axios.get(`${API_BASE}/api/scheduled-tasks/process-live`, {
+          headers: authHeaders()
+        });
+      } catch (err) {
+        console.error("Scheduled Tasks Go-Live error:", err);
+      }
+
       // THE MAGIC FIX: Only ONE network request is made!
       // NOTE: Ensure this matches the route for getDeveloperDashboardData in your backend
       const res = await axios.get(`${API_BASE}/api/reports/dashboard`, { 

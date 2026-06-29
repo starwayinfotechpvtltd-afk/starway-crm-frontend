@@ -381,6 +381,10 @@ export default function ProjectList() {
     setEditProjectDialogOpen(true);
   };
 
+  const handleEditProjectDialogClose = () => {
+    setEditProjectDialogOpen(false);
+  };
+
   const handleEditProjectSubmit = async (e) => {
     e.preventDefault();
     try {

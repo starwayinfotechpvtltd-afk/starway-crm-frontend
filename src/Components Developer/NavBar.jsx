@@ -775,6 +775,7 @@ const NavBar = () => {
   const [username, setUsername] = useState("Developer");
   const [avatar, setAvatar] = useState("https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg");
   const [overdueTasks, setOverdueTasks] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   
   // UI States
   const [showNotif, setShowNotif] = useState(false);
@@ -862,9 +863,39 @@ const NavBar = () => {
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await axios.get(`${API_BASE}/api/scheduled-tasks/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.error("Failed loading notifications", err);
+    }
+  };
+
+  const markNotificationsAsRead = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      await axios.put(`${API_BASE}/api/scheduled-tasks/notifications/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Failed marking notifications as read", err);
+    }
+  };
+
   useEffect(() => {
     fetchOverdueTasks();
-    const interval = setInterval(fetchOverdueTasks, 60000);
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchOverdueTasks();
+      fetchNotifications();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -945,10 +976,16 @@ const NavBar = () => {
         </nav>
 
         <div className="dev-nb-right" ref={dropdownRef}>
-          <div className="notification-container" onClick={() => setShowNotif(!showNotif)}>
+          <div className="notification-container" onClick={() => {
+            const nextShow = !showNotif;
+            setShowNotif(nextShow);
+            if (nextShow) {
+              markNotificationsAsRead();
+            }
+          }}>
             <NotificationsOutlinedIcon className="notification-bell" />
-            {overdueTasks.length > 0 && (
-              <div className="notification-badge">{overdueTasks.length}</div>
+            {(overdueTasks.length + notifications.filter(n => !n.read).length) > 0 && (
+              <div className="notification-badge">{overdueTasks.length + notifications.filter(n => !n.read).length}</div>
             )}
           </div>
 
@@ -967,22 +1004,41 @@ const NavBar = () => {
           {showNotif && (
             <div className="notifications-dropdown">
               <div className="notif-header">
-                <span>OVERDUE WORK</span>
-                <span style={{color: "var(--red)"}}>{overdueTasks.length} Task{overdueTasks.length === 1 ? "" : "s"}</span>
+                <span>NOTIFICATIONS</span>
+                <span style={{color: "var(--red)"}}>{overdueTasks.length + notifications.filter(n => !n.read).length} Unread</span>
               </div>
               <div className="notif-list">
-                {overdueTasks.length === 0 ? (
-                  <div className="notif-empty">No overdue items. Great job!</div>
-                ) : (
-                  overdueTasks.map((t) => (
-                    <div key={t.id} className="notif-item">
-                      <span className="notif-title">{t.title}</span>
-                      <span className="notif-project">{t.projectName}</span>
-                      <span className="notif-deadline">
-                        Overdue since: {new Date(t.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                  ))
+                {overdueTasks.length > 0 && (
+                  <div style={{ marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 800, color: "var(--red)", marginBottom: "6px", textTransform: "uppercase" }}>Overdue Tasks</div>
+                    {overdueTasks.map((t) => (
+                      <div key={t.id} className="notif-item">
+                        <span className="notif-title">{t.title}</span>
+                        <span className="notif-project">{t.projectName}</span>
+                        <span className="notif-deadline">
+                          Overdue since: {new Date(t.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {notifications.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 800, color: "var(--accent)", marginBottom: "6px", textTransform: "uppercase" }}>Live Scheduled Tasks</div>
+                    {notifications.map((n) => (
+                      <div key={n._id} className="notif-item" style={{ opacity: n.read ? 0.7 : 1 }}>
+                        <span className="notif-title" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          {!n.read && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--red)", shrink: 0 }} />}
+                          {n.title}
+                        </span>
+                        <span className="notif-project">{n.projectName}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{n.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {overdueTasks.length === 0 && notifications.length === 0 && (
+                  <div className="notif-empty">No updates. Great job!</div>
                 )}
               </div>
             </div>

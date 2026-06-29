@@ -1,12 +1,15 @@
-import React, { useState, useCallback, useMemo, Suspense, useEffect } from "react";
+import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } from "react";
 import axios from "axios";
-import { differenceInCalendarDays, format } from "date-fns";
+import { 
+  differenceInCalendarDays, format, startOfMonth, endOfMonth, 
+  eachDayOfInterval, getDay, isSameDay, isToday, addMonths, subMonths, isBefore, addDays 
+} from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderDot, CheckCircle2, Clock, AlertTriangle, Calendar, Eye, 
   Trash2, Edit3, MessageSquare, ExternalLink, Plus, X, ChevronDown, 
   ChevronUp, ChevronRight, Loader2, Briefcase, Send, Shield, Search, 
-  Badge as BadgeIcon, KanbanSquare 
+  Badge as BadgeIcon, KanbanSquare, ChevronLeft
 } from "lucide-react";
 import { useTasks } from "../TaskContext";
 
@@ -26,7 +29,7 @@ const C = {
 
 const PRIORITY_ORDER = { Critical: 1, High: 2, Medium: 3, Low: 4 };
 
-const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "x-timezone-offset": new Date().getTimezoneOffset().toString() });
 
 // ── Atom: UI Badge Component ──────────────────────────────────────────────────
 const Badge = ({ label, color = C.primary }) => (
@@ -146,6 +149,251 @@ const CommentModal = ({ task, projectId, onClose }) => {
   );
 };
 
+// ── Scheduled Tasks Helper ────────────────────────────────────────────────────
+const isScheduledTaskEditable = (task) => {
+  if (!task || !task.scheduledDates || task.scheduledDates.length === 0) return false;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return task.scheduledDates.some(d => new Date(d) >= tomorrow);
+};
+
+// ── Custom Neumorphic Multi-Date Calendar ──────────────────────────────────────
+const ScheduleCalendar = ({ selectedDates, onChange }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startPad = getDay(monthStart);
+
+  const toggleDate = (date) => {
+    const isSelected = selectedDates.some((d) => isSameDay(new Date(d), date));
+    if (isSelected) {
+      onChange(selectedDates.filter((d) => !isSameDay(new Date(d), date)));
+    } else {
+      onChange([...selectedDates, date]);
+    }
+  };
+
+  const isSelected = (date) => selectedDates.some((d) => isSameDay(new Date(d), date));
+  const isPast = (date) => isBefore(date, startOfMonth(new Date())) || (isBefore(date, new Date()) && !isToday(date));
+
+  return (
+    <div className="neu-pressed rounded-xl p-4 w-full">
+      <div className="flex justify-between items-center mb-4">
+        <button type="button" onClick={handlePrevMonth} className="neu-flat-sm neu-action-btn p-1.5 rounded-lg text-[#656D76]">
+          <ChevronLeft size={14} className="pointer-events-none" />
+        </button>
+        <span className="text-xs font-bold text-[#1F2328]">{format(currentMonth, "MMMM yyyy")}</span>
+        <button type="button" onClick={handleNextMonth} className="neu-flat-sm neu-action-btn p-1.5 rounded-lg text-[#656D76]">
+          <ChevronRight size={14} className="pointer-events-none" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <span key={d} className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{d}</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: startPad }).map((_, i) => (
+          <div key={`pad-${i}`} className="aspect-square opacity-0 pointer-events-none" />
+        ))}
+        {days.map((day) => {
+          const active = isSelected(day);
+          const disabled = isPast(day);
+          return (
+            <button
+              type="button"
+              key={day.toISOString()}
+              disabled={disabled}
+              onClick={() => toggleDate(day)}
+              className={`aspect-square rounded-lg text-[10px] font-bold flex items-center justify-center transition-all ${
+                active 
+                  ? "neu-btn-primary text-white" 
+                  : disabled 
+                    ? "text-[#656D76]/30 cursor-not-allowed neu-pressed-sm" 
+                    : "neu-flat-sm text-[#1F2328] hover:text-[#0969DA]"
+              }`}
+            >
+              {format(day, "d")}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ── ScheduledTaskCard ──────────────────────────────────────────────────────────
+const ScheduledTaskCard = ({ task, onEdit, onDelete }) => {
+  const isEditable = isScheduledTaskEditable(task);
+
+  const deadlineLabel = task.deadlineOffset === 0 
+    ? "Same day" 
+    : task.deadlineOffset === 1 
+      ? "Next day" 
+      : `+${task.deadlineOffset} days`;
+
+  return (
+    <div className="neu-flat rounded-xl p-5 mb-4 group transition-transform hover:-translate-y-0.5 flex flex-col justify-between">
+      <div>
+        <h4 className="text-sm font-bold text-[#1F2328] mb-1 leading-snug group-hover:text-[#0969DA] transition-colors">{task.title}</h4>
+        <p className="text-[10px] font-bold text-[#656D76] truncate mb-3">{task.projectName || "Starway Project"}</p>
+        
+        {task.description && (
+          <p className="text-[10px] font-medium text-[#656D76] mb-4 line-clamp-2 leading-relaxed">
+            {task.description}
+          </p>
+        )}
+
+        <div className="space-y-3 mb-4">
+          <div>
+            <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider block mb-1.5">Scheduled Dates</span>
+            <div className="flex flex-wrap gap-1.5">
+              {task.scheduledDates.map((d, index) => (
+                <span key={index} className="neu-pressed-sm px-2.5 py-1 rounded text-[8px] font-bold text-[#0969DA] bg-[#E8F1FC]/50 uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={10} className="shrink-0" /> {format(new Date(d), "MMM d, yyyy")}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">Deadline</span>
+            <span className="neu-pressed-sm px-2.5 py-1 rounded text-[8px] font-bold text-[#1A7F37] bg-[#1A7F37]/5 uppercase tracking-wider">
+              {deadlineLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#D1DCEB]/50">
+        {isEditable ? (
+          <>
+            <button onClick={() => onEdit(task)} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#0969DA] flex items-center gap-1.5">
+              <Edit3 size={12} className="pointer-events-none"/> Edit
+            </button>
+            <button onClick={() => onDelete(task._id)} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#D1242F] flex items-center gap-1.5">
+              <Trash2 size={12} className="pointer-events-none"/> Delete
+            </button>
+          </>
+        ) : (
+          <span className="text-[9px] font-bold text-[#656D76] italic opacity-60">Locked (Today/Live task)</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── EditScheduledTaskModal ────────────────────────────────────────────────────
+const EditScheduledTaskModal = ({ task, onClose, onSuccess }) => {
+  const [form, setForm] = useState({
+    title: task.title,
+    description: task.description || "",
+    priority: task.priority || "Medium",
+  });
+  const [scheduledDates, setScheduledDates] = useState(task.scheduledDates.map(d => new Date(d)));
+  const [deadlineOffset, setDeadlineOffset] = useState(task.deadlineOffset || 0);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+  const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "x-timezone-offset": new Date().getTimezoneOffset().toString() });
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) { setErrors({ title: "Required" }); return; }
+    if (scheduledDates.length === 0) { setErrors({ calendar: "At least one date is required" }); return; }
+    setSaving(true);
+    try {
+      await axios.put(`${API_BASE}/api/scheduled-tasks/${task._id}`, {
+        title: form.title,
+        description: form.description,
+        priority: form.priority,
+        scheduledDates,
+        deadlineOffset
+      }, { headers: authHeaders() });
+      
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error("Edit scheduled task error:", err);
+      setErrors({ api: err.response?.data?.message || "Failed to update scheduled task" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
+      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-lg flex flex-col relative z-10 max-h-[90vh] overflow-hidden">
+        <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
+          <h2 className="text-xl font-bold text-[#1F2328]">Edit Scheduled Task</h2>
+          <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]"><X size={18} className="pointer-events-none" /></button>
+        </div>
+
+        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+          {errors.api && <div className="p-3 neu-pressed rounded-xl text-xs font-bold text-[#D1242F]">{errors.api}</div>}
+          
+          <div className="relative">
+            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Task Title <span className="text-[#D1242F]">*</span></label>
+            <input value={form.title} onChange={e => set("title", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text" />
+            {errors.title && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.title}</span>}
+          </div>
+
+          <div className="relative">
+            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Description</label>
+            <textarea value={form.description} onChange={e => set("description", e.target.value)} disabled={saving} placeholder="Context or criteria..." rows={3} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none resize-none custom-scrollbar cursor-text" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Priority</label>
+              <select value={form.priority} onChange={e => set("priority", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
+            </div>
+            <div className="relative">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Relative Deadline</label>
+              <div className="relative">
+                <select value={deadlineOffset} onChange={e => setDeadlineOffset(parseInt(e.target.value))} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
+                  <option value={0}>Same day</option>
+                  <option value={1}>Next day</option>
+                  <option value={2}>After 2 days</option>
+                  <option value={3}>After 3 days</option>
+                  <option value={5}>After 5 days</option>
+                  <option value={7}>After 7 days</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1 block">Scheduled Dates <span className="text-[#D1242F]">*</span></label>
+            <ScheduleCalendar selectedDates={scheduledDates} onChange={setScheduledDates} />
+            {errors.calendar && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.calendar}</span>}
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
+          <button onClick={onClose} disabled={saving} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} className="neu-btn-soft-blue px-8 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 neu-action-btn">
+            {saving ? <Spinner /> : <CheckCircle2 size={16} className="pointer-events-none" />} {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // ── Global Add Task Modal ─────────────────────────────────────────────────────
 const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, currentUsername, onClose, onSuccess }) => {
   const activeProjects = useMemo(() => {
@@ -160,6 +408,9 @@ const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, current
 
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || activeProjects[0]?._id || "");
   const [form, setForm] = useState({ title: "", description: "", priority: "Medium", deadline: "", assignedTo: { id: currentUserId, username: currentUsername }, links: [] });
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDates, setScheduledDates] = useState([]);
+  const [deadlineOffset, setDeadlineOffset] = useState(0);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -182,28 +433,72 @@ const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, current
   const validate = () => { const e = {}; if (!form.title.trim()) e.title = "Required"; if (!form.deadline) e.deadline = "Required"; return e; };
 
   const handleSubmit = async () => {
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
-    setSaving(true);
-    try {
-      const res = await axios.post(`${API_BASE}/api/tasks/${selectedProjectId}`, { ...form, deadline: form.deadline || null }, { headers: authHeaders() });
-      const newTask = res.data?.task || res.data;
-      onSuccess?.(newTask, selectedProjectId);
-      localStorage.setItem("last_added_project_id", selectedProjectId);
-      onClose();
-    } catch (err) { console.error("Add task error:", err); } 
-    finally { setSaving(false); }
+    if (isScheduled) {
+      if (!form.title.trim()) { setErrors({ title: "Required" }); return; }
+      if (scheduledDates.length === 0) { setErrors({ calendar: "At least one date is required" }); return; }
+      setSaving(true);
+      try {
+        await axios.post(`${API_BASE}/api/scheduled-tasks`, {
+          projectId: selectedProjectId,
+          title: form.title,
+          description: form.description,
+          priority: form.priority,
+          scheduledDates,
+          deadlineOffset,
+          assignedTo: form.assignedTo
+        }, { headers: authHeaders() });
+        
+        onSuccess?.(null, selectedProjectId, true);
+        onClose();
+      } catch (err) {
+        console.error("Scheduled task error:", err);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      const e = validate();
+      if (Object.keys(e).length) { setErrors(e); return; }
+      setSaving(true);
+      try {
+        const res = await axios.post(`${API_BASE}/api/tasks/${selectedProjectId}`, { ...form, deadline: form.deadline || null }, { headers: authHeaders() });
+        const newTask = res.data?.task || res.data;
+        onSuccess?.(newTask, selectedProjectId, false);
+        localStorage.setItem("last_added_project_id", selectedProjectId);
+        onClose();
+      } catch (err) { console.error("Add task error:", err); } 
+      finally { setSaving(false); }
+    }
   };
 
   return (
     <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
-      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-md flex flex-col relative z-10 max-h-[90vh] overflow-hidden">
+      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className={`neu-flat rounded-2xl w-full flex flex-col relative z-10 max-h-[90vh] overflow-hidden transition-all duration-300 ${isScheduled ? "max-w-lg" : "max-w-md"}`}>
         <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
-          <h2 className="text-xl font-bold text-[#1F2328]">Create New Task</h2>
+          <h2 className="text-xl font-bold text-[#1F2328]">{isScheduled ? "Schedule New Task" : "Create New Task"}</h2>
           <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]"><X size={18} className="pointer-events-none" /></button>
         </div>
 
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+          <div className="flex gap-4 items-center justify-between p-3 neu-pressed rounded-xl">
+            <span className="text-xs font-bold text-[#1F2328]">Task Scheduling</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsScheduled(false)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn ${!isScheduled ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}
+              >
+                Regular
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsScheduled(true)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn ${isScheduled ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}
+              >
+                Schedule
+              </button>
+            </div>
+          </div>
+
           <div className="relative">
             <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Project Target</label>
             <select value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
@@ -231,19 +526,49 @@ const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, current
               </select>
               <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
             </div>
-            <div className="relative">
-              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Deadline <span className="text-[#D1242F]">*</span></label>
-              <input type="date" value={form.deadline} onChange={e => set("deadline", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer" />
-              {errors.deadline && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.deadline}</span>}
-            </div>
+
+            {isScheduled ? (
+              <div className="relative">
+                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Relative Deadline</label>
+                <div className="relative">
+                  <select 
+                    value={deadlineOffset} 
+                    onChange={e => setDeadlineOffset(parseInt(e.target.value))} 
+                    disabled={saving} 
+                    className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent"
+                  >
+                    <option value={0}>Same day</option>
+                    <option value={1}>Next day</option>
+                    <option value={2}>After 2 days</option>
+                    <option value={3}>After 3 days</option>
+                    <option value={5}>After 5 days</option>
+                    <option value={7}>After 7 days</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Deadline <span className="text-[#D1242F]">*</span></label>
+                <input type="date" value={form.deadline} onChange={e => set("deadline", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer" />
+                {errors.deadline && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.deadline}</span>}
+              </div>
+            )}
           </div>
+
+          {isScheduled && (
+            <div className="space-y-4 pt-2">
+              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1 block">Scheduled Dates <span className="text-[#D1242F]">*</span></label>
+              <ScheduleCalendar selectedDates={scheduledDates} onChange={setScheduledDates} />
+              {errors.calendar && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.calendar}</span>}
+            </div>
+          )}
         </div>
 
         <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
           <button onClick={onClose} disabled={saving} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
-          {/* Using soft blue button here too for consistency */}
           <button onClick={handleSubmit} disabled={saving} className="neu-btn-soft-blue px-8 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 neu-action-btn">
-            {saving ? <Spinner /> : <Plus size={16} className="pointer-events-none" />} {saving ? "Creating…" : "Create task"}
+            {saving ? <Spinner /> : <Plus size={16} className="pointer-events-none" />} {saving ? (isScheduled ? "Scheduling…" : "Creating…") : (isScheduled ? "Schedule task" : "Create task")}
           </button>
         </div>
       </motion.div>
@@ -472,6 +797,35 @@ const DeveloperDashboard = () => {
   const [filterService, setFilterService] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
+  const [scheduledTasks, setScheduledTasks] = useState([]);
+  const [sidebarTab, setSidebarTab] = useState("tasks");
+  const [editScheduledTask, setEditScheduledTask] = useState(null);
+
+  const fetchUpcomingScheduledTasks = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/scheduled-tasks/upcoming`, { headers: authHeaders() });
+      setScheduledTasks(res.data || []);
+    } catch (err) {
+      console.error("Error fetching scheduled tasks:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUpcomingScheduledTasks();
+  }, [fetchUpcomingScheduledTasks]);
+
+  const handleDeleteScheduledTask = async (taskId) => {
+    if (!window.confirm("Are you sure you want to delete this scheduled task?")) return;
+    try {
+      await axios.delete(`${API_BASE}/api/scheduled-tasks/${taskId}`, { headers: authHeaders() });
+      showToast("Scheduled task deleted");
+      fetchUpcomingScheduledTasks();
+    } catch (err) {
+      console.error("Delete scheduled task error:", err);
+      showToast(err.response?.data?.message || "Failed to delete scheduled task", "error");
+    }
+  };
+
   const showToast = (msg, sev = "success") => setToast({ open: true, msg, sev });
 
   const handleTaskComplete = async (taskId, projectId) => {
@@ -479,9 +833,14 @@ const DeveloperDashboard = () => {
     showToast("Task marked as done! 🎉");
   };
 
-  const handleQuickAddSuccess = (newTask, projectId) => {
-    addTaskToState(newTask, projectId);
-    showToast("Task created successfully");
+  const handleQuickAddSuccess = (newTask, projectId, isSch) => {
+    if (isSch) {
+      showToast("Scheduled task created successfully");
+      fetchUpcomingScheduledTasks();
+    } else {
+      addTaskToState(newTask, projectId);
+      showToast("Task created successfully");
+    }
   };
 
   const handleOpenKanban = useCallback((pId) => {
@@ -677,41 +1036,72 @@ const DeveloperDashboard = () => {
 
         {/* ── RIGHT: Task Sidebar ── */}
         <div className="w-[380px] shrink-0 flex flex-col min-h-0 bg-[#F0F4F8]">
-          <div className="p-6 border-b border-[#D1DCEB]/50 shrink-0 h-[72px] flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-[#1F2328]">My Tasks</h2>
-              <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider mt-0.5">{loadingInitial ? "Syncing…" : `${allPendingTasks.length} pending`}</p>
+          <div className="p-6 border-b border-[#D1DCEB]/50 shrink-0 h-[80px] flex items-center justify-between">
+            <div className="neu-pressed p-1 rounded-lg inline-flex gap-1">
+              <button onClick={() => setSidebarTab("tasks")} className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all neu-action-btn ${sidebarTab === "tasks" ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
+                Tasks
+              </button>
+              <button onClick={() => setSidebarTab("scheduled")} className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all neu-action-btn ${sidebarTab === "scheduled" ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
+                Scheduled
+              </button>
             </div>
-            {!loadingInitial && (overdueCount > 0 || urgentCount > 0) && (
-              <div className="flex gap-2">
-                {overdueCount > 0 && <span className="neu-pressed-sm px-2 py-1 rounded bg-[#D1242F]/10 border border-[#D1242F]/20 text-[9px] font-bold text-[#D1242F] uppercase tracking-wider">{overdueCount} overdue</span>}
-                {urgentCount > 0 && <span className="neu-pressed-sm px-2 py-1 rounded bg-[#BF8700]/10 border border-[#BF8700]/20 text-[9px] font-bold text-[#BF8700] uppercase tracking-wider">{urgentCount} urgent</span>}
+
+            {sidebarTab === "tasks" ? (
+              <div className="flex gap-2 items-center">
+                {!loadingInitial && (overdueCount > 0 || urgentCount > 0) && (
+                  <>
+                    {overdueCount > 0 && <span className="neu-pressed-sm px-2 py-1 rounded bg-[#D1242F]/10 border border-[#D1242F]/20 text-[9px] font-bold text-[#D1242F] uppercase tracking-wider">{overdueCount} overdue</span>}
+                    {urgentCount > 0 && <span className="neu-pressed-sm px-2 py-1 rounded bg-[#BF8700]/10 border border-[#BF8700]/20 text-[9px] font-bold text-[#BF8700] uppercase tracking-wider">{urgentCount} urgent</span>}
+                  </>
+                )}
+                <span className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider">{loadingInitial ? "Syncing…" : `${allPendingTasks.length} pending`}</span>
               </div>
+            ) : (
+              <span className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider">{`${scheduledTasks.length} upcoming`}</span>
             )}
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
-            {loadingInitial ? (
-              <div className="space-y-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
-            ) : allPendingTasks.length === 0 ? (
-              <div className="text-center py-16 flex flex-col items-center">
-                <div className="neu-pressed-sm p-5 rounded-full mb-4 text-[#1A7F37] opacity-50"><CheckCircle2 size={24}/></div>
-                <p className="text-sm font-bold text-[#1F2328] mb-1">All caught up!</p>
-                <p className="text-[10px] font-bold text-[#656D76]">No pending tasks assigned to you.</p>
-              </div>
+            {sidebarTab === "tasks" ? (
+              loadingInitial ? (
+                <div className="space-y-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+              ) : allPendingTasks.length === 0 ? (
+                <div className="text-center py-16 flex flex-col items-center">
+                  <div className="neu-pressed-sm p-5 rounded-full mb-4 text-[#1A7F37] opacity-50"><CheckCircle2 size={24}/></div>
+                  <p className="text-sm font-bold text-[#1F2328] mb-1">All caught up!</p>
+                  <p className="text-[10px] font-bold text-[#656D76]">No pending tasks assigned to you.</p>
+                </div>
+              ) : (
+                allPendingTasks.map(t => (
+                  <TaskCard
+                    key={t._id}
+                    task={t}
+                    projectId={t.projectId}
+                    projectName={t.projectName}
+                    onTaskComplete={handleTaskComplete}
+                    onOpenKanban={handleOpenKanban}
+                    openingKanbanId={openingKanbanId}
+                    onTaskClick={(task, pId, pName) => setSelectedSidebarTask({ task, projectId: pId, projectName: pName })}
+                  />
+                ))
+              )
             ) : (
-              allPendingTasks.map(t => (
-                <TaskCard
-                  key={t._id}
-                  task={t}
-                  projectId={t.projectId}
-                  projectName={t.projectName}
-                  onTaskComplete={handleTaskComplete}
-                  onOpenKanban={handleOpenKanban}
-                  openingKanbanId={openingKanbanId}
-                  onTaskClick={(task, pId, pName) => setSelectedSidebarTask({ task, projectId: pId, projectName: pName })}
-                />
-              ))
+              scheduledTasks.length === 0 ? (
+                <div className="text-center py-16 flex flex-col items-center">
+                  <div className="neu-pressed-sm p-5 rounded-full mb-4 text-[#0969DA] opacity-50"><Calendar size={24}/></div>
+                  <p className="text-sm font-bold text-[#1F2328] mb-1">No scheduled tasks</p>
+                  <p className="text-[10px] font-bold text-[#656D76]">Upcoming schedules will appear here.</p>
+                </div>
+              ) : (
+                scheduledTasks.map(t => (
+                  <ScheduledTaskCard
+                    key={t._id}
+                    task={t}
+                    onEdit={setEditScheduledTask}
+                    onDelete={handleDeleteScheduledTask}
+                  />
+                ))
+              )
             )}
           </div>
         </div>
@@ -757,6 +1147,17 @@ const DeveloperDashboard = () => {
           projectName={selectedSidebarTask.projectName}
           onClose={() => setSelectedSidebarTask(null)}
           onTaskComplete={handleTaskComplete}
+        />
+      )}
+
+      {editScheduledTask && (
+        <EditScheduledTaskModal
+          task={editScheduledTask}
+          onClose={() => setEditScheduledTask(null)}
+          onSuccess={() => {
+            showToast("Scheduled task updated");
+            fetchUpcomingScheduledTasks();
+          }}
         />
       )}
 

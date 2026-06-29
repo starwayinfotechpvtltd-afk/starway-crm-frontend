@@ -482,9 +482,13 @@ function KanbanCard({ card, index, colIndex, searchQuery, isSearchActive, onClic
     <Draggable draggableId={card.id} index={index} isDragDisabled={isSearchActive}>
       {(provided, snapshot) => (
         <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={onClick}
-          style={{ ...provided.draggableProps.style, display: matches ? undefined : "none", transform: snapshot.isDragging ? `${provided.draggableProps.style?.transform} rotate(2deg)` : provided.draggableProps.style?.transform }}
           className={`neu-flat-sm rounded-xl p-4 cursor-pointer select-none transition-all duration-200 relative overflow-hidden mb-3 border-l-4 ${card.completed ? "opacity-70 bg-[#1A7F37]/5" : ""}`}
-          style={{ borderLeftColor: card.completed ? "#1A7F37" : accent, ...provided.draggableProps.style }}
+          style={{ 
+            ...provided.draggableProps.style, 
+            display: matches ? undefined : "none", 
+            transform: snapshot.isDragging ? `${provided.draggableProps.style?.transform} rotate(2deg)` : provided.draggableProps.style?.transform,
+            borderLeftColor: card.completed ? "#1A7F37" : accent 
+          }}
         >
           {card.completed && (
             <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center overflow-hidden opacity-20">
