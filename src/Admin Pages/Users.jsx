@@ -368,6 +368,7 @@ export default function UserTable() {
                 <option value="developer">Developer</option>
                 <option value="admin">Admin</option>
                 <option value="manager">Team Manager</option>
+                <option value="hr">HR Specialist</option>
               </select>
             </div>
           </div>
@@ -449,6 +450,7 @@ export default function UserTable() {
                             <option value="developer">Developer</option>
                             <option value="admin">Admin</option>
                             <option value="manager">Team Manager</option>
+                            <option value="hr">HR Specialist</option>
                           </select>
                         ) : (
                           <span className="neu-pressed-sm rounded-md px-2 py-1 text-xs font-bold text-[#1F2328] capitalize">{user.role}</span>

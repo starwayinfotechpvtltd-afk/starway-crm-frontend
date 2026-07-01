@@ -9,6 +9,7 @@ import ToDoList from "../Developer Pages/ToDo";
 import Calendar from "../Caller Pages/Calender";
 import Compose from "../Mailing System/Compose";
 import Sent from "../Mailing System/Sent";
+import NoticesView from "../Developer Pages/NoticesView";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 
 const DeveloperDashboard = () => {
@@ -45,6 +46,7 @@ const DeveloperDashboard = () => {
           <Route path="calender" element={<Calendar />} />
           <Route path="compose" element={<Compose />} />
           <Route path="sent" element={<Sent />} />
+          <Route path="notices" element={<NoticesView />} />
         </Routes>
         <Outlet />
       </div>

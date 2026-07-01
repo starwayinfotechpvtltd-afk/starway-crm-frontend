@@ -550,8 +550,10 @@ import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import ReminderSystem from "../Components Global/ReminderSystem";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
@@ -570,7 +572,7 @@ const styles = `
     font-family: 'Montserrat', sans-serif;
     position: sticky;
     top: 0;
-    z-index: 50;
+    z-index: 9999;
     background: var(--neu-bg);
     box-shadow: 0 4px 10px -2px rgba(209, 220, 235, 0.6);
     border: none;
@@ -605,7 +607,7 @@ const styles = `
   .notification-container:hover .notification-bell { color: var(--text-primary); }
   .notification-badge { position: absolute; top: -2px; right: -2px; background: var(--red); color: white; font-size: 9px; font-weight: 800; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; box-shadow: 2px 2px 6px rgba(209, 36, 47, 0.4); }
   
-  .notifications-dropdown { position: absolute; top: 50px; right: 0; width: 340px; max-height: 400px; background: var(--neu-bg); border: none; border-radius: 12px; box-shadow: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light); display: flex; flex-direction: column; overflow: hidden; z-index: 100; animation: dropFade 0.2s ease-out; }
+  .notifications-dropdown { position: absolute; top: 50px; right: 0; width: 340px; max-height: 400px; background: var(--neu-bg); border: none; border-radius: 12px; box-shadow: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light); display: flex; flex-direction: column; overflow: hidden; z-index: 999999; animation: dropFade 0.2s ease-out; }
   @keyframes dropFade { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
   .notif-header { padding: 14px 18px; border-bottom: 1px solid rgba(209, 220, 235, 0.4); background: transparent; font-size: 11px; font-weight: 800; color: var(--text-primary); display: flex; justify-content: space-between; letter-spacing: 0.05em; }
   .notif-list { overflow-y: auto; flex: 1; padding: 8px; }
@@ -973,9 +975,11 @@ const NavBar = () => {
         <nav className="dev-nb-nav">
           <NavLink to="/dashboard-developer" icon={WidgetsOutlinedIcon} label="Home" />
           <NavLink to="/dashboard-developer/one-time" icon={AccountTreeOutlinedIcon} label="Projects" />
+          <NavLink to="/dashboard-developer/notices" icon={CampaignOutlinedIcon} label="Notices" />
         </nav>
 
         <div className="dev-nb-right" ref={dropdownRef}>
+          <ReminderSystem />
           <div className="notification-container" onClick={() => {
             const nextShow = !showNotif;
             setShowNotif(nextShow);
@@ -1022,16 +1026,30 @@ const NavBar = () => {
                     ))}
                   </div>
                 )}
-                {notifications.length > 0 && (
-                  <div>
+                 {notifications.filter(n => n.type !== "notice").length > 0 && (
+                  <div style={{ marginBottom: "12px" }}>
                     <div style={{ fontSize: "10px", fontWeight: 800, color: "var(--accent)", marginBottom: "6px", textTransform: "uppercase" }}>Live Scheduled Tasks</div>
-                    {notifications.map((n) => (
+                    {notifications.filter(n => n.type !== "notice").map((n) => (
                       <div key={n._id} className="notif-item" style={{ opacity: n.read ? 0.7 : 1 }}>
                         <span className="notif-title" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           {!n.read && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--red)", shrink: 0 }} />}
                           {n.title}
                         </span>
                         <span className="notif-project">{n.projectName}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{n.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {notifications.filter(n => n.type === "notice").length > 0 && (
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 800, color: "var(--success)", marginBottom: "6px", textTransform: "uppercase" }}>Official HR Notices</div>
+                    {notifications.filter(n => n.type === "notice").map((n) => (
+                      <div key={n._id} className="notif-item" style={{ opacity: n.read ? 0.7 : 1 }}>
+                        <span className="notif-title" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          {!n.read && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--red)", shrink: 0 }} />}
+                          {n.title}
+                        </span>
                         <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{n.message}</span>
                       </div>
                     ))}

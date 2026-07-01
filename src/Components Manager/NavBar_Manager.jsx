@@ -12,7 +12,9 @@ import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOu
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import InventoryOutlinedIcon from "@mui/icons-material/InventoryOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import { Link } from "react-router-dom";
+import ReminderSystem from "../Components Global/ReminderSystem";
 
 
 const NavBar = () => {
@@ -20,7 +22,7 @@ const NavBar = () => {
 
   return (
     <>
-      <header className="p-4 lg:px-9 sticky top-0 flex justify-between items-center bg-white z-50 shadow-md relative">
+      <header className="p-4 lg:px-9 sticky top-0 flex justify-between items-center bg-white z-[9999] shadow-md relative">
         <div className="flex items-center space-x-2">
           <MenuOpenIcon
             className="text-indigo-800 cursor-pointer text-5xl"
@@ -31,7 +33,8 @@ const NavBar = () => {
         <p className="hidden sm:block md:text-xl lg:text-2xl font-medium text-indigo-800 absolute left-1/2 -translate-x-1/2">
           Hey! Manager, Sup ?
         </p>
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center space-x-4">
+          <ReminderSystem />
           <button className="w-22 h-10 rounded-2xl cursor-pointer text-white bg-indigo-600 hover:bg-indigo-500 px-4">
             Logout
           </button>
@@ -136,6 +139,16 @@ const SidebarContent = ({ setSidebarOpen }) => {
             <InventoryOutlinedIcon /> To Do List
           </Link>
         </li> */}
+
+        <li className="text-gray-700 hover:text-indigo-600 cursor-pointer p-2 rounded-md hover:bg-gray-200">
+          <Link
+            to="/dashboard-team-manager/notices"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center gap-2"
+          >
+            <CampaignOutlinedIcon /> Notices
+          </Link>
+        </li>
 
         <li className="text-gray-700 hover:text-indigo-600 cursor-pointer p-2 rounded-md hover:bg-gray-200">
           <Link

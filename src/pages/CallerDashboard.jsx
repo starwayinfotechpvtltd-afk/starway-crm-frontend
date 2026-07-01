@@ -10,6 +10,7 @@ import ToDoList from "../Caller Pages/ToDoList";
 import Calendar from "../Caller Pages/Calender";
 import Compose from "../Mailing System/Compose";
 import Sent from "../Mailing System/Sent";
+import NoticesView from "../Developer Pages/NoticesView";
 
 
 
@@ -45,7 +46,7 @@ const CallerDashboard = () => {
           <Route path="to-do-list" element={<ToDoList />} />
           <Route path="calender" element={<Calendar />} />
           <Route path="compose" element={<Compose />} />
-          {/* <Route path="sent" element={<Sent />} /> */}
+          <Route path="notices" element={<NoticesView />} />
         </Routes>
         <Outlet />
       </div>

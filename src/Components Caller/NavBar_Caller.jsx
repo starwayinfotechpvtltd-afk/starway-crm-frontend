@@ -3,6 +3,7 @@ import assets from "../assets/assets";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import dayjs from "dayjs";
+import ReminderSystem from "../Components Global/ReminderSystem";
 
 // Icons
 import WidgetsOutlinedIcon from "@mui/icons-material/WidgetsOutlined";
@@ -11,6 +12,7 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import CircleIcon from "@mui/icons-material/Circle";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 
 const NavBar = () => {
   const [username, setUsername] = useState("Admin");
@@ -87,7 +89,7 @@ const NavBar = () => {
   };
 
   return (
-    <header className="w-full bg-white border-b border-gray-200 px-10 py-5 flex items-center justify-between sticky top-0 z-50">
+    <header className="w-full bg-white border-b border-gray-200 px-10 py-5 flex items-center justify-between sticky top-0 z-[9999]">
       
       {/* Left: Logo */}
       <div className="flex items-center min-w-[150px]">
@@ -165,12 +167,23 @@ const NavBar = () => {
           <CalendarMonthOutlinedIcon sx={{ fontSize: 18 }} />
           <span>Calendar</span>
         </Link>
+
+        <Link
+          to="/dashboard-caller/notices"
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 text-sm ${
+            isActive("/dashboard-caller/notices") 
+            ? "bg-[#eef2ff] text-[#4f46e5] font-medium" 
+            : "text-gray-500 hover:bg-gray-50"
+          }`}
+        >
+          <CampaignOutlinedIcon sx={{ fontSize: 18 }} />
+          <span>Notices</span>
+        </Link>
       </nav>
 
       {/* Right: Notifications, User & Logout */}
       <div className="flex items-center space-x-5 min-w-[150px] justify-end">
-        
-       
+        <ReminderSystem />
         {/* User Info */}
         <p className="text-gray-400 text-xs hidden sm:block">
           Hey, <span className="text-indigo-600 font-semibold">{username}</span>
@@ -193,7 +206,7 @@ const NavBar = () => {
 
           {/* Notification Dropdown */}
           {notificationsOpen && (
-            <div className="absolute top-full right-0 w-80 bg-white border border-gray-100 shadow-xl rounded-lg py-2 mt-2 z-50">
+            <div className="absolute top-full right-0 w-80 bg-white border border-gray-100 shadow-xl rounded-lg py-2 mt-2 z-[999999]">
               <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center">
                 <h3 className="text-sm font-semibold text-gray-800">Today's Follow-ups</h3>
                 <span className="text-xs bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded-full">

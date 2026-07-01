@@ -15,9 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  AlertTriangle
+  AlertTriangle,
+  FileSpreadsheet
 } from "lucide-react";
 import ProjectKanban from "../Admin Pages/Components/Projectkanban";
+import ProjectSpreadsheet from "../Components Global/ProjectSpreadsheet";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
@@ -95,7 +97,7 @@ const ToggleSwitch = ({ checked, onChange }) => (
 );
 
 // ── Desktop Row Component ────────────────────────────────────────────────────
-const ProjectRow = ({ project, isLast, onView, onStatusChange, onToggleUpSale, onUpsaleAdd, onKanban, onDelete }) => {
+const ProjectRow = ({ project, isLast, onView, onStatusChange, onToggleUpSale, onUpsaleAdd, onKanban, onSpreadsheet, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -165,6 +167,7 @@ const ProjectRow = ({ project, isLast, onView, onStatusChange, onToggleUpSale, o
         {/* Actions */}
         <td className="p-3 text-right">
           <div className="flex items-center justify-end gap-1.5">
+            <button type="button" onClick={() => onSpreadsheet(project)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#1A7F37]" title="Open Spreadsheets"><FileSpreadsheet size={14} className="pointer-events-none"/></button>
             <button type="button" onClick={() => onKanban(project)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#0969DA]" title="Open Kanban"><KanbanSquare size={14} className="pointer-events-none"/></button>
             <button type="button" onClick={() => onView(project)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#656D76]" title="View Details"><Eye size={14} className="pointer-events-none"/></button>
             <button type="button" onClick={() => setExpanded(!expanded)} className="neu-flat-sm neu-action-btn p-1.5 rounded-md text-[#656D76]">
@@ -212,6 +215,9 @@ export default function ProjectList() {
   const [isLoading, setIsLoading] = useState(true);
   const [kanbanOpen, setKanbanOpen] = useState(false);
   const [kanbanProject, setKanbanProject] = useState(null);
+  
+  const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
+  const [spreadsheetProject, setSpreadsheetProject] = useState(null);
   
   // Data States
   const [projects, setProjects] = useState([]);
@@ -324,6 +330,11 @@ export default function ProjectList() {
     setKanbanOpen(true);
   };
 
+  const handleSpreadsheetClick = (project) => {
+    setSpreadsheetProject(project);
+    setSpreadsheetOpen(true);
+  };
+
   const filteredProjects = projects.filter((p) => {
     const devNames = normalizeDevelopers(p.assignedDeveloper).map((d) => d.username);
     return (
@@ -377,7 +388,11 @@ export default function ProjectList() {
   };
 
   const handleEditProjectClick = (p) => {
-    setEditProjectData({ ...p, assignedDeveloper: normalizeDevelopers(p.assignedDeveloper) });
+    setEditProjectData({ 
+      ...p, 
+      assignedDeveloper: normalizeDevelopers(p.assignedDeveloper),
+      excelAuthorizedDevelopers: p.excelAuthorizedDevelopers || []
+    });
     setEditProjectDialogOpen(true);
   };
 
@@ -524,6 +539,7 @@ export default function ProjectList() {
                     onToggleUpSale={handleToggleUpSale} 
                     onUpsaleAdd={(id) => { setSelectedProjectId(id); setUpsaleDialogOpen(true); }} 
                     onKanban={handleKanbanClick} 
+                    onSpreadsheet={handleSpreadsheetClick}
                     onDelete={(id) => { setProjectToDeleteId(id); setDeleteConfirmationOpen(true); }} 
                   />
                 ))
@@ -736,6 +752,27 @@ export default function ProjectList() {
                     </div>
                   </div>
 
+                  {/* Excel Authorization Checkbox List */}
+                  <div className="relative z-20">
+                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Excel Sheet Authorization</label>
+                    <div className="neu-pressed rounded-xl p-3 h-[150px] overflow-y-auto custom-scrollbar space-y-1 relative z-20">
+                      {developers.map((dev) => {
+                        const isSelected = (editProjectData.excelAuthorizedDevelopers || []).includes(dev._id);
+                        return (
+                          <label key={dev._id} className={`flex items-center px-4 py-2 cursor-pointer rounded-lg transition-all duration-200 relative z-20 ${isSelected ? "neu-flat bg-[#F0F4F8]" : "hover:bg-[#D1DCEB]/20"}`}>
+                            <input type="checkbox" checked={isSelected} onChange={() => {
+                               let arr = editProjectData.excelAuthorizedDevelopers || [];
+                               if (isSelected) arr = arr.filter(id => id !== dev._id);
+                               else arr = [...arr, dev._id];
+                               setEditProjectData(p => ({ ...p, excelAuthorizedDevelopers: arr }));
+                            }} className="w-4 h-4 accent-[#107C41] cursor-pointer relative z-30" />
+                            <span className={`ml-3 text-sm transition-colors ${isSelected ? "font-bold text-[#107C41]" : "font-medium text-[#1F2328]"}`}>{dev.username}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Services Toggle Pills */}
                   <div className="relative z-20">
                     <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Service Type</label>
@@ -884,6 +921,14 @@ export default function ProjectList() {
       {/* Kanban View */}
       {kanbanProject && (
         <ProjectKanban open={kanbanOpen} onClose={() => { setKanbanOpen(false); setKanbanProject(null); fetchAllData(true); }} project={kanbanProject} />
+      )}
+
+      {/* Spreadsheet View */}
+      {spreadsheetOpen && spreadsheetProject && (
+        <ProjectSpreadsheet 
+          projectId={spreadsheetProject._id} 
+          onClose={() => { setSpreadsheetOpen(false); setSpreadsheetProject(null); }} 
+        />
       )}
 
       {/* Neumorphic CSS Rules & Bug Fixes */}

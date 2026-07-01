@@ -6,6 +6,7 @@ import ClosedLeads from "../Manager Pages/ClosedLeads";
 import NewLeads from "../Manager Pages/NewLeads";
 import NavBar_Manager from "../Components Manager/NavBar_Manager";
 import Leads from "../Manager Pages/Leads";
+import NoticesView from "../Developer Pages/NoticesView";
 
 const DeveloperDashboard = () => {
   const [dashboardData, setDashboardData] = useState("");
@@ -39,7 +40,7 @@ useEffect(() => {
           <Route path="new-leads" element={<NewLeads />} />
           <Route path="leads-closed" element={<ClosedLeads />} />
           <Route path="leads" element={<Leads />} />
-          {/* <Route path="to-do-list" element={<ToDoList />} /> */}
+          <Route path="notices" element={<NoticesView />} />
         </Routes>
         <Outlet />
       </div>{" "}

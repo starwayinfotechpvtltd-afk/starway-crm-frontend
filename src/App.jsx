@@ -177,6 +177,7 @@ import AdminDashboard from "./pages/Admindashboard";
 import CallerDashboard from "./pages/CallerDashboard";
 import DeveloperDashboard from "./pages/DeveloperDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
+import HrDashboard from "./pages/HrDashboard";
 import { TaskProvider } from "./TaskContext"; // Make sure this path matches exactly where you saved it
 
 // Custom Hook: Tracks inactivity and returns modal state
@@ -304,6 +305,15 @@ const AppContent = () => {
           element={
             <ProtectedRoute allowedRoles={["manager"]}>
               <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard-hr/*"
+          element={
+            <ProtectedRoute allowedRoles={["hr"]}>
+              <HrDashboard />
             </ProtectedRoute>
           }
         />

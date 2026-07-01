@@ -62,6 +62,7 @@ const Login = () => {
         caller: "/dashboard-caller",
         developer: "/dashboard-developer",
         manager: "/dashboard-team-manager",
+        hr: "/dashboard-hr"
       };
       navigate(routes[role] || "/");
     } catch (error) {

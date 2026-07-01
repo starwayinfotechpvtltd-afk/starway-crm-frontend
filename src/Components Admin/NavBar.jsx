@@ -9,6 +9,7 @@ import {
   FolderPlus, Network, LogOut, ChevronDown
 } from "lucide-react";
 import assets from "../assets/assets";
+import ReminderSystem from "../Components Global/ReminderSystem";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
@@ -157,7 +158,7 @@ export default function NavBar() {
   return (
     <div className="montserrat-regular">
       {/* ── Fixed Top Header ── */}
-      <header className="sticky top-0 z-40 w-full h-[70px] neu-base flex items-center justify-between px-4 sm:px-8 border-b border-[#D1DCEB]/50 shadow-sm">
+      <header className="sticky top-0 z-[9999] w-full h-[70px] neu-base flex items-center justify-between px-4 sm:px-8 border-b border-[#D1DCEB]/50 shadow-sm">
         <div className="flex items-center gap-4 sm:gap-6">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -172,7 +173,8 @@ export default function NavBar() {
           Hey, <span className="text-[#0969DA]">{username}</span> — good to see you!
         </p>
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
+          <ReminderSystem />
           <button
             onClick={handleLogout}
             className="neu-flat-sm neu-action-btn px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#D1242F] hidden sm:flex items-center gap-2"

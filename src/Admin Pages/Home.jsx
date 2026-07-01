@@ -283,35 +283,40 @@ function App() {
     const fetchAllData = async () => {
       setIsLoading(true);
       try {
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
         const [
           totalRes, closedRes, newRes, activeCountRes,
           closedDateRes, recentRes, activeProjRes, userLeadsRes, trendsRes
         ] = await Promise.allSettled([
-          axios.get(`${API_BASE}/api/leads/total-leads`),
-          axios.get(`${API_BASE}/api/leads/total-closed-leads`),
-          axios.get(`${API_BASE}/api/leads/new-leads-this-month`),
-          fetch(`${API_BASE}/api/newproject/active-projects-count`).then(res => res.json()),
-          fetch(`${API_BASE}/api/leads/closed-leads-by-date`).then(res => res.json()),
-          fetch(`${API_BASE}/api/leads/recent-leads`).then(res => res.json()),
-          fetch(`${API_BASE}/api/newproject/active-projects`).then(res => res.json()),
-          fetch(`${API_BASE}/api/leads/leads-by-user`).then(res => res.json()),
-          fetch(`${API_BASE}/api/leads/lead-trends`).then(res => res.json())
+          axios.get(`${API_BASE}/api/leads/total-leads`, { headers }),
+          axios.get(`${API_BASE}/api/leads/total-closed-leads`, { headers }),
+          axios.get(`${API_BASE}/api/leads/new-leads-this-month`, { headers }),
+          axios.get(`${API_BASE}/api/newproject/active-projects-count`, { headers }),
+          axios.get(`${API_BASE}/api/leads/closed-leads-by-date`, { headers }),
+          axios.get(`${API_BASE}/api/leads/recent-leads`, { headers }),
+          axios.get(`${API_BASE}/api/newproject/active-projects`, { headers }),
+          axios.get(`${API_BASE}/api/leads/leads-by-user`, { headers }),
+          axios.get(`${API_BASE}/api/leads/lead-trends`, { headers })
         ]);
 
-        if (totalRes.status === "fulfilled") setTotalLeads(totalRes.value.data.totalLeads);
-        if (closedRes.status === "fulfilled") setClosedLeads(closedRes.value.data.totalClosedLeads);
-        if (newRes.status === "fulfilled") setNewLeads(newRes.value.data.totalNewLeads);
-        if (activeCountRes.status === "fulfilled") setActiveProjectsCount(activeCountRes.value.count);
-        if (closedDateRes.status === "fulfilled") setClosedLeadsByDate(closedDateRes.value);
-        if (recentRes.status === "fulfilled") setRecentLeads(recentRes.value);
-        if (activeProjRes.status === "fulfilled") setActiveProjects(activeProjRes.value);
+        if (totalRes.status === "fulfilled") setTotalLeads(totalRes.value.data?.totalLeads || 0);
+        if (closedRes.status === "fulfilled") setClosedLeads(closedRes.value.data?.totalClosedLeads || 0);
+        if (newRes.status === "fulfilled") setNewLeads(newRes.value.data?.totalNewLeads || 0);
+        if (activeCountRes.status === "fulfilled") setActiveProjectsCount(activeCountRes.value.data?.count || 0);
+        if (closedDateRes.status === "fulfilled") setClosedLeadsByDate(Array.isArray(closedDateRes.value.data) ? closedDateRes.value.data : []);
+        if (recentRes.status === "fulfilled") setRecentLeads(Array.isArray(recentRes.value.data) ? recentRes.value.data : []);
+        if (activeProjRes.status === "fulfilled") setActiveProjects(Array.isArray(activeProjRes.value.data) ? activeProjRes.value.data : []);
         
         if (userLeadsRes.status === "fulfilled") {
-          setUserLeads(userLeadsRes.value.map(item => ({ user: item._id || "Unknown", leads: item.count })));
+          const userLeadsArr = Array.isArray(userLeadsRes.value.data) ? userLeadsRes.value.data : [];
+          setUserLeads(userLeadsArr.map(item => ({ user: item._id || "Unknown", leads: item.count })));
         }
         
         if (trendsRes.status === "fulfilled") {
-          setLeadData(trendsRes.value.map(item => ({ name: item._id, leads: item.count })));
+          const trendsArr = Array.isArray(trendsRes.value.data) ? trendsRes.value.data : [];
+          setLeadData(trendsArr.map(item => ({ name: item._id, leads: item.count })));
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -325,7 +330,8 @@ function App() {
 
   // --- Derived Data for Pie Chart ---
   const pieChartData = useMemo(() => {
-    const typeCounts = recentLeads.reduce((acc, lead) => {
+    const leadsList = Array.isArray(recentLeads) ? recentLeads : [];
+    const typeCounts = leadsList.reduce((acc, lead) => {
       const type = lead.leadType || "Uncategorized";
       acc[type] = (acc[type] || 0) + 1;
       return acc;

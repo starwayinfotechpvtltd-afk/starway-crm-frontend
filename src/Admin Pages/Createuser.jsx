@@ -180,6 +180,7 @@ export default function UserRegistrationForm() {
                 <option value="developer">Developer</option>
                 <option value="admin">Admin</option>
                 <option value="manager">Team Manager</option>
+                <option value="hr">HR Specialist</option>
               </select>
               <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30">
                 <ChevronDown size={16} />

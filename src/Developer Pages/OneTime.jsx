@@ -9,9 +9,10 @@ import {
   FolderDot, CheckCircle2, Clock, AlertTriangle, Calendar, Eye, 
   Trash2, Edit3, MessageSquare, ExternalLink, Plus, X, ChevronDown, 
   ChevronUp, ChevronRight, Loader2, Briefcase, Send, Shield, Search, 
-  Badge as BadgeIcon, KanbanSquare, ChevronLeft
+  Badge as BadgeIcon, KanbanSquare, ChevronLeft, FileSpreadsheet
 } from "lucide-react";
 import { useTasks } from "../TaskContext";
+import ProjectSpreadsheet from "../Components Global/ProjectSpreadsheet";
 
 const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
 
@@ -666,7 +667,7 @@ const TaskCard = ({ task, projectId, projectName, onTaskComplete, onTaskClick, o
 };
 
 // ── ProjectCard ───────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, onAddTaskTrigger, onOpenKanban, openingKanbanId }) => {
+const ProjectCard = ({ project, onAddTaskTrigger, onOpenKanban, openingKanbanId, onOpenSpreadsheet }) => {
   const closed = project.status === "Closed";
   const [expanded, setExpanded] = useState(false);
   const isKanbanLoading = openingKanbanId === project._id;
@@ -718,6 +719,16 @@ const ProjectCard = ({ project, onAddTaskTrigger, onOpenKanban, openingKanbanId 
 
               {!closed && (
                 <div className="flex justify-end gap-3 pt-2">
+                  {((project.excelAuthorizedDevelopers || []).includes(localStorage.getItem("userId")) || 
+                    localStorage.getItem("role") === "admin" || 
+                    localStorage.getItem("role") === "hr") && (
+                    <button 
+                      onClick={e => { e.stopPropagation(); onOpenSpreadsheet(project); }} 
+                      className="neu-flat neu-action-btn px-5 py-2.5 rounded-lg text-xs font-bold text-[#107C41] flex items-center gap-2 hover:bg-[#107C41]/5 transition-all"
+                    >
+                      <FileSpreadsheet size={14} className="pointer-events-none"/> Excel Sheets
+                    </button>
+                  )}
                   <button onClick={e => { e.stopPropagation(); onOpenKanban(project._id); }} disabled={isKanbanLoading} className="neu-flat neu-action-btn px-5 py-2.5 rounded-lg text-xs font-bold text-[#0969DA] flex items-center gap-2 disabled:opacity-50">
                     {isKanbanLoading ? <Spinner /> : <KanbanSquare size={14} className="pointer-events-none"/>} Open Board
                   </button>
@@ -783,6 +794,7 @@ const DeveloperDashboard = () => {
   const [kanbanProject, setKanbanProject] = useState(null);
   const [kanbanOpen, setKanbanOpen] = useState(false);
   const [openingKanbanId, setOpeningKanbanId] = useState(null);
+  const [spreadsheetProject, setSpreadsheetProject] = useState(null);
 
   const [activeTab, setActiveTab] = useState("projects");
 
@@ -986,7 +998,7 @@ const DeveloperDashboard = () => {
                 ) : (
                   <div className="space-y-5">
                     {filteredProjects.map(p => (
-                      <ProjectCard key={p._id} project={p} onOpenKanban={handleOpenKanban} openingKanbanId={openingKanbanId} onAddTaskTrigger={(projId) => { setQuickAddInitialProject(projId); setQuickAddModalOpen(true); }} />
+                      <ProjectCard key={p._id} project={p} onOpenKanban={handleOpenKanban} openingKanbanId={openingKanbanId} onAddTaskTrigger={(projId) => { setQuickAddInitialProject(projId); setQuickAddModalOpen(true); }} onOpenSpreadsheet={setSpreadsheetProject} />
                     ))}
                   </div>
                 )}
@@ -1172,6 +1184,13 @@ const DeveloperDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {spreadsheetProject && (
+        <ProjectSpreadsheet 
+          projectId={spreadsheetProject._id} 
+          onClose={() => setSpreadsheetProject(null)} 
+        />
+      )}
 
       {/* Global Neumorphism CSS */}
       <style>{`

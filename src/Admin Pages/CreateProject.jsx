@@ -23,6 +23,7 @@ export default function CreateProject() {
   const [clientNumber, setClientNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [assignedDevelopers, setAssignedDevelopers] = useState([]);
+  const [excelAuthorizedDevelopers, setExcelAuthorizedDevelopers] = useState([]);
   const [serviceType, setServiceType] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [referenceSite, setReferenceSite] = useState("");
@@ -94,6 +95,14 @@ export default function CreateProject() {
     }
   };
 
+  const toggleExcelDeveloper = (devId) => {
+    if (excelAuthorizedDevelopers.includes(devId)) {
+      setExcelAuthorizedDevelopers(excelAuthorizedDevelopers.filter(id => id !== devId));
+    } else {
+      setExcelAuthorizedDevelopers([...excelAuthorizedDevelopers, devId]);
+    }
+  };
+
   const toggleService = (type) => {
     if (serviceType.includes(type)) {
       setServiceType(serviceType.filter((t) => t !== type));
@@ -119,6 +128,7 @@ export default function CreateProject() {
     const projectData = {
       projectName, projectDetails, clientName, clientEmail,
       clientNumber, amount, assignedDeveloper: assignedDevelopers,
+      excelAuthorizedDevelopers,
       serviceType, referenceSite, businessNiche, comments,
       subscriptionType, createdDate: new Date(),
     };
@@ -133,7 +143,7 @@ export default function CreateProject() {
       
       if (response.status === 201) {
         setProjectName(""); setProjectDetails(""); setClientName(""); setClientEmail("");
-        setClientNumber(""); setAmount(""); setAssignedDevelopers([]); setServiceType([]);
+        setClientNumber(""); setAmount(""); setAssignedDevelopers([]); setExcelAuthorizedDevelopers([]); setServiceType([]);
         setReferenceSite(""); setBusinessNiche(""); setComments(""); setSubscriptionType("One-Time");
         showSnackbar("Project created successfully!", "success");
       } else {
@@ -280,6 +290,23 @@ export default function CreateProject() {
                         <label key={dev._id} className={`flex items-center px-4 py-2.5 cursor-pointer rounded-lg transition-all duration-200 relative z-20 ${isSelected ? "neu-flat bg-[#F0F4F8]" : "hover:bg-[#D1DCEB]/20"}`}>
                           <input type="checkbox" checked={isSelected} onChange={() => toggleDeveloper(dev)} className="w-4 h-4 accent-[#0969DA] cursor-pointer relative z-30" />
                           <span className={`ml-3 text-sm transition-colors ${isSelected ? "font-bold text-[#0969DA]" : "font-medium text-[#1F2328]"}`}>{dev.username}</span>
+                        </label>
+                      );
+                    })}
+                    {developers.length === 0 && <p className="text-center text-xs text-[#656D76] italic mt-4">No developers found.</p>}
+                  </div>
+                </div>
+
+                {/* Excel Authorization Checklist */}
+                <div className="relative z-20">
+                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Excel Sheet Authorization</label>
+                  <div className="neu-pressed rounded-xl p-3 h-[155px] overflow-y-auto custom-scrollbar space-y-1 relative z-20">
+                    {developers.map((dev) => {
+                      const isSelected = excelAuthorizedDevelopers.includes(dev._id);
+                      return (
+                        <label key={dev._id} className={`flex items-center px-4 py-2.5 cursor-pointer rounded-lg transition-all duration-200 relative z-20 ${isSelected ? "neu-flat bg-[#F0F4F8]" : "hover:bg-[#D1DCEB]/20"}`}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleExcelDeveloper(dev._id)} className="w-4 h-4 accent-[#107C41] cursor-pointer relative z-30" />
+                          <span className={`ml-3 text-sm transition-colors ${isSelected ? "font-bold text-[#107C41]" : "font-medium text-[#1F2328]"}`}>{dev.username}</span>
                         </label>
                       );
                     })}
