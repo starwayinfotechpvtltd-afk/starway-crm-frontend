@@ -552,6 +552,7 @@ import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import WorkHourCounter from "../Components Global/WorkHourCounter";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
@@ -976,6 +977,8 @@ const NavBar = () => {
         </nav>
 
         <div className="dev-nb-right" ref={dropdownRef}>
+          <WorkHourCounter />
+
           <div className="notification-container" onClick={() => {
             const nextShow = !showNotif;
             setShowNotif(nextShow);

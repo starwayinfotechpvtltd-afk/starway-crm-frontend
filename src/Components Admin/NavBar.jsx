@@ -6,7 +6,7 @@ import {
   Menu, X, LayoutDashboard, Users, UserPlus, FileBarChart, 
   UsersRound, TrendingUp, UserPlus2, CalendarDays, 
   ClipboardList, CheckSquare, Calendar, FolderOpen, 
-  FolderPlus, Network, LogOut, ChevronDown
+  FolderPlus, Network, LogOut, ChevronDown, Clock
 } from "lucide-react";
 import assets from "../assets/assets";
 
@@ -93,6 +93,7 @@ const SidebarContent = ({ setSidebarOpen, onLogout }) => {
         <NavItem to="/dashboard-admin" icon={LayoutDashboard} label="Overview" />
 
         <NavGroup label="HR" icon={UsersRound} open={hrOpen} onToggle={() => setHrOpen(!hrOpen)}>
+          <NavItem to="/dashboard-admin/timesheet" icon={Clock} label="Timesheet" />
           <NavItem to="/dashboard-admin/create-user" icon={UserPlus} label="Create User" />
           <NavItem to="/dashboard-admin/users" icon={Users} label="All Users" />
           <NavItem to="/dashboard-admin/developer-reports" icon={FileBarChart} label="Work Reports" />

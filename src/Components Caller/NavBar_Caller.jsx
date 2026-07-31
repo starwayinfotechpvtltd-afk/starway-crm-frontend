@@ -4,6 +4,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import dayjs from "dayjs";
 
+import WorkHourCounter from "../Components Global/WorkHourCounter";
+
 // Icons
 import WidgetsOutlinedIcon from "@mui/icons-material/WidgetsOutlined";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
@@ -87,19 +89,19 @@ const NavBar = () => {
   };
 
   return (
-    <header className="w-full bg-white border-b border-gray-200 px-10 py-5 flex items-center justify-between sticky top-0 z-50">
+    <header className="w-full bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-50 gap-4">
       
       {/* Left: Logo */}
-      <div className="flex items-center min-w-[150px]">
+      <div className="flex items-center shrink-0">
         <img
           src={assets.logo}
           alt="Logo"
-          className="h-10 w-auto object-contain"
+          className="h-9 w-auto object-contain"
         />
       </div>
 
       {/* Center: Navigation Links (Compact) */}
-      <nav className="flex items-center space-x-1">
+      <nav className="flex items-center space-x-1 shrink-0">
         <Link
           to="/dashboard-caller/"
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 text-sm ${
@@ -167,12 +169,14 @@ const NavBar = () => {
         </Link>
       </nav>
 
-      {/* Right: Notifications, User & Logout */}
-      <div className="flex items-center space-x-5 min-w-[150px] justify-end">
+      {/* Right: Work Counter, Notifications, User & Logout */}
+      <div className="flex items-center space-x-3 shrink-0 justify-end">
         
-       
+        {/* Work Hour & Break Counter */}
+        <WorkHourCounter />
+        
         {/* User Info */}
-        <p className="text-gray-400 text-xs hidden sm:block">
+        <p className="text-gray-400 text-xs hidden lg:block whitespace-nowrap">
           Hey, <span className="text-indigo-600 font-semibold">{username}</span>
         </p>
         

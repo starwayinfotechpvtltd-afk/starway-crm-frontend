@@ -17,6 +17,7 @@ import Sent from "../Mailing System/Sent";
 import Inbox from "../Mailing System/Inbox";
 import Whatsapp from "../Components Global/Whatsapp";
 import Attendances from "../Admin Pages/Attendance";
+import Timesheet from "../Admin Pages/Timesheet";
 import Docs from "../Admin Pages/Docs";
 import Monthly from "../Admin Pages/MonthlyAttendance";
 import DeveloperReports from "../Admin Pages/DeveloperReports";
@@ -65,6 +66,7 @@ const AdminDashboard = () => {
           <Route path="calendar" element={<Calendar />} />
           <Route path="to-do-list" element={<ToDoList />} />
           <Route path="employee-attendances" element={<Attendances />} />
+          <Route path="timesheet" element={<Timesheet />} />
           <Route path="monthly-attendances" element={<Monthly />} />
           <Route path="employee-docs" element={<Docs />} />
           <Route path="developer-reports" element={<DeveloperReports />} />
