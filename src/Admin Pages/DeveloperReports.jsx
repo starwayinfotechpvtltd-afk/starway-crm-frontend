@@ -1,38 +1,75 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Inbox, Calendar, AlertCircle, ClipboardList, CheckCircle2, Clock, 
-  AlertTriangle, Flame, MessageSquare, ExternalLink, X, Loader2, 
-  ChevronDown, Search, FolderDot, User, Flag, ArrowUp, ArrowRight, ArrowDown
+  Inbox,
+  Calendar,
+  AlertCircle,
+  ClipboardList,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Flame,
+  MessageSquare,
+  ExternalLink,
+  X,
+  Loader2,
+  ChevronDown,
+  Search,
+  FolderDot,
+  User,
+  Flag,
+  ArrowUp,
+  ArrowRight,
+  ArrowDown,
+  RefreshCw,
+  BarChart3,
+  PieChart as PieIcon,
+  Check,
+  Building2,
+  Users,
+  ShieldCheck,
+  TrendingUp,
+  SlidersHorizontal,
 } from "lucide-react";
 import { differenceInCalendarDays, format as fnsFormat } from "date-fns";
+import Badge from "../components/ui/Badge";
+import StatCard from "../components/ui/StatCard";
+import Modal from "../components/ui/Modal";
+import { StatCardsSkeleton, TableSkeleton, ChartSkeleton } from "../components/ui/Skeleton";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
-// ── Strict System Colors ──────────────────────────────────────────────────────
-const C = {
-  primary: "#0969DA",
-  success: "#1A7F37",
-  danger: "#D1242F",
-  warning: "#BF8700",
-  text: "#1F2328",
-  textSec: "#656D76"
-};
-
-const PRIORITY_CONFIG = {
-  Critical: { color: C.danger,  icon: <Flag size={10}/> },
-  High:     { color: C.warning, icon: <ArrowUp size={10}/> },
-  Medium:   { color: C.primary, icon: <ArrowRight size={10}/> },
-  Low:      { color: C.success, icon: <ArrowDown size={10}/> },
-};
-
-const DEV_PALETTE = [
-  C.primary, C.success, C.warning, C.danger, "#8b5cf6", "#06b6d4", "#ec4899", "#1F2328"
+// ── Starway Enterprise Color System ───────────────────────────────────────────
+const PALETTE = [
+  "#2563EB", // Primary Blue
+  "#059669", // Success Green
+  "#D97706", // Amber Warning
+  "#7C3AED", // Royal Purple
+  "#DB2777", // Pink / Fuchsia
+  "#0891B2", // Cyan
+  "#DC2626", // Danger Red
+  "#475569", // Slate
 ];
+
+const PRIORITY_THEME = {
+  Critical: { color: "#DC2626", bg: "bg-rose-50", border: "border-rose-200", badge: "red", icon: <Flag size={11} className="text-rose-600" /> },
+  High:     { color: "#D97706", bg: "bg-amber-50", border: "border-amber-200", badge: "amber", icon: <ArrowUp size={11} className="text-amber-600" /> },
+  Medium:   { color: "#2563EB", bg: "bg-blue-50", border: "border-blue-200", badge: "blue", icon: <ArrowRight size={11} className="text-blue-600" /> },
+  Low:      { color: "#059669", bg: "bg-emerald-50", border: "border-emerald-200", badge: "green", icon: <ArrowDown size={11} className="text-emerald-600" /> },
+};
 
 function buildPresets() {
   const n = new Date();
@@ -65,14 +102,13 @@ const checkIsOverdue = (deadline, status) => {
 };
 
 const stringToColor = (s) => {
-  if (!s) return DEV_PALETTE[0];
+  if (!s) return PALETTE[0];
   let h = 0;
   for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
-  return DEV_PALETTE[Math.abs(h) % DEV_PALETTE.length];
+  return PALETTE[Math.abs(h) % PALETTE.length];
 };
 
-// ── Date Helpers for Modal ─────────────────────────────────────────────────────
-const isToday = (dateString) => {
+const isDateToday = (dateString) => {
   if (!dateString) return false;
   const d = new Date(dateString);
   const today = new Date();
@@ -81,36 +117,17 @@ const isToday = (dateString) => {
          d.getFullYear() === today.getFullYear();
 };
 
-const isThisWeek = (dateString) => {
+const isDateThisWeek = (dateString) => {
   if (!dateString) return false;
   const d = new Date(dateString);
   const now = new Date();
-  // Get Monday of the current week
   const day = now.getDay() || 7; 
   if (day !== 1) now.setHours(-24 * (day - 1));
   now.setHours(0,0,0,0);
   return d >= now && d <= new Date();
 };
 
-// ── Shared components ──────────────────────────────────────────────────────────
-const Badge = ({ label, color }) => (
-  <span
-    style={{ color, backgroundColor: color + "15" }}
-    className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider whitespace-nowrap"
-  >
-    {label}
-  </span>
-);
-
-const PriorityBadge = ({ priority }) => {
-  const cfg = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG.Medium;
-  return (
-    <div className="flex items-center gap-1 neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider" style={{ color: cfg.color }}>
-      {cfg.icon} {priority}
-    </div>
-  );
-};
-
+// ── Deadline Chip Component ───────────────────────────────────────────────────
 const DeadlineChip = ({ deadline }) => {
   if (!deadline) return null;
   const d = new Date(deadline);
@@ -120,62 +137,51 @@ const DeadlineChip = ({ deadline }) => {
   const isCritical = diff === 0 || diff === 1;
   const isSoon = diff > 1 && diff <= 3;
 
-  let color = C.textSec;
-  let label = fnsFormat(d, "MMM d");
-  let icon = <Calendar size={10} />;
-
   if (isOverdue) {
-    color = C.danger;
-    label = `OVERDUE (${Math.abs(diff)}d)`;
-    icon = <AlertTriangle size={10} />;
-  } else if (isCritical) {
-    color = C.danger;
-    label = diff === 0 ? "Due Today" : "Tomorrow";
-    icon = <AlertCircle size={10} />;
-  } else if (isSoon) {
-    color = C.warning;
-    label = `Due ${diff}d`;
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase font-mono">
+        <AlertTriangle size={11} className="text-rose-600" /> Overdue ({Math.abs(diff)}d)
+      </span>
+    );
+  }
+  if (isCritical) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase font-mono">
+        <AlertCircle size={11} className="text-rose-600" /> {diff === 0 ? "Due Today" : "Tomorrow"}
+      </span>
+    );
+  }
+  if (isSoon) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase font-mono">
+        <Clock size={11} className="text-amber-600" /> Due {diff}d
+      </span>
+    );
   }
 
   return (
-    <div className="flex items-center gap-1 neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider" style={{ color }}>
-      {icon} {label}
-    </div>
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200 font-mono">
+      <Calendar size={11} className="text-slate-400" /> {fnsFormat(d, "MMM d")}
+    </span>
   );
 };
 
-const PageLoader = () => (
-  <div className="h-screen w-full flex items-center justify-center neu-base">
-    <div className="neu-flat rounded-xl p-8 flex flex-col items-center">
-      <div className="w-8 h-8 border-4 border-[#D1DCEB] border-t-[#0969DA] rounded-full animate-spin mb-3"></div>
-      <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider animate-pulse">Loading Reports...</p>
-    </div>
-  </div>
-);
-
-const SelectBox = ({ value, onChange, children, className = "" }) => (
-  <div className="relative z-20">
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className={`w-full neu-pressed rounded-md py-1.5 px-3 pr-7 text-[11px] font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent relative z-20 ${className}`}
-    >
-      {children}
-    </select>
-    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30" />
-  </div>
-);
-
+// ── Custom Recharts Tooltip ───────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="neu-flat rounded-lg p-3 text-xs z-50 relative montserrat-medium">
-      <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">{label}</p>
+    <div className="bg-white border border-[#EAE3D6] rounded shadow-lg p-3 text-xs z-50">
+      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 border-b border-slate-100 pb-1">
+        {label}
+      </p>
       <div className="space-y-1">
         {payload.map((p, i) => (
-          <p key={i} style={{ color: p.color }} className="font-bold text-xs flex items-center justify-between gap-3">
-            <span>{p.name}:</span>
-            <span className="text-[#1F2328]">{p.value}</span>
+          <p key={i} className="font-semibold text-xs flex items-center justify-between gap-4">
+            <span className="flex items-center gap-1.5 text-slate-600">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || p.fill }} />
+              {p.name}:
+            </span>
+            <span className="font-bold text-slate-900 font-mono">{p.value}</span>
           </p>
         ))}
       </div>
@@ -183,249 +189,442 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-// ── CUSTOM RECHARTS X-AXIS TICK WITH AVATAR ──
+// ── Custom Recharts X-Axis Tick with Avatar ──────────────────────────────────
 const CustomXAxisTick = ({ x, y, payload, devMap, onUserClick }) => {
   const username = payload.value;
   const avatarUrl = devMap[username];
-  const IMG_SIZE = 40; // Increased size to make it bigger and sharper
+  const IMG_SIZE = 28;
   
   return (
     <g transform={`translate(${x},${y})`}>
       {avatarUrl ? (
-        <foreignObject x={-(IMG_SIZE/2)} y={4} width={IMG_SIZE} height={IMG_SIZE} style={{ cursor: 'pointer', overflow: 'visible' }} onClick={(e) => { e.stopPropagation(); onUserClick(username); }}>
-          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%' }}>
-            <img src={avatarUrl} alt={username} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', imageRendering: 'high-quality', boxShadow: '3px 3px 6px #D1DCEB, -3px -3px 6px #FFFFFF' }} />
+        <foreignObject
+          x={-(IMG_SIZE / 2)}
+          y={6}
+          width={IMG_SIZE}
+          height={IMG_SIZE}
+          style={{ cursor: "pointer", overflow: "visible" }}
+          onClick={(e) => { e.stopPropagation(); onUserClick(username); }}
+        >
+          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: "100%", height: "100%" }}>
+            <img
+              src={avatarUrl}
+              alt={username}
+              className="w-7 h-7 rounded-full object-cover border border-slate-300 shadow-xs hover:ring-2 hover:ring-[#1E40AF] transition-all"
+            />
           </div>
         </foreignObject>
       ) : (
-        <foreignObject x={-(IMG_SIZE/2)} y={4} width={IMG_SIZE} height={IMG_SIZE} style={{ cursor: 'pointer', overflow: 'visible' }} onClick={(e) => { e.stopPropagation(); onUserClick(username); }}>
-          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', backgroundColor: stringToColor(username), color: 'white', fontSize: '16px', fontWeight: 'bold', boxShadow: '3px 3px 6px #D1DCEB, -3px -3px 6px #FFFFFF' }}>
-            {username.charAt(0).toUpperCase()}
+        <foreignObject
+          x={-(IMG_SIZE / 2)}
+          y={6}
+          width={IMG_SIZE}
+          height={IMG_SIZE}
+          style={{ cursor: "pointer", overflow: "visible" }}
+          onClick={(e) => { e.stopPropagation(); onUserClick(username); }}
+        >
+          <div
+            xmlns="http://www.w3.org/1999/xhtml"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shadow-xs hover:ring-2 hover:ring-[#1E40AF] transition-all"
+            style={{ backgroundColor: stringToColor(username) }}
+          >
+            {username?.charAt(0).toUpperCase() || "?"}
           </div>
         </foreignObject>
       )}
-      <text x={0} y={IMG_SIZE + 16} dy={0} textAnchor="middle" fill="#656D76" fontSize={10} fontWeight={700} style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onUserClick(username); }}>
+      <text
+        x={0}
+        y={IMG_SIZE + 18}
+        dy={0}
+        textAnchor="middle"
+        fill="#475569"
+        fontSize={10}
+        fontWeight={600}
+        style={{ cursor: "pointer" }}
+        onClick={(e) => { e.stopPropagation(); onUserClick(username); }}
+      >
         {username}
       </text>
     </g>
   );
 };
 
-const EmptyState = ({ message }) => (
-  <div className="flex flex-col items-center justify-center py-12 text-[#656D76]">
-    <div className="neu-pressed-sm p-4 rounded-full mb-3">
-      <Inbox strokeWidth={1.5} className="w-8 h-8 opacity-60" />
+// ── Empty State Component ─────────────────────────────────────────────────────
+const EmptyState = ({ message = "No data found matching your current filters" }) => (
+  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+    <div className="p-3 bg-slate-50 border border-slate-200 rounded-full mb-3 text-slate-400">
+      <Inbox size={28} />
     </div>
-    <p className="text-xs font-bold uppercase tracking-wider">{message}</p>
+    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">{message}</p>
+    <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your filters or date range above.</p>
   </div>
 );
 
-// ── Completed/Pending split list ───────────────────────────────────────────────
-function SplitTaskList({ tasks, onTaskClick, onUserClick, datePreset }) {
-  const [pendingPage, setPendingPage]     = useState(1);
+// ── Deliverables Matrix: Split Pending & Completed Tasks ──────────────────────
+function SplitDeliverablesMatrix({ tasks, onTaskClick, onUserClick }) {
+  const [pendingPage, setPendingPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
-  const PAGE = 8;
+  const PAGE_SIZE = 8;
 
-  const pending   = useMemo(() => tasks.filter(t => t.status !== "Done"), [tasks]);
-  const completed = useMemo(() => tasks.filter(t => t.status === "Done"), [tasks]);
+  const pending = useMemo(() => tasks.filter((t) => t.status !== "Done"), [tasks]);
+  const completed = useMemo(() => tasks.filter((t) => t.status === "Done"), [tasks]);
 
-  const pendingTotal   = pending.length;
-  const completedTotal = completed.length;
+  const pendingPages = Math.ceil(pending.length / PAGE_SIZE) || 1;
+  const completedPages = Math.ceil(completed.length / PAGE_SIZE) || 1;
 
-  const pendingPages   = Math.ceil(pending.length / PAGE)   || 1;
-  const completedPages = Math.ceil(completed.length / PAGE) || 1;
-
-  const pendingSlice   = pending.slice((pendingPage - 1) * PAGE, pendingPage * PAGE);
-  const completedSlice = completed.slice((completedPage - 1) * PAGE, completedPage * PAGE);
+  const pendingSlice = pending.slice((pendingPage - 1) * PAGE_SIZE, pendingPage * PAGE_SIZE);
+  const completedSlice = completed.slice((completedPage - 1) * PAGE_SIZE, completedPage * PAGE_SIZE);
 
   const Pagination = ({ page, total, onChange }) => {
     if (total <= 1) return null;
     return (
-      <div className="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-[#D1DCEB]/50 shrink-0">
-        <button type="button" onClick={() => onChange(p => Math.max(1, p - 1))} disabled={page === 1}
-          className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 text-[10px] font-bold text-[#656D76] disabled:opacity-40">← Prev</button>
-        <span className="text-[10px] font-bold text-[#1F2328] neu-pressed-sm px-3 py-1.5 rounded-md">Page {page} of {total}</span>
-        <button type="button" onClick={() => onChange(p => Math.min(total, p + 1))} disabled={page === total}
-          className="neu-flat-sm neu-action-btn rounded-md px-3 py-1.5 text-[10px] font-bold text-[#656D76] disabled:opacity-40">Next →</button>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-xs">
+        <button
+          type="button"
+          onClick={() => onChange((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="ent-btn-secondary py-1 px-2.5 text-[11px] disabled:opacity-40"
+        >
+          ← Prev
+        </button>
+        <span className="text-[11px] font-semibold text-slate-500 font-mono">
+          Page {page} of {total}
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange((p) => Math.min(total, p + 1))}
+          disabled={page === total}
+          className="ent-btn-secondary py-1 px-2.5 text-[11px] disabled:opacity-40"
+        >
+          Next →
+        </button>
       </div>
     );
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 h-full">
-      {/* ── Pending Tasks Column ── */}
-      <div className="neu-flat rounded-xl p-4 flex flex-col h-full min-h-[400px]">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#D1DCEB]/50 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="neu-pressed-sm p-1.5 rounded-lg text-[#0969DA]"><Clock size={16} /></div>
-            <h3 className="text-sm font-bold text-[#1F2328]">Pending Tasks</h3>
-          </div>
-          <span className="neu-pressed-sm rounded-md px-2.5 py-1 text-[10px] font-bold text-[#0969DA]">{pendingTotal}</span>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1.5 space-y-3">
-          {pendingSlice.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center">
-              <div className="neu-pressed-sm p-4 rounded-full mb-3 text-[#1A7F37]"><CheckCircle2 size={24} /></div>
-              <p className="text-sm font-bold text-[#1F2328] mb-0.5">All Caught Up!</p>
-              <p className="text-[10px] font-bold text-[#656D76]">No pending tasks matching filters.</p>
-            </div>
-          ) : pendingSlice.map(t => {
-            const pc = PRIORITY_CONFIG[t.priority]?.color || C.textSec;
-            return (
-              <div key={t._id} onClick={() => onTaskClick(t)} 
-                className="neu-flat-sm rounded-lg p-3.5 cursor-pointer neu-action-btn group hover:-translate-y-0.5 transition-transform border-l-[3px] flex flex-col gap-2"
-                style={{ borderLeftColor: pc }}
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap relative z-10">
-                  <div className="flex items-center gap-1.5">
-                    <Badge label={t.projectName} color="#0969DA" />
-                    <PriorityBadge priority={t.priority} />
-                  </div>
-                  <DeadlineChip deadline={t.deadline} />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors line-clamp-1">{t.title}</p>
-                  {t.description && <p className="text-[9px] font-medium text-[#656D76] line-clamp-1 mt-0.5">{t.description}</p>}
-                </div>
-                <div className="flex items-center justify-between pt-2 mt-0.5 border-t border-[#D1DCEB]/50 relative z-10">
-                  <div className="flex items-center gap-2">
-                    {t.assignedTo?.avatar ? (
-                      <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm cursor-pointer hover:scale-105 transition-transform" />
-                    ) : (
-                      <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(t.assignedTo?.username)}}>
-                        {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-                      </div>
-                    )}
-                    <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="text-[10px] font-bold text-[#656D76] cursor-pointer hover:text-[#0969DA] transition-colors">{t.assignedTo?.username || "Unassigned"}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[#656D76]">
-                    {(t.comments?.length > 0) && <span className="flex items-center gap-1 text-[9px] font-bold"><MessageSquare size={10}/> {t.comments.length}</span>}
-                    {(t.links?.length > 0) && <span className="flex items-center gap-1 text-[9px] font-bold"><ExternalLink size={10}/> {t.links.length}</span>}
-                  </div>
-                </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ── Active & Pending Deliverables ── */}
+      <div className="ent-card p-4 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-50 text-[#1E40AF] rounded">
+                <Clock size={15} />
               </div>
-            );
-          })}
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Pending & In-Progress Tasks
+                </h3>
+                <p className="text-[10px] text-slate-400">Open deliverables awaiting completion</p>
+              </div>
+            </div>
+            <Badge variant="blue">{pending.length} Active</Badge>
+          </div>
+
+          <div className="space-y-2.5">
+            {pendingSlice.length === 0 ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center">
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-full mb-2">
+                  <CheckCircle2 size={24} />
+                </div>
+                <p className="text-xs font-bold text-slate-800">All Caught Up!</p>
+                <p className="text-[10px] text-slate-400">No open deliverables match current filters.</p>
+              </div>
+            ) : (
+              pendingSlice.map((t) => {
+                const priorityInfo = PRIORITY_THEME[t.priority] || PRIORITY_THEME.Medium;
+
+                return (
+                  <div
+                    key={t._id}
+                    onClick={() => onTaskClick(t)}
+                    className="p-3 rounded border border-[#EAE3D6] bg-white hover:border-[#1E40AF] hover:shadow-xs transition-all cursor-pointer group space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="beige" className="max-w-[140px] truncate">
+                          {t.projectName || "General"}
+                        </Badge>
+                        <Badge variant={priorityInfo.badge} className="flex items-center gap-1">
+                          {priorityInfo.icon} {t.priority}
+                        </Badge>
+                      </div>
+                      <DeadlineChip deadline={t.deadline} />
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 group-hover:text-[#1E40AF] transition-colors line-clamp-1">
+                        {t.title}
+                      </p>
+                      {t.description && (
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                          {t.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer group/user"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUserClick(t.assignedTo?.username);
+                        }}
+                      >
+                        {t.assignedTo?.avatar ? (
+                          <img
+                            src={t.assignedTo.avatar}
+                            alt="assignee"
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+                            style={{ backgroundColor: stringToColor(t.assignedTo?.username) }}
+                          >
+                            {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                          </div>
+                        )}
+                        <span className="text-[11px] font-medium text-slate-700 group-hover/user:text-[#1E40AF] group-hover/user:underline">
+                          {t.assignedTo?.username || "Unassigned"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-slate-400">
+                        {t.comments?.length > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+                            <MessageSquare size={11} /> {t.comments.length}
+                          </span>
+                        )}
+                        {t.links?.length > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+                            <ExternalLink size={11} /> {t.links.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
+
         <Pagination page={pendingPage} total={pendingPages} onChange={setPendingPage} />
       </div>
 
-      {/* ── Completed Tasks Column ── */}
-      <div className="neu-flat rounded-xl p-4 flex flex-col h-full min-h-[400px]">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#D1DCEB]/50 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="neu-pressed-sm p-1.5 rounded-lg text-[#1A7F37]"><CheckCircle2 size={16} /></div>
-            <h3 className="text-sm font-bold text-[#1F2328]">Completed Tasks</h3>
-          </div>
-          <span className="neu-pressed-sm rounded-md px-2.5 py-1 text-[10px] font-bold text-[#1A7F37]">{completedTotal}</span>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1.5 space-y-3">
-          {completedSlice.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center">
-              <div className="neu-pressed-sm p-4 rounded-full mb-3 text-[#656D76] opacity-50"><Inbox size={24} /></div>
-              <p className="text-sm font-bold text-[#1F2328] mb-0.5">No Completions</p>
-              <p className="text-[10px] font-bold text-[#656D76]">No tasks marked done in this period.</p>
-            </div>
-          ) : completedSlice.map(t => {
-            const isLate = t.deadline && t.completedAt && new Date(t.completedAt) > new Date(t.deadline);
-            const daysLate = isLate ? differenceInCalendarDays(new Date(t.completedAt), new Date(t.deadline)) : 0;
-
-            return (
-              <div key={t._id} onClick={() => onTaskClick(t)} className={`neu-pressed ${isLate ? "bg-amber-50/60 border border-amber-300/80" : "bg-[#1A7F37]/5 border border-[#1A7F37]/20"} rounded-lg p-3.5 cursor-pointer neu-action-btn group flex flex-col gap-2 transition-all opacity-85 hover:opacity-100`}>
-                <div className="flex items-center justify-between gap-2 flex-wrap relative z-10">
-                  <Badge label={t.projectName} color="#656D76" />
-                  {isLate ? (
-                    <span className="neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100/80 border border-amber-300 flex items-center gap-1">
-                      <AlertTriangle size={9} className="text-amber-600" /> Done ({daysLate}d Late)
-                    </span>
-                  ) : (
-                    <span className="neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider text-[#1A7F37] flex items-center gap-1">
-                      <CheckCircle2 size={9} /> Done On Time
-                    </span>
-                  )}
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold text-[#1F2328]/60 line-through decoration-[#1A7F37] line-clamp-1">{t.title}</p>
-                </div>
-                <div className="flex items-center justify-between pt-2 mt-0.5 border-t border-[#D1DCEB]/50 relative z-10">
-                  <div className="flex items-center gap-2">
-                    {t.assignedTo?.avatar ? (
-                      <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm grayscale group-hover:grayscale-0 transition-all cursor-pointer hover:scale-105" />
-                    ) : (
-                      <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm ${isLate ? "bg-amber-600" : "bg-[#1A7F37]"} cursor-pointer hover:scale-105 transition-transform`}>
-                        {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-                      </div>
-                    )}
-                    <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className={`text-[10px] font-bold ${isLate ? "text-amber-800" : "text-[#1A7F37]"} cursor-pointer hover:underline`}>{t.assignedTo?.username || "Unassigned"}</span>
-                  </div>
-                  {t.completedAt && <span className="text-[8px] font-bold text-[#656D76] uppercase tracking-wider">{fnsFormat(new Date(t.completedAt), "MMM d, yyyy")}</span>}
-                </div>
+      {/* ── Completed Deliverables ── */}
+      <div className="ent-card p-4 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded">
+                <CheckCircle2 size={15} />
               </div>
-            );
-          })}
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Completed Deliverables
+                </h3>
+                <p className="text-[10px] text-slate-400">Tasks verified and marked as finished</p>
+              </div>
+            </div>
+            <Badge variant="green">{completed.length} Completed</Badge>
+          </div>
+
+          <div className="space-y-2.5">
+            {completedSlice.length === 0 ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center">
+                <div className="p-3 bg-slate-50 text-slate-400 rounded-full mb-2">
+                  <Inbox size={24} />
+                </div>
+                <p className="text-xs font-bold text-slate-800">No Completed Tasks</p>
+                <p className="text-[10px] text-slate-400">No tasks marked Done in this timeframe.</p>
+              </div>
+            ) : (
+              completedSlice.map((t) => {
+                const isLate = t.deadline && t.completedAt && new Date(t.completedAt) > new Date(t.deadline);
+                const daysLate = isLate
+                  ? differenceInCalendarDays(new Date(t.completedAt), new Date(t.deadline))
+                  : 0;
+
+                return (
+                  <div
+                    key={t._id}
+                    onClick={() => onTaskClick(t)}
+                    className={`p-3 rounded border transition-all cursor-pointer group space-y-2 ${
+                      isLate
+                        ? "bg-amber-50/40 border-amber-200/80 hover:border-amber-400"
+                        : "bg-emerald-50/20 border-emerald-200/60 hover:border-emerald-400"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <Badge variant="slate" className="max-w-[140px] truncate">
+                        {t.projectName || "General"}
+                      </Badge>
+                      {isLate ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 uppercase font-mono">
+                          <AlertTriangle size={10} className="text-amber-600" /> Done ({daysLate}d Late)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase font-mono">
+                          <CheckCircle2 size={10} className="text-emerald-600" /> Done On Time
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700 line-through decoration-slate-400 line-clamp-1">
+                        {t.title}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer group/user"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUserClick(t.assignedTo?.username);
+                        }}
+                      >
+                        {t.assignedTo?.avatar ? (
+                          <img
+                            src={t.assignedTo.avatar}
+                            alt="assignee"
+                            className="w-5 h-5 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${
+                              isLate ? "bg-amber-600" : "bg-emerald-600"
+                            }`}
+                          >
+                            {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                          </div>
+                        )}
+                        <span className="text-[11px] font-medium text-slate-700 group-hover/user:underline">
+                          {t.assignedTo?.username || "Unassigned"}
+                        </span>
+                      </div>
+
+                      {t.completedAt && (
+                        <span className="text-[10px] font-medium text-slate-500 font-mono">
+                          {fnsFormat(new Date(t.completedAt), "MMM d, yyyy")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
+
         <Pagination page={completedPage} total={completedPages} onChange={setCompletedPage} />
       </div>
     </div>
   );
 }
 
-// ── Overdue Task List ─────────────────────────────────────────────────────────
-function OverdueTaskList({ tasks, onTaskClick, onUserClick }) {
-  const overdue = useMemo(
-    () => tasks.filter(t => checkIsOverdue(t.deadline, t.status)).sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
-    [tasks]
-  );
+// ── Overdue Risk Board Component ──────────────────────────────────────────────
+function OverdueRiskBoard({ tasks, onTaskClick, onUserClick }) {
+  const overdueTasks = useMemo(() => {
+    return tasks
+      .filter((t) => checkIsOverdue(t.deadline, t.status))
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+  }, [tasks]);
 
-  if (overdue.length === 0) {
+  if (overdueTasks.length === 0) {
     return (
-      <div className="neu-flat rounded-xl p-12 text-center flex flex-col items-center">
-        <div className="neu-pressed-sm p-5 rounded-full mb-4 text-[#1A7F37]"><CheckCircle2 size={32} /></div>
-        <p className="text-lg font-bold text-[#1F2328] mb-1">No overdue tasks!</p>
-        <p className="text-xs font-bold text-[#656D76]">Your team is completely on track.</p>
+      <div className="ent-card p-12 text-center flex flex-col items-center justify-center">
+        <div className="p-4 bg-emerald-50 text-emerald-600 rounded-full mb-3 border border-emerald-200">
+          <ShieldCheck size={32} />
+        </div>
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+          Zero Overdue Deliverables
+        </h3>
+        <p className="text-xs text-slate-500 mt-1 max-w-sm">
+          All team deliverables are currently on schedule. No critical deadline breaches detected.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="neu-flat rounded-xl p-4 sm:p-5">
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#D1DCEB]/50">
+    <div className="ent-card p-4 space-y-3">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <div className="neu-pressed-sm p-1.5 rounded-lg text-[#D1242F]"><AlertTriangle size={16} /></div>
-          <h3 className="text-sm font-bold text-[#1F2328]">Overdue Tasks</h3>
+          <div className="p-1.5 bg-rose-50 text-rose-600 rounded">
+            <AlertTriangle size={16} />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Critical Overdue Deliverables ({overdueTasks.length})
+            </h3>
+            <p className="text-[10px] text-slate-400">Deliverables that have breached their scheduled target deadline</p>
+          </div>
         </div>
-        <span className="neu-pressed-sm rounded-md px-2.5 py-1 text-[10px] font-bold text-[#D1242F]">{overdue.length}</span>
+        <Badge variant="red">{overdueTasks.length} Urgent Breaches</Badge>
       </div>
-      <div className="space-y-3">
-        {overdue.map(t => {
+
+      <div className="space-y-2.5">
+        {overdueTasks.map((t) => {
           const daysOverdue = differenceInCalendarDays(new Date(), new Date(t.deadline));
+          const priorityInfo = PRIORITY_THEME[t.priority] || PRIORITY_THEME.Medium;
+
           return (
-            <div key={t._id} onClick={() => onTaskClick(t)} className="neu-flat-sm rounded-lg p-3.5 cursor-pointer neu-action-btn flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
-              <div className="flex-1 min-w-0 relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <PriorityBadge priority={t.priority} />
-                  <Badge label={t.projectName} color="#0969DA" />
-                  <span className="text-[8px] font-bold text-[#D1242F] uppercase tracking-wider neu-pressed-sm px-1.5 py-0.5 rounded bg-[#D1242F]/10 border border-[#D1242F]/20">
-                    {daysOverdue}d overdue
+            <div
+              key={t._id}
+              onClick={() => onTaskClick(t)}
+              className="p-3.5 rounded border border-rose-200 bg-rose-50/30 hover:border-rose-400 hover:bg-rose-50/60 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+            >
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={priorityInfo.badge} className="flex items-center gap-1">
+                    {priorityInfo.icon} {t.priority}
+                  </Badge>
+                  <Badge variant="beige">{t.projectName || "General"}</Badge>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 uppercase font-mono">
+                    {daysOverdue} Day{daysOverdue > 1 ? "s" : ""} Overdue
                   </span>
                 </div>
-                <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#D1242F] transition-colors truncate mb-1">{t.title}</p>
-                <div className="flex items-center gap-1.5">
+
+                <p className="text-xs font-bold text-slate-900 group-hover:text-rose-700 transition-colors truncate">
+                  {t.title}
+                </p>
+
+                <div
+                  className="flex items-center gap-2 cursor-pointer w-fit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUserClick(t.assignedTo?.username);
+                  }}
+                >
                   {t.assignedTo?.avatar ? (
-                    <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-7 h-7 rounded-full object-cover shrink-0 neu-pressed-sm cursor-pointer hover:scale-105 transition-transform" />
+                    <img
+                      src={t.assignedTo.avatar}
+                      alt="assignee"
+                      className="w-4 h-4 rounded-full object-cover"
+                    />
                   ) : (
-                    <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(t.assignedTo?.username)}}>
+                    <div
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                      style={{ backgroundColor: stringToColor(t.assignedTo?.username) }}
+                    >
                       {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
                     </div>
                   )}
-                  <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider cursor-pointer hover:text-[#0969DA] transition-colors">{t.assignedTo?.username || "Unassigned"}</span>
+                  <span className="text-[11px] font-medium text-slate-600 hover:underline">
+                    Assigned: {t.assignedTo?.username || "Unassigned"}
+                  </span>
                 </div>
               </div>
-              <div className="text-[10px] font-bold text-[#D1242F] shrink-0 flex items-center gap-1.5 relative z-10 neu-pressed-sm p-2 rounded-md border border-[#D1242F]/20">
-                <Calendar size={12} />
-                <span>{fnsFormat(new Date(t.deadline), "MMM d, yyyy")}</span>
+
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                <div className="px-3 py-1.5 rounded bg-white border border-rose-200 text-rose-700 font-mono text-[11px] font-bold flex items-center gap-1.5">
+                  <Calendar size={13} />
+                  <span>Target: {fnsFormat(new Date(t.deadline), "MMM d, yyyy")}</span>
+                </div>
               </div>
             </div>
           );
@@ -435,31 +634,33 @@ function OverdueTaskList({ tasks, onTaskClick, onUserClick }) {
   );
 }
 
-// ── Main Dashboard ────────────────────────────────────────────────────────────
+// ── Main Developer Reports Dashboard ──────────────────────────────────────────
 export default function DeveloperReports() {
   const currentUserId = localStorage.getItem("userId");
 
-  const [projects,        setProjects]        = useState([]);
-  const [allTasks,        setAllTasks]        = useState([]);
-  const [completions,     setCompletions]     = useState([]);
-  const [loading,         setLoading]         = useState(true);
-  const [error,           setError]           = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
+  const [completions, setCompletions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [selectedProject,  setSelectedProject]  = useState("all");
-  const [selectedDev,      setSelectedDev]      = useState("all");
-  const [statusFilter,     setStatusFilter]     = useState("all");
-  const [priorityFilter,   setPriorityFilter]   = useState("all");
-  const [datePreset,       setDatePreset]       = useState("This Month");
-  const [customFrom,       setCustomFrom]       = useState("");
-  const [customTo,         setCustomTo]         = useState("");
-  const [activeTab,        setActiveTab]        = useState("tasks");
+  // Filters State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedDev, setSelectedDev] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [datePreset, setDatePreset] = useState("This Month");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [activeTab, setActiveTab] = useState("tasks"); // "tasks" | "overdue" | "dev-activity"
+
+  // Inspection Modals
   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
-  
-  // New State for User Details Modal
   const [selectedUserStats, setSelectedUserStats] = useState(null);
 
   const fetchReportData = useCallback(async (preset, cFrom, cTo, isSilent = false) => {
-    const presetObj = DATE_PRESETS.find(d => d.label === preset);
+    const presetObj = DATE_PRESETS.find((d) => d.label === preset);
     const isCustom = preset === "Custom";
     const fDate = isCustom ? (cFrom ? new Date(cFrom) : null) : presetObj?.from;
     const tDate = isCustom ? (cTo ? new Date(cTo) : null) : presetObj?.to;
@@ -475,7 +676,7 @@ export default function DeveloperReports() {
           setAllTasks(parsed.tasks || []);
           setCompletions(parsed.completions || []);
           if (!isSilent) setLoading(false);
-          isSilent = true; 
+          isSilent = true;
         }
       } catch (e) {}
     }
@@ -494,13 +695,15 @@ export default function DeveloperReports() {
       setAllTasks(data.tasks || []);
       setCompletions(data.completions || []);
 
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-        projects: data.projects || [],
-        tasks: data.tasks || [],
-        completions: data.completions || [],
-        timestamp: Date.now()
-      }));
-
+      sessionStorage.setItem(
+        CACHE_KEY,
+        JSON.stringify({
+          projects: data.projects || [],
+          tasks: data.tasks || [],
+          completions: data.completions || [],
+          timestamp: Date.now(),
+        })
+      );
     } catch (e) {
       if (!isSilent) setError(e.message);
     } finally {
@@ -512,10 +715,19 @@ export default function DeveloperReports() {
     fetchReportData(datePreset, customFrom, customTo);
   }, [datePreset, customFrom, customTo, fetchReportData]);
 
-  // Extract Avatars Mapping globally to easily pass to charts
+  // Alphabetically sorted projects list
+  const sortedProjects = useMemo(() => {
+    return [...projects].sort((a, b) =>
+      (a.projectName || a.title || "").localeCompare(b.projectName || b.title || "", undefined, {
+        sensitivity: "base",
+      })
+    );
+  }, [projects]);
+
+  // Extract Avatars Mapping
   const devMap = useMemo(() => {
     const map = {};
-    allTasks.forEach(t => {
+    allTasks.forEach((t) => {
       if (t.assignedTo?.username && t.assignedTo?.avatar) {
         map[t.assignedTo.username] = t.assignedTo.avatar;
       }
@@ -523,7 +735,7 @@ export default function DeveloperReports() {
         map[t.createdBy.username] = t.createdBy.avatar;
       }
     });
-    completions.forEach(c => {
+    completions.forEach((c) => {
       if (c.completedBy?.username && c.completedBy?.avatar) {
         map[c.completedBy.username] = c.completedBy.avatar;
       }
@@ -537,117 +749,158 @@ export default function DeveloperReports() {
     try {
       const commentsRes = await authFetch(`${API_BASE}/api/tasks/${pid}/${task._id}/comments`);
       const comments = Array.isArray(commentsRes) ? commentsRes : [];
-      setSelectedTaskDetails(prev => prev?._id === task._id ? { ...prev, comments, commentsLoading: false } : prev);
+      setSelectedTaskDetails((prev) =>
+        prev?._id === task._id ? { ...prev, comments, commentsLoading: false } : prev
+      );
     } catch (err) {
-      setSelectedTaskDetails(prev => prev?._id === task._id ? { ...prev, comments: [], commentsLoading: false } : prev);
+      setSelectedTaskDetails((prev) =>
+        prev?._id === task._id ? { ...prev, comments: [], commentsLoading: false } : prev
+      );
     }
   };
 
   const { fromDate, toDate } = useMemo(() => {
-    if (datePreset === "Custom") return { fromDate: customFrom ? new Date(customFrom) : null, toDate: customTo ? new Date(customTo) : null };
-    const preset = DATE_PRESETS.find(d => d.label === datePreset);
+    if (datePreset === "Custom")
+      return { fromDate: customFrom ? new Date(customFrom) : null, toDate: customTo ? new Date(customTo) : null };
+    const preset = DATE_PRESETS.find((d) => d.label === datePreset);
     return { fromDate: preset?.from ?? null, toDate: preset?.to ?? null };
   }, [datePreset, customFrom, customTo]);
 
+  // Filtered tasks pool
   const filteredTasks = useMemo(() => {
-    return allTasks.filter(t => {
+    return allTasks.filter((t) => {
       const pid = (t.projectId?._id || t.projectId)?.toString();
       if (selectedProject !== "all" && pid !== selectedProject) return false;
-      if (selectedDev     !== "all" && t.assignedTo?.username !== selectedDev)  return false;
-      if (statusFilter    === "complete"   && t.status !== "Done")              return false;
-      if (statusFilter    === "incomplete" && t.status === "Done")              return false;
-      if (priorityFilter  !== "all"        && t.priority !== priorityFilter)    return false;
+      if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
+      if (statusFilter === "complete" && t.status !== "Done") return false;
+      if (statusFilter === "incomplete" && t.status === "Done") return false;
+      if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = t.title?.toLowerCase().includes(q);
+        const matchDesc = t.description?.toLowerCase().includes(q);
+        const matchProj = t.projectName?.toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchProj) return false;
+      }
 
       if (fromDate || toDate) {
         if (t.status === "Done") {
           const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
           if (fromDate && ref < fromDate) return false;
-          if (toDate   && ref > toDate)   return false;
+          if (toDate && ref > toDate) return false;
         }
       }
       return true;
     });
-  }, [allTasks, selectedProject, selectedDev, statusFilter, priorityFilter, fromDate, toDate]);
+  }, [allTasks, selectedProject, selectedDev, statusFilter, priorityFilter, searchQuery, fromDate, toDate]);
 
+  // Alphabetically sorted developer usernames
   const developers = useMemo(() => {
-    const relevantTasks = selectedProject === "all" ? allTasks : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
-    return [...new Set(relevantTasks.map(t => t.assignedTo?.username).filter(Boolean))];
+    const relevantTasks =
+      selectedProject === "all"
+        ? allTasks
+        : allTasks.filter((t) => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+    const devs = [...new Set(relevantTasks.map((t) => t.assignedTo?.username).filter(Boolean))];
+    return devs.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [allTasks, selectedProject]);
 
+  // Executive KPI summary statistics
   const stats = useMemo(() => {
-    const pool = selectedProject === "all" ? allTasks : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
-    const allPending   = pool.filter(t => t.status !== "Done");
-    const allCompleted = pool.filter(t => {
+    const pool =
+      selectedProject === "all"
+        ? allTasks
+        : allTasks.filter((t) => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+    const allPending = pool.filter((t) => t.status !== "Done");
+    const allCompleted = pool.filter((t) => {
       if (t.status !== "Done") return false;
       if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
       if (fromDate || toDate) {
         const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
         if (fromDate && ref < fromDate) return false;
-        if (toDate   && ref > toDate)   return false;
+        if (toDate && ref > toDate) return false;
       }
       return true;
     });
 
-    const pending = selectedDev !== "all" ? allPending.filter(t => t.assignedTo?.username === selectedDev) : allPending;
-    const overdue  = pending.filter(t => checkIsOverdue(t.deadline, t.status)).length;
-    const critical = pending.filter(t => t.priority === "Critical").length;
+    const pending =
+      selectedDev !== "all" ? allPending.filter((t) => t.assignedTo?.username === selectedDev) : allPending;
+    const overdue = pending.filter((t) => checkIsOverdue(t.deadline, t.status)).length;
+    const critical = pending.filter((t) => t.priority === "Critical").length;
+    const total = pending.length + allCompleted.length;
+    const completionRate = total > 0 ? Math.round((allCompleted.length / total) * 100) : 0;
 
-    return { total: pending.length + allCompleted.length, done: allCompleted.length, pending: pending.length, overdue, critical };
+    return { total, done: allCompleted.length, pending: pending.length, overdue, critical, completionRate };
   }, [allTasks, selectedProject, selectedDev, fromDate, toDate]);
 
+  // Chart: Developer Activity
   const devBarData = useMemo(() => {
-    const pool = selectedProject === "all" ? allTasks : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+    const pool =
+      selectedProject === "all"
+        ? allTasks
+        : allTasks.filter((t) => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
     const map = {};
-    pool.filter(t => t.status !== "Done").forEach(t => {
-      if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return;
-      if (priorityFilter !== "all" && t.priority !== priorityFilter) return;
-      const name = t.assignedTo?.username || "Unknown";
-      if (!map[name]) map[name] = { name, Done: 0, Pending: 0 };
-      map[name].Pending++;
-    });
-    
-    pool.filter(t => {
-      if (t.status !== "Done") return false;
-      if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
-      if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
-      if (fromDate || toDate) {
-        const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
-        if (fromDate && ref < fromDate) return false;
-        if (toDate   && ref > toDate)   return false;
-      }
-      return true;
-    }).forEach(t => {
-      const name = t.assignedTo?.username || "Unknown";
-      if (!map[name]) map[name] = { name, Done: 0, Pending: 0 };
-      map[name].Done++;
-    });
-    return Object.values(map).sort((a, b) => (b.Done + b.Pending) - (a.Done + a.Pending));
+    pool
+      .filter((t) => t.status !== "Done")
+      .forEach((t) => {
+        if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return;
+        if (priorityFilter !== "all" && t.priority !== priorityFilter) return;
+        const name = t.assignedTo?.username || "Unknown";
+        if (!map[name]) map[name] = { name, Done: 0, Pending: 0 };
+        map[name].Pending++;
+      });
+
+    pool
+      .filter((t) => {
+        if (t.status !== "Done") return false;
+        if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
+        if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
+        if (fromDate || toDate) {
+          const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
+          if (fromDate && ref < fromDate) return false;
+          if (toDate && ref > toDate) return false;
+        }
+        return true;
+      })
+      .forEach((t) => {
+        const name = t.assignedTo?.username || "Unknown";
+        if (!map[name]) map[name] = { name, Done: 0, Pending: 0 };
+        map[name].Done++;
+      });
+    return Object.values(map).sort((a, b) => b.Done + b.Pending - (a.Done + a.Pending));
   }, [allTasks, selectedProject, selectedDev, priorityFilter, fromDate, toDate]);
 
+  // Chart: Developer Contribution Share
   const devPieData = useMemo(() => {
-    const pool = selectedProject === "all" ? allTasks : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+    const pool =
+      selectedProject === "all"
+        ? allTasks
+        : allTasks.filter((t) => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
     const map = {};
-    pool.filter(t => {
-      if (t.status !== "Done") return false;
-      if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
-      if (fromDate || toDate) {
-        const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
-        if (fromDate && ref < fromDate) return false;
-        if (toDate   && ref > toDate)   return false;
-      }
-      return true;
-    }).forEach(t => {
-      const name = t.assignedTo?.username || "Unknown";
-      map[name] = (map[name] || 0) + 1;
-    });
+    pool
+      .filter((t) => {
+        if (t.status !== "Done") return false;
+        if (selectedDev !== "all" && t.assignedTo?.username !== selectedDev) return false;
+        if (fromDate || toDate) {
+          const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
+          if (fromDate && ref < fromDate) return false;
+          if (toDate && ref > toDate) return false;
+        }
+        return true;
+      })
+      .forEach((t) => {
+        const name = t.assignedTo?.username || "Unknown";
+        map[name] = (map[name] || 0) + 1;
+      });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [allTasks, selectedProject, selectedDev, fromDate, toDate]);
 
+  // Chart: Completions in period
   const completionBarData = useMemo(() => {
-    const filtered = completions.filter(c => {
+    const filtered = completions.filter((c) => {
       const d = new Date(c.completedAt);
       if (fromDate && d < fromDate) return false;
-      if (toDate   && d > toDate)   return false;
+      if (toDate && d > toDate) return false;
       if (selectedProject !== "all") {
         const cPid = (c.projectId?._id || c.projectId)?.toString();
         if (cPid !== selectedProject) return false;
@@ -656,47 +909,56 @@ export default function DeveloperReports() {
       return true;
     });
     const map = {};
-    filtered.forEach(c => {
+    filtered.forEach((c) => {
       const name = c.completedBy?.username || "Unknown";
       map[name] = (map[name] || 0) + 1;
     });
-    return Object.entries(map).map(([name, Completed]) => ({ name, Completed })).sort((a, b) => b.Completed - a.Completed);
+    return Object.entries(map)
+      .map(([name, Completed]) => ({ name, Completed }))
+      .sort((a, b) => b.Completed - a.Completed);
   }, [completions, fromDate, toDate, selectedProject, selectedDev]);
 
+  // Developer Cards data
   const devCardData = useMemo(() => {
-    const pool = selectedProject === "all" ? allTasks : allTasks.filter(t => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
+    const pool =
+      selectedProject === "all"
+        ? allTasks
+        : allTasks.filter((t) => (t.projectId?._id || t.projectId)?.toString() === selectedProject);
     return developers.map((dev, i) => {
-      const pendingTasks = pool.filter(t => t.status !== "Done" && t.assignedTo?.username === dev);
-      const doneTasks = pool.filter(t => {
+      const pendingTasks = pool.filter((t) => t.status !== "Done" && t.assignedTo?.username === dev);
+      const doneTasks = pool.filter((t) => {
         if (t.status !== "Done" || t.assignedTo?.username !== dev) return false;
         if (fromDate || toDate) {
           const ref = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
           if (fromDate && ref < fromDate) return false;
-          if (toDate   && ref > toDate)   return false;
+          if (toDate && ref > toDate) return false;
         }
         return true;
       });
-      const overdueCount = pendingTasks.filter(t => checkIsOverdue(t.deadline, t.status)).length;
+      const overdueCount = pendingTasks.filter((t) => checkIsOverdue(t.deadline, t.status)).length;
       const total = pendingTasks.length + doneTasks.length;
-      const pct   = total ? Math.round((doneTasks.length / total) * 100) : 0;
+      const pct = total ? Math.round((doneTasks.length / total) * 100) : 0;
       return { dev, i, pendingTasks, doneTasks, overdueCount, total, pct };
     });
   }, [developers, allTasks, selectedProject, fromDate, toDate]);
 
-  // ── Handler for opening the customized User Details Modal ──
+  // Handler for Developer Profile Modal
   const handleUserClick = (username) => {
     if (!username || username === "Unknown") return;
-    
-    // Find absolute stats for this user regardless of global date filters
-    const userTasks = allTasks.filter(t => t.assignedTo?.username === username);
-    
-    const doneToday = userTasks.filter(t => t.status === "Done" && isToday(t.completedAt || t.updatedAt)).length;
-    const doneThisWeek = userTasks.filter(t => t.status === "Done" && isThisWeek(t.completedAt || t.updatedAt)).length;
-    const totalTasksAssigned = userTasks.length;
 
-    // Get unique projects contributed to
+    const userTasks = allTasks.filter((t) => t.assignedTo?.username === username);
+    const doneToday = userTasks.filter(
+      (t) => t.status === "Done" && isDateToday(t.completedAt || t.updatedAt)
+    ).length;
+    const doneThisWeek = userTasks.filter(
+      (t) => t.status === "Done" && isDateThisWeek(t.completedAt || t.updatedAt)
+    ).length;
+    const totalTasksAssigned = userTasks.length;
+    const totalDone = userTasks.filter((t) => t.status === "Done").length;
+    const rate = totalTasksAssigned > 0 ? Math.round((totalDone / totalTasksAssigned) * 100) : 0;
+
     const projectsSet = new Set();
-    userTasks.forEach(t => {
+    userTasks.forEach((t) => {
       if (t.projectName) projectsSet.add(t.projectName);
     });
     const projectsContributed = Array.from(projectsSet);
@@ -707,167 +969,368 @@ export default function DeveloperReports() {
       doneToday,
       doneThisWeek,
       totalTasksAssigned,
+      totalDone,
+      rate,
       projectsContributed,
     });
   };
 
-  if (loading && allTasks.length === 0) return <PageLoader />;
-
   return (
-    <div className="h-screen w-full overflow-hidden flex flex-col neu-base montserrat-regular text-[#1F2328]">
-      {/* ── Scrollable Content Area ── */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 space-y-4 relative z-10 pb-16">
-        
-        {/* Filters */}
-        <div className="neu-flat rounded-xl p-4">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[130px] relative z-20">
-              <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Project</label>
-              <SelectBox value={selectedProject} onChange={v => { setSelectedProject(v); setSelectedDev("all"); }}>
-                <option value="all">All Projects</option>
-                {projects.map(p => <option key={p._id} value={p._id}>{p.projectName || p.title || p._id}</option>)}
-              </SelectBox>
-            </div>
-            <div className="flex-1 min-w-[130px] relative z-20">
-              <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Developer</label>
-              <SelectBox value={selectedDev} onChange={setSelectedDev}>
-                <option value="all">All Developers</option>
-                {developers.map(d => <option key={d} value={d}>{d}</option>)}
-              </SelectBox>
-            </div>
-            <div className="flex-1 min-w-[130px] relative z-20">
-              <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Status</label>
-              <SelectBox value={statusFilter} onChange={setStatusFilter}>
-                <option value="all">All Status</option>
-                <option value="complete">Completed</option>
-                <option value="incomplete">Incomplete</option>
-              </SelectBox>
-            </div>
-            <div className="flex-1 min-w-[130px] relative z-20">
-              <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Priority</label>
-              <SelectBox value={priorityFilter} onChange={setPriorityFilter}>
-                <option value="all">All Priorities</option>
-                {["Critical","High","Medium","Low"].map(p => <option key={p} value={p}>{p}</option>)}
-              </SelectBox>
-            </div>
-            <div className="flex-1 min-w-[130px] relative z-20">
-              <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Period</label>
-              <SelectBox value={datePreset} onChange={setDatePreset}>
-                {DATE_PRESETS.map(d => <option key={d.label} value={d.label}>{d.label}</option>)}
-                <option value="Custom">Custom Range</option>
-              </SelectBox>
-            </div>
-            {datePreset === "Custom" && (
-              <>
-                <div className="flex-1 min-w-[130px] relative z-20">
-                  <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">From</label>
-                  <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="w-full neu-pressed rounded-md py-1.5 px-3 text-[11px] font-bold text-[#1F2328] outline-none cursor-pointer relative z-20" />
-                </div>
-                <div className="flex-1 min-w-[130px] relative z-20">
-                  <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">To</label>
-                  <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} className="w-full neu-pressed rounded-md py-1.5 px-3 text-[11px] font-bold text-[#1F2328] outline-none cursor-pointer relative z-20" />
-                </div>
-              </>
-            )}
+    <div className="space-y-5">
+      {/* ── Executive KPI Summary Cards ────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <StatCard
+          title="Total Deliverables"
+          value={loading ? "..." : stats.total}
+          icon={ClipboardList}
+          variant="blue"
+          subtitle="All tasks in scope"
+        />
+        <StatCard
+          title="Completed"
+          value={loading ? "..." : stats.done}
+          icon={CheckCircle2}
+          variant="emerald"
+          subtitle={`${stats.completionRate}% completion rate`}
+        />
+        <StatCard
+          title="In Progress"
+          value={loading ? "..." : stats.pending}
+          icon={Clock}
+          variant="indigo"
+          subtitle="Active deliverables"
+        />
+        <StatCard
+          title="Overdue Risk"
+          value={loading ? "..." : stats.overdue}
+          icon={AlertTriangle}
+          variant="rose"
+          subtitle="Target date breached"
+        />
+        <StatCard
+          title="Critical Open"
+          value={loading ? "..." : stats.critical}
+          icon={Flame}
+          variant="amber"
+          subtitle="High urgency items"
+        />
+      </div>
+
+      {/* ── Filter & Control Bar ────────────────────────────────────────────── */}
+      <div className="ent-card p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal size={16} className="text-[#1E40AF]" />
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Work & Performance Filters
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fetchReportData(datePreset, customFrom, customTo)}
+              className="ent-btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh Data
+            </button>
           </div>
         </div>
 
-        {/* Error */}
-        <AnimatePresence>
-          {error && (
-            <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }} className="neu-pressed rounded-lg p-3 flex items-center gap-2">
-              <AlertCircle size={16} className="text-[#D1242F]" />
-              <span className="text-[11px] font-bold text-[#D1242F]">{error}</span>
-            </motion.div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Quick Search */}
+          <div className="lg:col-span-2">
+            <label className="ent-label">Search Deliverables</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search title, description, project..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="ent-input text-xs pl-8"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Project Selector (Alphabetical) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="ent-label">Project</label>
+              <span className="text-[9px] text-slate-400 font-mono">A–Z</span>
+            </div>
+            <select
+              value={selectedProject}
+              onChange={(e) => {
+                setSelectedProject(e.target.value);
+                setSelectedDev("all");
+              }}
+              className="ent-select text-xs font-medium"
+            >
+              <option value="all">All Projects</option>
+              {sortedProjects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.projectName || p.title || p._id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Developer Selector (Alphabetical) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="ent-label">Developer</label>
+              <span className="text-[9px] text-slate-400 font-mono">A–Z</span>
+            </div>
+            <select
+              value={selectedDev}
+              onChange={(e) => setSelectedDev(e.target.value)}
+              className="ent-select text-xs font-medium"
+            >
+              <option value="all">All Developers</option>
+              {developers.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Priority Selector */}
+          <div>
+            <label className="ent-label">Priority</label>
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="ent-select text-xs font-medium"
+            >
+              <option value="all">All Priorities</option>
+              <option value="Critical">Critical 🔴</option>
+              <option value="High">High 🟡</option>
+              <option value="Medium">Medium 🔵</option>
+              <option value="Low">Low 🟢</option>
+            </select>
+          </div>
+
+          {/* Timeframe Presets */}
+          <div>
+            <label className="ent-label">Time Period</label>
+            <select
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value)}
+              className="ent-select text-xs font-medium"
+            >
+              {DATE_PRESETS.map((d) => (
+                <option key={d.label} value={d.label}>
+                  {d.label}
+                </option>
+              ))}
+              <option value="Custom">Custom Range...</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Custom Date Range Inputs */}
+        {datePreset === "Custom" && (
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
+            <div>
+              <label className="ent-label">Start Date</label>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="ent-input text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="ent-label">End Date</label>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="ent-input text-xs font-mono"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs font-bold text-rose-800 flex items-center gap-2">
+          <AlertCircle size={16} className="text-rose-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* ── View Navigation Tabs ────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("tasks")}
+          className={`px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === "tasks"
+              ? "bg-[#1E40AF] text-white shadow-xs"
+              : "bg-white text-slate-600 hover:text-slate-900 border border-[#EAE3D6]"
+          }`}
+        >
+          <ClipboardList size={14} /> Deliverables Matrix
+          <span
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+              activeTab === "tasks" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {filteredTasks.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("overdue")}
+          className={`px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === "overdue"
+              ? "bg-rose-600 text-white shadow-xs"
+              : "bg-white text-slate-600 hover:text-rose-700 border border-[#EAE3D6]"
+          }`}
+        >
+          <AlertTriangle size={14} /> Overdue Risks
+          {stats.overdue > 0 && (
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                activeTab === "overdue" ? "bg-white text-rose-700" : "bg-rose-100 text-rose-700"
+              }`}
+            >
+              {stats.overdue}
+            </span>
           )}
-        </AnimatePresence>
+        </button>
 
-        {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 relative z-10">
-          {[
-            { label:"Total Tasks",   value:stats.total,    color:"#0969DA", icon:<ClipboardList size={16} /> },
-            { label:"Completed",     value:stats.done,     color:"#1A7F37", icon:<CheckCircle2  size={16} /> },
-            { label:"Pending",       value:stats.pending,  color:"#656D76", icon:<Clock         size={16} /> },
-            { label:"Overdue",       value:stats.overdue,  color:"#D1242F", icon:<AlertTriangle size={16} /> },
-            { label:"Critical Open", value:stats.critical, color:"#BF8700", icon:<Flame         size={16} /> },
-          ].map((card, i) => (
-            <motion.div key={card.label} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: i*0.05 }} className="neu-flat rounded-xl p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{card.label}</span>
-                <div className="neu-pressed-sm p-1.5 rounded-md" style={{ color:card.color }}>{card.icon}</div>
-              </div>
-              <p className="text-2xl font-bold" style={{ color:card.color }}>{card.value}</p>
-            </motion.div>
-          ))}
+        <button
+          type="button"
+          onClick={() => setActiveTab("dev-activity")}
+          className={`px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === "dev-activity"
+              ? "bg-[#1E40AF] text-white shadow-xs"
+              : "bg-white text-slate-600 hover:text-slate-900 border border-[#EAE3D6]"
+          }`}
+        >
+          <BarChart3 size={14} /> Performance & Analytics
+        </button>
+      </div>
+
+      {/* ── Tab Views ───────────────────────────────────────────────────────── */}
+      {loading && allTasks.length === 0 ? (
+        <div className="space-y-4">
+          <StatCardsSkeleton count={3} />
+          <TableSkeleton rows={6} cols={4} />
         </div>
-
-        {/* ── Tabs ── */}
-        <div className="neu-pressed rounded-lg p-1.5 inline-flex flex-wrap gap-1.5 relative z-20">
-          {[
-            { id:"tasks",         label:"Task List" },
-            { id:"overdue",       label:"Overdue" },
-            { id:"dev-activity",  label:"Dev Activity" },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn flex items-center gap-1.5 ${activeTab === tab.id ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-              {tab.label}
-              {tab.id === "overdue" && stats.overdue > 0 && <span className="bg-[#D1242F] text-white text-[8px] font-bold rounded px-1.5 py-0.5 pointer-events-none">{stats.overdue}</span>}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Tab Content ── */}
-        <AnimatePresence mode="wait">
+      ) : (
+        <>
           {activeTab === "tasks" && (
-            <motion.div key="tasks" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-4 relative z-10">
-              <div className="neu-flat rounded-xl p-4 flex items-center justify-between">
-                <h2 className="text-base font-bold text-[#1F2328]">Tasks Overview</h2>
-                <span className="neu-pressed-sm rounded-md px-3 py-1.5 text-[10px] font-bold text-[#656D76]">{filteredTasks.length} tasks matching</span>
-              </div>
-              {filteredTasks.length === 0 ? <EmptyState message="No tasks match your filters" /> : <SplitTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} onUserClick={handleUserClick} datePreset={datePreset} />}
-            </motion.div>
+            <SplitDeliverablesMatrix
+              tasks={filteredTasks}
+              onTaskClick={handleTaskClick}
+              onUserClick={handleUserClick}
+            />
           )}
 
           {activeTab === "overdue" && (
-            <motion.div key="overdue" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-4 relative z-10">
-              <OverdueTaskList tasks={filteredTasks} onTaskClick={handleTaskClick} onUserClick={handleUserClick} />
-            </motion.div>
+            <OverdueRiskBoard
+              tasks={filteredTasks}
+              onTaskClick={handleTaskClick}
+              onUserClick={handleUserClick}
+            />
           )}
 
           {activeTab === "dev-activity" && (
-            <motion.div key="dev-activity" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }} transition={{ duration:0.2 }} className="space-y-5 relative z-10">
-              
-              <div className="neu-pressed rounded-lg p-4 text-xs font-medium text-[#1F2328] flex items-start sm:items-center gap-3">
-                <div className="neu-flat-sm p-1.5 rounded-full text-[#0969DA] shrink-0"><Clock size={14}/></div>
-                <span><strong>Completed</strong> counts reflect tasks finished within <span className="font-bold text-[#0969DA] bg-[#D1DCEB]/30 px-1.5 rounded">{datePreset}</span>. <strong>Pending</strong> counts show all open tasks.</span>
+            <div className="space-y-5">
+              {/* Informational Scope Pill */}
+              <div className="p-3 bg-blue-50/60 border border-blue-200 rounded flex items-center justify-between text-xs text-slate-800">
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-[#1E40AF]" />
+                  <span>
+                    Analytics reflect completed deliverables within{" "}
+                    <strong className="text-[#1E40AF] font-bold">{datePreset}</strong> and open pending tasks.
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 font-bold">
+                  {developers.length} Developers Active
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div className="neu-flat rounded-xl p-5">
-                  <h3 className="text-base font-bold text-[#1F2328] mb-1">Completions in Period</h3>
-                  <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-6">Tasks marked Done · {datePreset}</p>
-                  {completionBarData.length === 0 ? <EmptyState message="No completions in this period" /> : (
-                    <ResponsiveContainer width="100%" height={290}>
-                      <BarChart data={completionBarData} barCategoryGap="30%" margin={{ top:10, right:10, left:0, bottom:55 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Completions Bar Chart */}
+                <div className="ent-card p-4">
+                  <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Completions in Period
+                      </h3>
+                      <p className="text-[10px] text-slate-400">Tasks verified done · {datePreset}</p>
+                    </div>
+                    <Badge variant="green">Velocity</Badge>
+                  </div>
+
+                  {completionBarData.length === 0 ? (
+                    <EmptyState message="No completed tasks in this period" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={completionBarData} barCategoryGap="28%" margin={{ top: 10, right: 10, left: -20, bottom: 50 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                         <XAxis dataKey="name" tick={<CustomXAxisTick devMap={devMap} onUserClick={handleUserClick} />} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill:"#656D76", fontSize:10, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                        <Tooltip cursor={{ fill: 'rgba(209, 220, 235, 0.3)' }} content={<CustomTooltip />} />
-                        <Bar dataKey="Completed" radius={[4,4,0,0]}>
-                          {completionBarData.map((_, i) => <Cell key={i} fill={DEV_PALETTE[i % DEV_PALETTE.length]} />)}
+                        <YAxis tick={{ fill: "#64748B", fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                        <Tooltip cursor={{ fill: "#F1F5F9" }} content={<CustomTooltip />} />
+                        <Bar dataKey="Completed" radius={[4, 4, 0, 0]}>
+                          {completionBarData.map((_, i) => (
+                            <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                          ))}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
                 </div>
 
-                <div className="neu-flat rounded-xl p-5">
-                  <h3 className="text-base font-bold text-[#1F2328] mb-1">Total Contribution</h3>
-                  <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-6">% of Completed Tasks per Developer</p>
-                  {devPieData.length === 0 ? <EmptyState message="No completed tasks match filters" /> : (
-                    <ResponsiveContainer width="100%" height={290}>
+                {/* Contribution Donut */}
+                <div className="ent-card p-4">
+                  <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Team Contribution Share
+                      </h3>
+                      <p className="text-[10px] text-slate-400">% of Completed Deliverables per Member</p>
+                    </div>
+                    <Badge variant="purple">Distribution</Badge>
+                  </div>
+
+                  {devPieData.length === 0 ? (
+                    <EmptyState message="No completed tasks matching filters" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={280}>
                       <PieChart>
-                        <Pie data={devPieData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} dataKey="value" stroke="none" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                          {devPieData.map((_, i) => <Cell key={i} fill={DEV_PALETTE[i % DEV_PALETTE.length]} />)}
+                        <Pie
+                          data={devPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={3}
+                          dataKey="value"
+                          stroke="none"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {devPieData.map((_, i) => (
+                            <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                          ))}
                         </Pie>
                         <Tooltip content={<CustomTooltip />} />
                       </PieChart>
@@ -876,287 +1339,364 @@ export default function DeveloperReports() {
                 </div>
               </div>
 
-              <div className="neu-flat rounded-xl p-5">
-                <h3 className="text-base font-bold text-[#1F2328] mb-1">Task Breakdown</h3>
-                <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-6">Completed vs Pending (Currently Open)</p>
-                {devBarData.length === 0 ? <EmptyState message="No tasks match filters" /> : (
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={devBarData} barCategoryGap="25%" margin={{ top:10, right:10, left:0, bottom:55 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
+              {/* Task Breakdown Stacked Bar Chart */}
+              <div className="ent-card p-4">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Workload Breakdown (Done vs Pending)
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Total deliverables load per developer</p>
+                  </div>
+                  <Badge variant="blue">Volume</Badge>
+                </div>
+
+                {devBarData.length === 0 ? (
+                  <EmptyState message="No tasks match filters" />
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={devBarData} barCategoryGap="25%" margin={{ top: 10, right: 10, left: -20, bottom: 50 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="name" tick={<CustomXAxisTick devMap={devMap} onUserClick={handleUserClick} />} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill:"#656D76", fontSize:10, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'rgba(209, 220, 235, 0.3)' }} content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: 10, fontWeight: 700, color: '#656D76', paddingTop: '10px' }} />
-                      <Bar dataKey="Done"    fill="#1A7F37" radius={[4,4,0,0]} stackId="a" />
-                      <Bar dataKey="Pending" fill="#0969DA" radius={[4,4,0,0]} stackId="a" />
+                      <YAxis tick={{ fill: "#64748B", fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: "#F1F5F9" }} content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 11, fontWeight: 600, color: "#475569", paddingTop: "10px" }} />
+                      <Bar dataKey="Done" name="Completed" fill="#059669" radius={[4, 4, 0, 0]} stackId="a" />
+                      <Bar dataKey="Pending" name="In Progress" fill="#2563EB" radius={[4, 4, 0, 0]} stackId="a" />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {devCardData.length === 0 && <EmptyState message="No developer data yet" />}
+              {/* Developer Performance Scorecards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {devCardData.map(({ dev, i, pendingTasks, doneTasks, overdueCount, total, pct }) => (
-                  <motion.div key={dev} initial={{ opacity:0, scale:0.97 }} animate={{ opacity:1, scale:1 }} transition={{ delay:i * 0.05 }} className="neu-flat rounded-xl p-4 cursor-pointer group hover:-translate-y-0.5 transition-transform" onClick={() => handleUserClick(dev)}>
-                    <div className="flex items-center gap-4 mb-4 border-b border-[#D1DCEB]/50 pb-4">
+                  <div
+                    key={dev}
+                    onClick={() => handleUserClick(dev)}
+                    className="ent-card p-4 hover:border-[#1E40AF] hover:shadow-xs transition-all cursor-pointer group space-y-3"
+                  >
+                    <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
                       {devMap[dev] ? (
-                        <img src={devMap[dev]} alt={dev} className="w-14 h-14 rounded-full object-cover neu-flat shadow-sm group-hover:scale-105 transition-transform" />
+                        <img
+                          src={devMap[dev]}
+                          alt={dev}
+                          className="w-11 h-11 rounded-full object-cover border border-slate-200 shadow-xs"
+                        />
                       ) : (
-                        <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-2xl neu-flat shadow-sm group-hover:scale-105 transition-transform" style={{ background: DEV_PALETTE[i % DEV_PALETTE.length] }}>
+                        <div
+                          className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-xs"
+                          style={{ background: PALETTE[i % PALETTE.length] }}
+                        >
                           {dev[0]?.toUpperCase()}
                         </div>
                       )}
-                      <div>
-                        <p className="text-lg font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors">{dev}</p>
-                        <p className="text-xs font-bold text-[#656D76] mt-0.5">{total} total tasks</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-900 group-hover:text-[#1E40AF] transition-colors truncate">
+                          {dev}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">{total} Total Tasks</p>
                       </div>
                     </div>
-                    <div className="mb-5 neu-pressed rounded-lg p-3.5">
-                      <div className="flex justify-between text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-2.5">
+
+                    <div className="p-3 bg-slate-50 rounded border border-slate-100 space-y-2">
+                      <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                         <span>Completion Rate</span>
-                        <span className="text-[#1F2328]">{pct}%</span>
+                        <span className="text-slate-900 font-mono">{pct}%</span>
                       </div>
-                      <div className="h-2 rounded-full neu-pressed-sm overflow-hidden mb-2">
-                        <motion.div className="h-full rounded-full" style={{ background: DEV_PALETTE[i % DEV_PALETTE.length] }} initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:0.8, delay:i * 0.08 }} />
+                      <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-[#1E40AF] transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
-                      <p className="text-[10px] font-bold text-[#1F2328] mt-2 flex justify-between">
-                        <span className="text-[#1A7F37]">{doneTasks.length} done</span> 
-                        <span className="text-[#0969DA]">{pendingTasks.length} pending</span>
-                      </p>
+                      <div className="flex justify-between text-[11px] font-semibold font-mono">
+                        <span className="text-emerald-700">{doneTasks.length} Done</span>
+                        <span className="text-blue-700">{pendingTasks.length} Pending</span>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label:"Done",    value:doneTasks.length,    color:"#1A7F37" },
-                        { label:"Pending", value:pendingTasks.length, color:"#0969DA" },
-                        { label:"Overdue", value:overdueCount,        color:"#D1242F" },
-                      ].map(s => (
-                        <div key={s.label} className="neu-pressed rounded-lg py-2.5 px-2 text-center">
-                          <p className="font-bold text-lg mb-1" style={{ color:s.color }}>{s.value}</p>
-                          <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{s.label}</p>
-                        </div>
-                      ))}
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-2 bg-emerald-50 rounded border border-emerald-100">
+                        <p className="font-bold text-sm text-emerald-700 font-mono">{doneTasks.length}</p>
+                        <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider mt-0.5">Done</p>
+                      </div>
+                      <div className="p-2 bg-blue-50 rounded border border-blue-100">
+                        <p className="font-bold text-sm text-blue-700 font-mono">{pendingTasks.length}</p>
+                        <p className="text-[9px] font-bold text-blue-600 uppercase tracking-wider mt-0.5">Pending</p>
+                      </div>
+                      <div className="p-2 bg-rose-50 rounded border border-rose-100">
+                        <p className="font-bold text-sm text-rose-700 font-mono">{overdueCount}</p>
+                        <p className="text-[9px] font-bold text-rose-600 uppercase tracking-wider mt-0.5">Overdue</p>
+                      </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </div>
+        </>
+      )}
 
-      {/* ── User Details Modal ── */}
-      <AnimatePresence>
+      {/* ── Developer 360° Profile Modal ────────────────────────────────────── */}
+      <Modal
+        isOpen={Boolean(selectedUserStats)}
+        onClose={() => setSelectedUserStats(null)}
+        title={selectedUserStats?.dev || "Developer Profile"}
+        subtitle="Performance metrics & project contribution breakdown"
+        maxWidth="max-w-md"
+        footer={
+          <button
+            type="button"
+            onClick={() => setSelectedUserStats(null)}
+            className="ent-btn-secondary"
+          >
+            Close Profile
+          </button>
+        }
+      >
         {selectedUserStats && (
-          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedUserStats(null)} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
-              className="neu-flat rounded-xl w-full max-w-sm flex flex-col relative z-10 overflow-hidden"
-            >
-              <button type="button" onClick={() => setSelectedUserStats(null)} className="absolute max-w-max top-4 left-4 z-20 neu-flat-sm neu-action-btn rounded-full p-2 text-[#656D76] hover:text-[#D1242F]">
-                <X size={16} className="pointer-events-none" />
-              </button>
-
-              <div className="p-6 flex flex-col items-center bg-[#F0F4F8]">
-                {/* Big Centered Avatar */}
-                <div className="relative mb-4 mt-2">
-                  {selectedUserStats.avatar ? (
-                    <img src={selectedUserStats.avatar} alt={selectedUserStats.dev} className="w-58 h-58 rounded-full object-cover neu-flat border-4 border-[#F0F4F8]" />
-                  ) : (
-                    <div className="w-48 h-48 rounded-full flex items-center justify-center text-white font-bold text-4xl neu-flat border-4 border-[#F0F4F8]" style={{ background: stringToColor(selectedUserStats.dev) }}>
-                      {selectedUserStats.dev?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-4 bg-[#FAF8F5] rounded border border-[#EAE3D6]">
+              {selectedUserStats.avatar ? (
+                <img
+                  src={selectedUserStats.avatar}
+                  alt={selectedUserStats.dev}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-xs"
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-xs"
+                  style={{ background: stringToColor(selectedUserStats.dev) }}
+                >
+                  {selectedUserStats.dev?.charAt(0).toUpperCase()}
                 </div>
-                <h2 className="text-2xl font-bold text-[#1F2328]">{selectedUserStats.dev}</h2>
-                <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider mt-1">Developer Profile</p>
-
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-3 gap-3 w-full mt-6 mb-5">
-                  <div className="neu-pressed rounded-lg p-3 text-center">
-                    <p className="font-bold text-xl text-[#1A7F37]">{selectedUserStats.doneToday}</p>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase mt-1 tracking-wider">Done Today</p>
-                  </div>
-                  <div className="neu-pressed rounded-lg p-3 text-center">
-                    <p className="font-bold text-xl text-[#0969DA]">{selectedUserStats.doneThisWeek}</p>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase mt-1 tracking-wider">This Week</p>
-                  </div>
-                  <div className="neu-pressed rounded-lg p-3 text-center">
-                    <p className="font-bold text-xl text-[#1F2328]">{selectedUserStats.totalTasksAssigned}</p>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase mt-1 tracking-wider">Total Tasks</p>
-                  </div>
-                </div>
-
-                {/* Projects List */}
-                <div className="neu-flat-sm rounded-lg p-4 w-full">
-                  <h3 className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-3">Projects Contributed To</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedUserStats.projectsContributed.length > 0 ? (
-                       selectedUserStats.projectsContributed.map(p => <Badge key={p} label={p} color="#0969DA" />)
-                    ) : (
-                       <span className="text-xs font-bold text-[#1F2328]">No projects yet</span>
-                    )}
-                  </div>
-                </div>
+              )}
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{selectedUserStats.dev}</h3>
+                <Badge variant="blue" className="mt-1">
+                  Active Developer
+                </Badge>
               </div>
-            </motion.div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-center">
+                <p className="font-bold text-lg text-emerald-700 font-mono">{selectedUserStats.doneToday}</p>
+                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mt-0.5">Done Today</p>
+              </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded text-center">
+                <p className="font-bold text-lg text-blue-700 font-mono">{selectedUserStats.doneThisWeek}</p>
+                <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wider mt-0.5">This Week</p>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded text-center">
+                <p className="font-bold text-lg text-slate-900 font-mono">{selectedUserStats.totalTasksAssigned}</p>
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-0.5">Total Tasks</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded border border-[#EAE3D6] space-y-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                Projects Contributed To ({selectedUserStats.projectsContributed.length})
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedUserStats.projectsContributed.length > 0 ? (
+                  selectedUserStats.projectsContributed.map((p) => (
+                    <Badge key={p} variant="beige">
+                      {p}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-400">No project deliverables assigned yet</span>
+                )}
+              </div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
+      </Modal>
 
-      {/* ── Task Details Modal ── */}
-      <AnimatePresence>
+      {/* ── Deliverable 360° Inspection & Comments Modal ───────────────────── */}
+      <Modal
+        isOpen={Boolean(selectedTaskDetails)}
+        onClose={() => setSelectedTaskDetails(null)}
+        title={selectedTaskDetails?.title || "Deliverable Details"}
+        subtitle={`Project: ${selectedTaskDetails?.projectName || "General"} • Status: ${selectedTaskDetails?.status || "Pending"}`}
+        maxWidth="max-w-2xl"
+        footer={
+          <button
+            type="button"
+            onClick={() => setSelectedTaskDetails(null)}
+            className="ent-btn-secondary"
+          >
+            Close Window
+          </button>
+        }
+      >
         {selectedTaskDetails && (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedTaskDetails(null)} className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} 
-              className="neu-flat rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col relative z-10 overflow-hidden"
-            >
-              <div className="flex items-start justify-between border-b border-[#D1DCEB]/50 p-5 shrink-0 relative z-10">
-                <div>
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <Badge label={selectedTaskDetails.projectName} color="#0969DA" />
-                    <PriorityBadge priority={selectedTaskDetails.priority} />
-                    {selectedTaskDetails.status === "Done" && (
-                      <span className="neu-pressed-sm text-[#1A7F37] text-[9px] font-bold px-2 py-1 rounded-md uppercase tracking-wider flex items-center gap-1"><CheckCircle2 size={10} /> Completed</span>
-                    )}
-                  </div>
-                  <h2 className={`text-xl font-bold ${selectedTaskDetails.status === "Done" ? "line-through text-[#656D76]" : "text-[#1F2328]"}`}>
-                    {selectedTaskDetails.title}
-                  </h2>
+          <div className="space-y-4">
+            {/* Header Badges */}
+            <div className="flex items-center gap-2 flex-wrap pb-2 border-b border-slate-100">
+              <Badge variant="beige">{selectedTaskDetails.projectName || "General"}</Badge>
+              <Badge variant={PRIORITY_THEME[selectedTaskDetails.priority]?.badge || "blue"}>
+                {selectedTaskDetails.priority} Priority
+              </Badge>
+              {selectedTaskDetails.status === "Done" ? (
+                <Badge variant="green" className="flex items-center gap-1">
+                  <CheckCircle2 size={11} /> Completed
+                </Badge>
+              ) : (
+                <Badge variant="blue" className="flex items-center gap-1">
+                  <Clock size={11} /> In Progress
+                </Badge>
+              )}
+            </div>
+
+            {/* Specifications Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#FAF8F5] p-3 rounded border border-[#EAE3D6]">
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Assignee</span>
+                <div
+                  className="flex items-center gap-1.5 cursor-pointer hover:underline"
+                  onClick={() => handleUserClick(selectedTaskDetails.assignedTo?.username)}
+                >
+                  <User size={13} className="text-slate-400" />
+                  <span className="font-bold text-slate-900 text-xs truncate">
+                    {selectedTaskDetails.assignedTo?.username || "Unassigned"}
+                  </span>
                 </div>
-                <button type="button" onClick={() => setSelectedTaskDetails(null)} className="neu-flat-sm neu-action-btn rounded-full p-2 text-[#656D76] hover:text-[#D1242F]">
-                  <X size={16} className="pointer-events-none" />
-                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6 relative z-10">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 neu-pressed rounded-lg p-4">
-                  <div>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Status</p>
-                    <p className="text-xs font-bold text-[#1F2328] capitalize">{selectedTaskDetails.status}</p>
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Created By</span>
+                <span className="font-semibold text-slate-700 text-xs truncate block">
+                  {selectedTaskDetails.createdBy?.username || "System Lead"}
+                </span>
+              </div>
+
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Deadline</span>
+                <span
+                  className={`font-bold text-xs font-mono ${
+                    checkIsOverdue(selectedTaskDetails.deadline, selectedTaskDetails.status)
+                      ? "text-rose-600"
+                      : "text-slate-900"
+                  }`}
+                >
+                  {selectedTaskDetails.deadline
+                    ? fnsFormat(new Date(selectedTaskDetails.deadline), "MMM d, yyyy")
+                    : "No Deadline"}
+                </span>
+              </div>
+
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Created On</span>
+                <span className="font-medium text-slate-600 text-xs font-mono">
+                  {selectedTaskDetails.createdAt
+                    ? fnsFormat(new Date(selectedTaskDetails.createdAt), "MMM d, yyyy")
+                    : "--"}
+                </span>
+              </div>
+
+              {/* Completion Metadata Banner */}
+              {selectedTaskDetails.status === "Done" && selectedTaskDetails.completedAt && (() => {
+                const isLate =
+                  selectedTaskDetails.deadline &&
+                  new Date(selectedTaskDetails.completedAt) > new Date(selectedTaskDetails.deadline);
+                const daysLate = isLate
+                  ? differenceInCalendarDays(
+                      new Date(selectedTaskDetails.completedAt),
+                      new Date(selectedTaskDetails.deadline)
+                    )
+                  : 0;
+
+                return (
+                  <div
+                    className={`col-span-2 sm:col-span-4 p-2.5 rounded border text-xs flex items-center gap-2 mt-1 ${
+                      isLate
+                        ? "bg-amber-50 border-amber-300 text-amber-800"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    }`}
+                  >
+                    {isLate ? <AlertTriangle size={14} className="text-amber-600 shrink-0" /> : <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />}
+                    <span>
+                      Completed on{" "}
+                      <strong>
+                        {fnsFormat(new Date(selectedTaskDetails.completedAt), "MMM d, yyyy · h:mm a")}
+                      </strong>
+                      {isLate ? ` (${daysLate} day${daysLate > 1 ? "s" : ""} late / overdue)` : " (On Time)"}
+                      {selectedTaskDetails.completedBy?.username && ` by ${selectedTaskDetails.completedBy.username}`}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Assignee</p>
-                    <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.assignedTo?.username)}>
-                      {selectedTaskDetails.assignedTo?.avatar ? (
-                        <img src={selectedTaskDetails.assignedTo.avatar} alt="assignee" className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm group-hover:scale-105 transition-transform" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.assignedTo?.username)}}>
-                           {selectedTaskDetails.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-                        </div>
-                      )}
-                      <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors">{selectedTaskDetails.assignedTo?.username}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Created By</p>
-                    <div className="flex items-center gap-2 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.createdBy?.username)}>
-                      {selectedTaskDetails.createdBy?.avatar ? (
-                        <img src={selectedTaskDetails.createdBy.avatar} alt="creator" className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm group-hover:scale-105 transition-transform" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.createdBy?.username)}}>
-                           {selectedTaskDetails.createdBy?.username?.charAt(0).toUpperCase() || "?"}
-                        </div>
-                      )}
-                      <p className="text-xs font-bold text-[#1F2328] group-hover:text-[#0969DA] transition-colors">{selectedTaskDetails.createdBy?.username}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5">Deadline</p>
-                    <p className={`text-xs font-bold mt-1 ${checkIsOverdue(selectedTaskDetails.deadline, selectedTaskDetails.status) ? "text-[#D1242F]" : "text-[#1F2328]"}`}>
-                      {selectedTaskDetails.deadline ? fnsFormat(new Date(selectedTaskDetails.deadline), "MMM d, yyyy") : "None"}
-                    </p>
-                  </div>
-                  {selectedTaskDetails.status === "Done" && selectedTaskDetails.completedAt && (() => {
-                    const isLate = selectedTaskDetails.deadline && new Date(selectedTaskDetails.completedAt) > new Date(selectedTaskDetails.deadline);
-                    const daysLate = isLate ? differenceInCalendarDays(new Date(selectedTaskDetails.completedAt), new Date(selectedTaskDetails.deadline)) : 0;
-                    return (
-                      <div className={`sm:col-span-4 neu-pressed-sm rounded-md p-3 flex items-center gap-2 mt-2 ${isLate ? "bg-amber-50 border border-amber-300 text-amber-800" : "bg-[#1A7F37]/5 border border-[#1A7F37]/20 text-[#1A7F37]"}`}>
-                        <div className="neu-flat-sm p-1.5 rounded-full flex-shrink-0">
-                          {isLate ? <AlertTriangle size={12} className="text-amber-600" /> : <CheckCircle2 size={12} className="text-[#1A7F37]" />}
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-[11px] font-bold">
-                            Completed on {fnsFormat(new Date(selectedTaskDetails.completedAt), "MMM d, yyyy · h:mm a")}
-                            {isLate ? ` (${daysLate} day${daysLate > 1 ? "s" : ""} after deadline / Overdue)` : " (On Time)"}
-                          </p>
-                          {selectedTaskDetails.completedBy?.username && (
-                            <div className="flex items-center gap-1 ml-1 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.completedBy?.username)}>
-                              <span className="text-[11px] font-bold">by</span>
-                              {selectedTaskDetails.completedBy?.avatar ? (
-                                <img src={selectedTaskDetails.completedBy.avatar} alt="completed by" className="w-7 h-7 rounded-full object-cover shrink-0 inline-block neu-pressed-sm group-hover:scale-105 transition-transform" />
-                              ) : (
-                                <div className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.completedBy?.username)}}>
-                                   {selectedTaskDetails.completedBy?.username?.charAt(0).toUpperCase() || "?"}
-                                </div>
-                              )}
-                              <span className="text-[11px] font-bold group-hover:underline transition-all">{selectedTaskDetails.completedBy.username}</span>
-                            </div>
-                          )}
-                        </div>
+                );
+              })()}
+            </div>
+
+            {/* Description */}
+            {selectedTaskDetails.description && (
+              <div className="space-y-1">
+                <span className="ent-label text-[10px]">Technical Instructions & Scope</span>
+                <div className="p-3 bg-white rounded border border-[#EAE3D6] text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                  {selectedTaskDetails.description}
+                </div>
+              </div>
+            )}
+
+            {/* Reference Links */}
+            {selectedTaskDetails.links?.length > 0 && (
+              <div className="space-y-1">
+                <span className="ent-label text-[10px]">Reference Links</span>
+                <div className="flex flex-col gap-1.5">
+                  {selectedTaskDetails.links.map((link, idx) => (
+                    <a
+                      key={idx}
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#1E40AF] hover:underline flex items-center gap-1.5 font-mono p-2 bg-slate-50 border border-slate-200 rounded truncate"
+                    >
+                      <ExternalLink size={12} className="shrink-0" />
+                      <span className="truncate">{link}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Live Comments Thread */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <span className="ent-label text-[10px] flex items-center gap-1.5">
+                <MessageSquare size={12} /> Discussion & Comments ({selectedTaskDetails.comments?.length || 0})
+              </span>
+
+              {selectedTaskDetails.commentsLoading ? (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded text-center text-xs text-[#1E40AF] font-semibold flex items-center justify-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Fetching comments...
+                </div>
+              ) : selectedTaskDetails.comments?.length === 0 ? (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded text-center text-xs text-slate-400 italic">
+                  No comments posted on this deliverable yet.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {selectedTaskDetails.comments.map((c, idx) => (
+                    <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-800">
+                          {c.createdBy?.username || c.user?.username || "Developer"}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {c.createdAt ? fnsFormat(new Date(c.createdAt), "MMM d, h:mm a") : ""}
+                        </span>
                       </div>
-                    );
-                  })()}
+                      <p className="text-xs text-slate-700">{c.text}</p>
+                    </div>
+                  ))}
                 </div>
-
-                {selectedTaskDetails.description && (
-                  <div>
-                    <h4 className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-2">Description</h4>
-                    <div className="text-xs font-medium text-[#1F2328] whitespace-pre-wrap neu-pressed rounded-lg p-4 leading-relaxed">
-                      {selectedTaskDetails.description}
-                    </div>
-                  </div>
-                )}
-
-                {selectedTaskDetails.links?.length > 0 && (
-                  <div>
-                    <h4 className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-2">Links</h4>
-                    <div className="flex flex-col gap-2 neu-pressed rounded-lg p-3.5">
-                      {selectedTaskDetails.links.map((link, idx) => (
-                        <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold text-[#0969DA] flex items-center gap-1.5 hover:underline truncate relative z-20 w-fit neu-flat-sm px-3 py-1.5 rounded-md">
-                          <ExternalLink size={12} />{link}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <h4 className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    <MessageSquare size={12} /> Comments ({selectedTaskDetails.comments?.length || 0})
-                  </h4>
-                  {selectedTaskDetails.commentsLoading ? (
-                     <div className="flex items-center gap-2 text-xs text-[#0969DA] font-bold py-4 px-3 neu-pressed rounded-lg"><Loader2 size={14} className="animate-spin" /> Fetching comments...</div>
-                  ) : (
-                    <div className="neu-pressed rounded-lg p-4 space-y-4">
-                      {(!selectedTaskDetails.comments || selectedTaskDetails.comments.length === 0) ? (
-                        <p className="text-[11px] font-bold text-[#656D76] italic text-center py-2">No comments yet.</p>
-                      ) : selectedTaskDetails.comments.map((comment, idx) => (
-                        <div key={idx} className="neu-flat-sm rounded-lg p-3.5">
-                          <div className="flex items-center justify-between mb-2 border-b border-[#D1DCEB]/30 pb-1.5">
-                            <span className="text-[11px] font-bold text-[#1F2328] flex items-center gap-2 cursor-pointer group" onClick={() => handleUserClick(comment.createdBy?.username || comment.user?.username)}>
-                               {comment.createdBy?.avatar || comment.user?.avatar ? (
-                                 <img src={comment.createdBy?.avatar || comment.user?.avatar} alt="User" className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm group-hover:scale-105 transition-transform" />
-                               ) : (
-                                 <div className="w-8 h-8 rounded-full neu-pressed-sm flex items-center justify-center text-[12px] font-bold text-white shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(comment.createdBy?.username || comment.user?.username)}}>
-                                   {(comment.createdBy?.username || comment.user?.username || "U")[0].toUpperCase()}
-                                 </div>
-                               )}
-                              <span className="group-hover:text-[#0969DA] transition-colors">{comment.createdBy?.username || comment.user?.username || "Unknown"}</span>
-                            </span>
-                            <span className="text-[9px] font-bold text-[#656D76]">{comment.createdAt ? fnsFormat(new Date(comment.createdAt), "MMM d, h:mm a") : ""}</span>
-                          </div>
-                          <p className="text-xs font-medium text-[#1F2328] leading-relaxed pl-1">{comment.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
+              )}
+            </div>
           </div>
         )}
-      </AnimatePresence>
+      </Modal>
     </div>
   );
 }
