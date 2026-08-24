@@ -1,55 +1,31 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-import Navbar from "../Components Caller/NavBar_Caller";
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import DashboardLayout from "../layouts/DashboardLayout";
 import AddLeads from "../Caller Pages/AddLeads";
 import ClosedLeads from "../Caller Pages/ClosedLeads";
 import Home from "../Caller Pages/Home";
 import AllLeads from "../Caller Pages/AllLeads";
 import ToDoList from "../Caller Pages/ToDoList";
 import Calendar from "../Caller Pages/Calender";
-import Compose from "../Mailing System/Compose";
-import Sent from "../Mailing System/Sent";
-
-
+import MyLeaves from "../components/leaves/MyLeaves";
+import MyPayrollPortal from "../components/payroll/MyPayrollPortal";
+import MyAttendancePage from "../components/attendance/MyAttendancePage";
 
 const CallerDashboard = () => {
-  const [dashboardData, setDashboardData] = useState("");
-
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_BASE}/api/dashboard`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setDashboardData(res.data.dashboard);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      }
-    };
-    fetchDashboardData();
-  }, []);
-
   return (
-    <div>
-      <Navbar />
-      <div className="mx-">
-        <Routes>
-          <Route index element={<Home />} />
-          <Route path="add-leads" element={<AddLeads />} />
-          <Route path="all-leads" element={<AllLeads />} />
-          <Route path="leads-closed" element={<ClosedLeads />} />
-          <Route path="to-do-list" element={<ToDoList />} />
-          <Route path="calender" element={<Calendar />} />
-          <Route path="compose" element={<Compose />} />
-          {/* <Route path="sent" element={<Sent />} /> */}
-        </Routes>
-        <Outlet />
-      </div>
-    </div>
+    <DashboardLayout role="caller">
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path="add-leads" element={<AddLeads />} />
+        <Route path="all-leads" element={<AllLeads />} />
+        <Route path="closed-leads" element={<ClosedLeads />} />
+        <Route path="to-do-list" element={<ToDoList />} />
+        <Route path="leaves" element={<MyLeaves />} />
+        <Route path="my-payroll" element={<MyPayrollPortal />} />
+        <Route path="calendar" element={<Calendar />} />
+        <Route path="attendance" element={<MyAttendancePage />} />
+      </Routes>
+    </DashboardLayout>
   );
 };
 

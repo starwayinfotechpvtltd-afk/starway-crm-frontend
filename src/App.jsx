@@ -177,7 +177,9 @@ import AdminDashboard from "./pages/Admindashboard";
 import CallerDashboard from "./pages/CallerDashboard";
 import DeveloperDashboard from "./pages/DeveloperDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
-import { TaskProvider } from "./TaskContext"; // Make sure this path matches exactly where you saved it
+import HRDashboard from "./pages/HRDashboard";
+import TeamLeadDashboard from "./pages/TeamLeadDashboard";
+import { TaskProvider } from "./TaskContext";
 
 // Custom Hook: Tracks inactivity and returns modal state
 const useAutoLogout = (timeoutInMinutes = 120) => {
@@ -277,21 +279,38 @@ const AppContent = () => {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/dashboard-hr/*"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "hr"]}>
+              <HRDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard-team-lead/*"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "team_lead"]}>
+              <TeamLeadDashboard />
+            </ProtectedRoute>
+          }
+        />
         
         <Route
           path="/dashboard-caller/*"
           element={
-            <ProtectedRoute allowedRoles={["caller"]}>
+            <ProtectedRoute allowedRoles={["caller", "admin"]}>
               <CallerDashboard />
             </ProtectedRoute>
           }
         />
         
-        {/* THIS IS THE FIX: TaskProvider ONLY wraps the Developer Dashboard */}
         <Route
           path="/dashboard-developer/*"
           element={
-            <ProtectedRoute allowedRoles={["developer"]}>
+            <ProtectedRoute allowedRoles={["developer", "team_lead", "admin"]}>
               <TaskProvider>
                 <DeveloperDashboard />
               </TaskProvider>
@@ -302,7 +321,7 @@ const AppContent = () => {
         <Route
           path="/dashboard-team-manager/*"
           element={
-            <ProtectedRoute allowedRoles={["manager"]}>
+            <ProtectedRoute allowedRoles={["manager", "admin"]}>
               <ManagerDashboard />
             </ProtectedRoute>
           }

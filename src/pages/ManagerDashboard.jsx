@@ -1,50 +1,32 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import DashboardLayout from "../layouts/DashboardLayout";
 import Home from "../Manager Pages/Home";
 import ClosedLeads from "../Manager Pages/ClosedLeads";
 import NewLeads from "../Manager Pages/NewLeads";
-import NavBar_Manager from "../Components Manager/NavBar_Manager";
 import Leads from "../Manager Pages/Leads";
+import CallerTeams from "../Admin Pages/CallerTeams";
+import GlobalEnterpriseCalendar from "../components/calendar/GlobalEnterpriseCalendar";
+import MyLeaves from "../components/leaves/MyLeaves";
+import MyPayrollPortal from "../components/payroll/MyPayrollPortal";
+import MyAttendancePage from "../components/attendance/MyAttendancePage";
 
-const DeveloperDashboard = () => {
-  const [dashboardData, setDashboardData] = useState("");
-
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-
-useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_BASE}/api/dashboard`, {
-          headers: { 
-            Authorization: `Bearer ${token}` // <--- CHANGED THIS LINE
-          },
-        });
-        setDashboardData(res.data.dashboard);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      }
-    };
-    fetchDashboardData();
-  }, []);
-
+const ManagerDashboard = () => {
   return (
-    <div>
-      <NavBar_Manager />
-      <div className="mx-">
-        <Routes>
-          <Route index element={<Home />} />
-          <Route path="new-leads" element={<NewLeads />} />
-          <Route path="leads-closed" element={<ClosedLeads />} />
-          <Route path="leads" element={<Leads />} />
-          {/* <Route path="to-do-list" element={<ToDoList />} /> */}
-        </Routes>
-        <Outlet />
-      </div>{" "}
-    </div>
+    <DashboardLayout role="manager">
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path="new-leads" element={<NewLeads />} />
+        <Route path="closed-leads" element={<ClosedLeads />} />
+        <Route path="leads" element={<Leads />} />
+        <Route path="leaves" element={<MyLeaves />} />
+        <Route path="my-payroll" element={<MyPayrollPortal />} />
+        <Route path="calendar" element={<GlobalEnterpriseCalendar mode="manager" />} />
+        <Route path="teams" element={<CallerTeams />} />
+        <Route path="attendance" element={<MyAttendancePage />} />
+      </Routes>
+    </DashboardLayout>
   );
 };
 
-export default DeveloperDashboard;
+export default ManagerDashboard;

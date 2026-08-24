@@ -1,827 +1,940 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { useTheme, useMediaQuery } from "@mui/material";
 import {
   Search,
-  Visibility,
-  Edit,
-  Delete,
-  Save,
-  Close,
-  FilterList,
-} from "@mui/icons-material";
+  Plus,
+  Edit2,
+  Trash2,
+  Phone,
+  Mail,
+  Briefcase,
+  LayoutGrid,
+  List,
+  Check,
+  X,
+  User,
+  Shield,
+  KeyRound,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import Badge from "../components/ui/Badge";
+import Modal from "../components/ui/Modal";
+import { TableSkeleton } from "../components/ui/Skeleton";
+import { apiCache } from "../utils/apiCache";
 
-// Color generator for fallback avatars
-const DEV_PALETTE = [
-  "#0969DA", "#1A7F37", "#BF8700", "#D1242F", "#8b5cf6", "#06b6d4", "#ec4899", "#1F2328"
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+
+const SYSTEM_ROLES = [
+  { value: "developer", label: "Developer" },
+  { value: "caller", label: "Caller / Sales" },
+  { value: "team_lead", label: "Team Lead" },
+  { value: "manager", label: "Manager" },
+  { value: "hr", label: "HR" },
+  { value: "admin", label: "Admin" },
 ];
-const stringToColor = (s) => {
-  if (!s) return DEV_PALETTE[0];
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
-  return DEV_PALETTE[Math.abs(h) % DEV_PALETTE.length];
-};
 
-export default function UserTable() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
-
+export default function Users() {
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [editMode, setEditMode] = useState(null);
-  const [editData, setEditData] = useState({
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("table"); // 'table' | 'cards'
+
+  // Modal States
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [passwordUser, setPasswordUser] = useState(null);
+
+  const [shifts, setShifts] = useState([]);
+
+  // Forms
+  const [userForm, setUserForm] = useState({
     username: "",
     email: "",
-    role: "",
-    joiningDate: "",
+    password: "",
+    phone: "",
+    role: "developer",
+    designation: "",
+    shiftId: "",
   });
-  const [open, setOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  
-  // Profile Picture Viewing State
-  const [viewAvatarUser, setViewAvatarUser] = useState(null);
 
-  // Leave states
-  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [leaveBalance, setLeaveBalance] = useState(0);
-  const [leaveHistory, setLeaveHistory] = useState([]);
-  const [leaveStartDate, setLeaveStartDate] = useState("");
-  const [leaveEndDate, setLeaveEndDate] = useState("");
-  const [leaveNote, setLeaveNote] = useState("");
-  const [leaveType, setLeaveType] = useState("full");
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchUsers();
+    fetchShifts();
   }, []);
 
+  const fetchShifts = async () => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_BASE}/api/shifts`, config);
+      setShifts(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch shifts:", err);
+    }
+  };
+
   const fetchUsers = async () => {
+    const cachedUsers = apiCache.get("admin_users_list");
+    if (cachedUsers?.data) {
+      setUsers(cachedUsers.data);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(`${API_BASE}/api/auth/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUsers(response.data);
-    } catch (error) {
-      console.error(
-        "Error fetching users:",
-        error.response?.data || error.message
-      );
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_BASE}/api/auth/users`, config);
+      const uData = res.data || [];
+      setUsers(uData);
+      apiCache.set("admin_users_list", uData, 3 * 60 * 1000);
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = (id) => {
-    setOpen(true);
-    setDeleteId(id);
-  };
-
-  const handleConfirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${API_BASE}/api/auth/users/${deleteId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUsers(users.filter((user) => user._id !== deleteId));
-      setOpen(false);
-      setDeleteId(null);
-      setSnackbarMessage("User deleted successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error(
-        "Error deleting user:",
-        error.response?.data || error.message
-      );
-      setSnackbarMessage("Failed to delete user.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-    }
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setDeleteId(null);
-  };
-
-  const handleEdit = (user) => {
-    setEditMode(user._id);
-    setEditData({
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      joiningDate: user.joiningDate,
+  // Handlers for Add User
+  const handleOpenAdd = () => {
+    setUserForm({
+      username: "",
+      email: "",
+      password: "",
+      phone: "",
+      role: "developer",
+      designation: "",
+      shiftId: "",
     });
+    setErrorMsg("");
+    setSuccessMsg("");
+    setIsAddModalOpen(true);
   };
 
-  const handleSave = async (id) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.put(`${API_BASE}/api/auth/users/${id}`, editData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user._id === id ? { ...user, ...editData } : user
-        )
-      );
-
-      setEditMode(null);
-      setSnackbarMessage("User updated successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error(
-        "Error updating user:",
-        error.response?.data || error.message
-      );
-      setSnackbarMessage("Failed to update user.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-    }
-  };
-
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(search.toLowerCase()) &&
-      (roleFilter ? user.role === roleFilter : true)
-  );
-
-  const fetchLeaveHistory = async (userId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${API_BASE}/api/auth/users/${userId}/leave-history`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setLeaveHistory(response.data.leaveRecords);
-      setLeaveBalance(response.data.leaveBalance);
-    } catch (error) {
-      console.error("Error fetching leave history:", error);
-    }
-  };
-
-  const handleSaveLeaveBalance = async () => {
-    if (isNaN(leaveBalance)) {
-      setSnackbarMessage("Leave balance must be a valid number.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-      return;
-    }
-
-    try {
-      await axios.put(
-        `${API_BASE}/api/auth/users/${selectedUser._id}/leave-balance`,
-        { leaveBalance: parseFloat(leaveBalance) },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
-
-      setSnackbarMessage("Leave balance updated successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-      fetchUsers();
-    } catch (error) {
-      console.error(error);
-      setSnackbarMessage("Failed to update leave balance.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-    }
-  };
-
-  const handleAddLeaveRecord = async () => {
-    if (!leaveStartDate || !leaveEndDate || !leaveNote) {
-      setSnackbarMessage("All fields are required.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-      return;
-    }
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setErrorMsg("");
 
     try {
       const payload = {
-        startDate: new Date(leaveStartDate).toISOString().split("T")[0],
-        endDate: new Date(leaveEndDate).toISOString().split("T")[0],
-        type: leaveType,
-        note: leaveNote,
+        username: userForm.username.trim(),
+        email: userForm.email.trim(),
+        password: userForm.password,
+        phone: userForm.phone.trim(),
+        role: userForm.role || "developer",
+        designation: userForm.designation.trim(),
+        shiftId: userForm.shiftId || null,
       };
 
-      await axios.post(
-        `${API_BASE}/api/auth/users/${selectedUser._id}/leave-records`,
-        payload,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
+      await axios.post(`${API_BASE}/api/auth/register`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      setSnackbarMessage("Leave record added successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-      fetchLeaveHistory(selectedUser._id);
-    } catch (error) {
-      console.error(
-        "Error adding leave record:",
-        error.response?.data || error.message
-      );
-      setSnackbarMessage("Failed to add leave record.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      apiCache.invalidate("users");
+      apiCache.invalidate("admin_overview_metrics");
+      setIsAddModalOpen(false);
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to create user:", err);
+      setErrorMsg(err.response?.data?.message || "Failed to onboard employee");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteLeaveRecord = async (recordId) => {
+  // Handlers for Edit User
+  const handleOpenEdit = (u) => {
+    setEditingUser(u);
+    setUserForm({
+      username: u.username || "",
+      email: u.email || "",
+      password: "",
+      phone: u.phone || "",
+      role: u.role || "developer",
+      designation: u.designation || "",
+      shiftId: u.shiftId?._id || u.shiftId || "",
+    });
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setSubmitting(true);
+    setErrorMsg("");
+
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(
-        `${API_BASE}/api/auth/users/${selectedUser._id}/leave-records/${recordId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const payload = {
+        username: userForm.username.trim(),
+        role: userForm.role || "developer",
+        designation: userForm.designation.trim(),
+        phone: userForm.phone.trim(),
+        shiftId: userForm.shiftId || null,
+      };
 
-      setSnackbarMessage("Leave record deleted successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
-      fetchLeaveHistory(selectedUser._id);
-    } catch (error) {
-      console.error(
-        "Error deleting leave record:",
-        error.response?.data || error.message
-      );
-      setSnackbarMessage("Failed to delete leave record.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      if (userForm.password && userForm.password.length >= 6) {
+        payload.password = userForm.password;
+      }
+
+      await axios.put(`${API_BASE}/api/auth/users/${editingUser._id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      apiCache.invalidate("users");
+      apiCache.invalidate("admin_overview_metrics");
+      setEditingUser(null);
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to update user:", err);
+      setErrorMsg(err.response?.data?.message || "Failed to update employee");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const renderMobileCard = (user, index) => (
-    <div key={user._id} className="neu-flat rounded-lg p-5 mb-5 flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        {user.avatar ? (
-          <img 
-            src={user.avatar} 
-            alt={user.username} 
-            onClick={() => setViewAvatarUser(user)}
-            className="w-12 h-12 rounded-full object-cover neu-flat shadow-sm cursor-pointer hover:scale-105 transition-transform" 
-          />
-        ) : (
-          <div 
-            onClick={() => setViewAvatarUser(user)}
-            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl neu-flat shadow-sm cursor-pointer hover:scale-105 transition-transform" 
-            style={{ background: stringToColor(user.username) }}
-          >
-            {user.username?.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div>
-          <h3 className="text-xl font-bold text-[#1F2328] mb-0.5 leading-tight">{user.username}</h3>
-          <p className="text-sm font-medium text-[#656D76]">{user.email}</p>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4 text-sm font-medium text-[#1F2328]">
-        <div>
-          <span className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Role</span>
-          <span className="neu-pressed-sm rounded-md px-2 py-1 inline-block capitalize">{user.role}</span>
-        </div>
-        <div>
-          <span className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Joined</span>
-          <span className="neu-pressed-sm rounded-md px-2 py-1 inline-block">
-            {user.joiningDate ? new Date(user.joiningDate).toLocaleDateString() : "N/A"}
-          </span>
-        </div>
-        <div className="col-span-2">
-          <span className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Leave Balance</span>
-          <span className="neu-pressed-sm rounded-md px-3 py-1 inline-block text-[#0969DA] font-bold">
-            {user.leaveBalance}
-          </span>
-        </div>
-      </div>
+  // Handlers for Change Password Modal
+  const handleOpenPassword = (u) => {
+    setPasswordUser(u);
+    setPasswordForm({ newPassword: "", confirmPassword: "" });
+    setShowPassword(false);
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
 
-      <div className="flex gap-3 mt-2 justify-end">
-        <button
-          type="button"
-          className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#656D76]"
-          onClick={() => {
-            setSelectedUser(user);
-            fetchLeaveHistory(user._id);
-            setLeaveModalOpen(true);
-          }}
-        >
-          <Visibility fontSize="small" />
-        </button>
-        <button
-          type="button"
-          className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#0969DA]"
-          onClick={() => handleEdit(user)}
-        >
-          <Edit fontSize="small" />
-        </button>
-        <button
-          type="button"
-          className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#D1242F]"
-          onClick={() => handleDelete(user._id)}
-        >
-          <Delete fontSize="small" />
-        </button>
-      </div>
-    </div>
-  );
+  const handleSavePassword = async (e) => {
+    e.preventDefault();
+    if (!passwordUser) return;
+
+    if (passwordForm.newPassword.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      await axios.put(
+        `${API_BASE}/api/auth/users/${passwordUser._id}/password`,
+        { newPassword: passwordForm.newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccessMsg(`Password for ${passwordUser.username} updated successfully!`);
+      setTimeout(() => {
+        setPasswordUser(null);
+        setSuccessMsg("");
+      }, 1200);
+    } catch (err) {
+      console.error("Failed to update password:", err);
+      setErrorMsg(err.response?.data?.message || "Failed to update password");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Delete User Handler
+  const handleDeleteUser = async (id, username) => {
+    if (!window.confirm(`Are you sure you want to delete ${username}? This action cannot be undone.`)) return;
+    try {
+      await axios.delete(`${API_BASE}/api/auth/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      apiCache.invalidate("users");
+      apiCache.invalidate("admin_overview_metrics");
+      setUsers((prev) => prev.filter((u) => u._id !== id));
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      alert("Failed to delete employee");
+    }
+  };
+
+  // Filtered employees list
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const q = search.toLowerCase();
+      const matchSearch =
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.designation || "").toLowerCase().includes(q) ||
+        (u.role || "").toLowerCase().includes(q) ||
+        (u.phone || "").toLowerCase().includes(q);
+
+      const matchRole = roleFilter === "all" || (u.role || "").toLowerCase() === roleFilter.toLowerCase();
+      return matchSearch && matchRole;
+    });
+  }, [users, search, roleFilter]);
+
+  const getRoleBadgeVariant = (role) => {
+    switch ((role || "").toLowerCase()) {
+      case "admin":
+        return "purple";
+      case "manager":
+      case "team_lead":
+        return "blue";
+      case "developer":
+        return "green";
+      case "caller":
+        return "amber";
+      case "hr":
+        return "red";
+      default:
+        return "slate";
+    }
+  };
 
   return (
-    <div className="w-full min-h-screen neu-base p-4 sm:p-6 md:p-8 montserrat-regular text-[#1F2328]">
-      <div className="flex flex-col gap-6 w-full mx-auto"> {/* Changed to Full Width */}
-        
-        {/* Filters Section */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-end relative z-10 w-full">
-          <div className="w-full sm:flex-1">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Search Users</label>
-            <div className="flex items-center neu-pressed rounded-md px-3 py-2.5 relative z-10">
-              <Search sx={{ color: '#656D76', fontSize: 20 }} className="mr-2 pointer-events-none" />
-              <input
-                className="w-full bg-transparent outline-none text-sm font-medium text-[#1F2328] relative z-20 cursor-text"
-                placeholder="Search by username..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
-          
-          <div className="w-full sm:w-64 relative z-10">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Filter Role</label>
-            <div className="flex items-center neu-pressed rounded-md px-3 py-2.5 relative z-10">
-              <FilterList sx={{ color: '#656D76', fontSize: 20 }} className="mr-2 pointer-events-none" />
-              <select
-                className="w-full bg-transparent outline-none text-sm font-medium text-[#1F2328] cursor-pointer relative z-20"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-              >
-                <option value="">All Roles</option>
-                <option value="caller">Caller</option>
-                <option value="developer">Developer</option>
-                <option value="admin">Admin</option>
-                <option value="manager">Team Manager</option>
-              </select>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* ── Top Header & Actions ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Employee Directory</h1>
+          <span className="bg-[#EFF6FF] text-[#2563EB] font-bold text-xs px-2 py-0.5 rounded border border-[#BFDBFE]">
+            {users.length} Total
+          </span>
         </div>
 
-        {/* Data Display */}
-        {isMobile ? (
-          <div className="w-full">
-            {filteredUsers.map((user, index) => renderMobileCard(user, index))}
+        <div className="flex items-center gap-2">
+          {/* View Mode Switcher */}
+          <div className="inline-flex items-center bg-[#F5EFE6] p-0.5 rounded border border-[#EAE3D6] gap-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`p-1.5 rounded transition-all ${
+                viewMode === "table"
+                  ? "bg-[#2563EB] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Table View"
+            >
+              <List size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("cards")}
+              className={`p-1.5 rounded transition-all ${
+                viewMode === "cards"
+                  ? "bg-[#2563EB] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Cards View"
+            >
+              <LayoutGrid size={14} />
+            </button>
           </div>
-        ) : (
-          <div className="neu-flat rounded-lg w-full overflow-hidden p-2 sm:p-4">
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse whitespace-nowrap">
-                <thead>
-                  <tr>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 w-12">#</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 min-w-[200px]">Username</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Email</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Role</th>
-                    {!isTablet && <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Joining Date</th>}
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Leave Bal.</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((user, index) => (
-                    <tr key={user._id} className="border-b border-[#D1DCEB]/30 last:border-0 hover:bg-[#D1DCEB]/10 transition-colors">
-                      <td className="p-4 text-sm font-medium text-[#656D76]">{index + 1}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          {user.avatar ? (
-                            <img 
-                              src={user.avatar} 
-                              alt={user.username} 
-                              onClick={() => setViewAvatarUser(user)}
-                              className="w-12 h-12 rounded-full object-cover neu-flat-sm cursor-pointer hover:scale-110 transition-transform" 
-                            />
-                          ) : (
-                            <div 
-                              onClick={() => setViewAvatarUser(user)}
-                              className="w-56 h-56 rounded-full flex items-center justify-center text-white font-bold text-sm neu-flat-sm cursor-pointer hover:scale-110 transition-transform" 
-                              style={{ background: stringToColor(user.username) }}
-                            >
-                              {user.username?.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          {editMode === user._id ? (
-                            <input
-                              className="w-full neu-pressed rounded-md p-2 text-sm font-medium text-[#1F2328] outline-none relative z-20 cursor-text"
-                              value={editData.username}
-                              onChange={(e) => setEditData({ ...editData, username: e.target.value })}
-                            />
-                          ) : (
-                            <span className="text-sm font-bold text-[#1F2328]">{user.username}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        {editMode === user._id ? (
-                          <input
-                            type="email"
-                            className="w-full neu-pressed rounded-md p-2 text-sm font-medium text-[#1F2328] outline-none relative z-20 cursor-text"
-                            value={editData.email}
-                            onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                          />
-                        ) : (
-                          <span className="text-sm font-medium text-[#1F2328]">{user.email}</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        {editMode === user._id ? (
-                          <select
-                            className="w-full neu-pressed rounded-md p-2 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20"
-                            value={editData.role}
-                            onChange={(e) => setEditData({ ...editData, role: e.target.value })}
-                          >
-                            <option value="caller">Caller</option>
-                            <option value="developer">Developer</option>
-                            <option value="admin">Admin</option>
-                            <option value="manager">Team Manager</option>
-                          </select>
-                        ) : (
-                          <span className="neu-pressed-sm rounded-md px-2 py-1 text-xs font-bold text-[#1F2328] capitalize">{user.role}</span>
-                        )}
-                      </td>
-                      {!isTablet && (
-                        <td className="p-4">
-                          {editMode === user._id ? (
-                            <input
-                              type="date"
-                              className="w-full neu-pressed rounded-md p-2 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20"
-                              value={editData.joiningDate ? new Date(editData.joiningDate).toISOString().split("T")[0] : ""}
-                              onChange={(e) => setEditData({ ...editData, joiningDate: e.target.value })}
-                            />
-                          ) : user.joiningDate ? (
-                            <span className="text-sm font-medium text-[#1F2328]">{new Date(user.joiningDate).toLocaleDateString()}</span>
-                          ) : (
-                            <span className="text-sm font-medium text-[#656D76]">N/A</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="p-4">
-                        <span className="neu-pressed-sm rounded-md px-3 py-1 font-bold text-[#0969DA]">{user.leaveBalance}</span>
-                      </td>
-                      <td className="p-4 text-center">
-                        {editMode === user._id ? (
-                          <div className="flex items-center justify-center gap-2 relative z-20">
-                            <button type="button" className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#1A7F37]" onClick={() => handleSave(user._id)}>
-                              <Save fontSize="small" />
-                            </button>
-                            <button type="button" className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#BF8700]" onClick={() => setEditMode(null)}>
-                              <Close fontSize="small" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2 relative z-20">
-                            <button
-                              type="button"
-                              className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#656D76]"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                fetchLeaveHistory(user._id);
-                                setLeaveModalOpen(true);
-                              }}
-                            >
-                              <Visibility fontSize="small" />
-                            </button>
-                            <button type="button" className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#0969DA]" onClick={() => handleEdit(user)}>
-                              <Edit fontSize="small" />
-                            </button>
-                            <button type="button" className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#D1242F]" onClick={() => handleDelete(user._id)}>
-                              <Delete fontSize="small" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredUsers.length === 0 && (
-                     <tr>
-                       <td colSpan={isTablet ? 6 : 7} className="p-6 text-center text-sm font-medium text-[#656D76]">
-                          No users found matching your search.
-                       </td>
-                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+
+          {/* Onboard Employee */}
+          <button
+            type="button"
+            onClick={handleOpenAdd}
+            className="ent-btn-primary"
+          >
+            <Plus size={14} /> Onboard Employee
+          </button>
+        </div>
       </div>
 
-      {/* ── 56x56 Profile Viewer Modal ── */}
-      {viewAvatarUser && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-[#F0F4F8]/80 backdrop-blur-sm p-4" onClick={() => setViewAvatarUser(null)}>
-          <div className="neu-flat rounded-2xl p-6 w-full max-w-[340px] flex flex-col items-center justify-center gap-4 relative z-[60]" onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setViewAvatarUser(null)} className="absolute top-3 left-0 neu-flat-sm neu-action-btn rounded-full p-1 text-[#656D76] hover:text-[#D1242F]">
-              <Close fontSize="small" className="pointer-events-none" />
+      {/* Global Success Notification */}
+      {successMsg && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs font-semibold text-emerald-800 flex items-center gap-2">
+          <Check size={14} className="text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* ── Search & Filter Strip ────────────────────────────────────────────── */}
+      <div className="ent-card p-3 bg-white border-[#EAE3D6] flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
+        {/* Search Input */}
+        <div className="relative w-full md:w-72 shrink-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search employees..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ paddingLeft: "36px" }}
+            className="ent-input ent-input-with-icon text-xs"
+          />
+        </div>
+
+        {/* Role Filters */}
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+          <button
+            type="button"
+            onClick={() => setRoleFilter("all")}
+            className={`px-3 py-1.5 rounded text-xs font-bold shrink-0 transition-all border ${
+              roleFilter === "all"
+                ? "bg-[#1E40AF] text-white border-[#1E40AF] shadow-xs"
+                : "bg-[#FAF8F5] text-slate-600 border-[#EAE3D6] hover:bg-[#F5EFE6]"
+            }`}
+          >
+            All Roles
+          </button>
+          {SYSTEM_ROLES.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => setRoleFilter(r.value)}
+              className={`px-3 py-1.5 rounded text-xs font-bold shrink-0 transition-all border ${
+                roleFilter.toLowerCase() === r.value.toLowerCase()
+                  ? "bg-[#1E40AF] text-white border-[#1E40AF] shadow-xs"
+                  : "bg-[#FAF8F5] text-slate-600 border-[#EAE3D6] hover:bg-[#F5EFE6]"
+              }`}
+            >
+              {r.label}
             </button>
-            <div className="mt-3">
-              {viewAvatarUser.avatar ? (
-                <img 
-                  src={viewAvatarUser.avatar} 
-                  alt="pfp" 
-                  className="w-56 h-56 rounded-full object-cover neu-flat shadow-sm" 
-                />
-              ) : (
-                <div 
-                  className="w-56 h-56 rounded-full flex items-center justify-center text-white font-bold text-2xl neu-flat shadow-sm" 
-                  style={{ background: stringToColor(viewAvatarUser.username) }}
-                >
-                  {viewAvatarUser.username?.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <div className="text-center">
-              <p className="text-base font-bold text-[#1F2328] mb-0.5">{viewAvatarUser.username}</p>
-              <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider">{viewAvatarUser.role}</p>
-            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Table View ──────────────────────────────────────────────────────── */}
+      {viewMode === "table" ? (
+        <div className="ent-card overflow-hidden bg-white border-[#EAE3D6] shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="ent-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>
+                  <th>Role</th>
+                  <th>Designation</th>
+                  <th>Contact Number</th>
+                  <th>Email Address</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && users.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="p-4">
+                      <TableSkeleton rows={5} />
+                    </td>
+                  </tr>
+                ) : filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-12 text-slate-500 font-medium">
+                      No employees match your search or filter.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((u) => (
+                    <tr key={u._id} className="hover:bg-[#FAF8F5]/80 transition-colors">
+                      <td>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-[#1E40AF] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs border border-white">
+                            {u.username ? u.username.charAt(0).toUpperCase() : "U"}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">{u.username}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <Badge variant={getRoleBadgeVariant(u.role)}>
+                          {u.role ? u.role.replace("_", " ").toUpperCase() : "STAFF"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                          <Briefcase size={12} className="text-slate-400 shrink-0" />
+                          {u.designation || "Staff Member"}
+                        </div>
+                      </td>
+                      <td>
+                        {u.phone ? (
+                          <a
+                            href={`tel:${u.phone}`}
+                            className="text-xs font-medium text-slate-700 hover:text-[#2563EB] flex items-center gap-1.5 font-mono"
+                          >
+                            <Phone size={12} className="text-slate-400 shrink-0" />
+                            {u.phone}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <a
+                          href={`mailto:${u.email}`}
+                          className="text-xs font-medium text-slate-700 hover:text-[#2563EB] flex items-center gap-1.5"
+                        >
+                          <Mail size={12} className="text-slate-400 shrink-0" />
+                          {u.email}
+                        </a>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPassword(u)}
+                            className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                            title="Change Password"
+                          >
+                            <KeyRound size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(u)}
+                            className="p-1.5 text-slate-600 hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded transition-colors"
+                            title="Edit Employee"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u._id, u.username)}
+                            className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete Employee"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F0F4F8]/80 backdrop-blur-sm p-4">
-          <div className="neu-flat rounded-lg p-6 max-w-sm w-full relative z-[60]">
-            <h2 className="text-xl font-bold text-[#1F2328] mb-2">Confirm Delete</h2>
-            <p className="text-sm font-medium text-[#656D76] mb-8">
-              Are you sure you want to delete this user? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-4">
-              <button
-                type="button"
-                className="px-5 py-2 neu-flat neu-action-btn rounded-lg text-sm font-bold text-[#656D76]"
-                onClick={handleClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="px-5 py-2 neu-flat neu-action-btn rounded-lg text-sm font-bold text-[#D1242F]"
-                onClick={handleConfirmDelete}
-              >
-                Delete
-              </button>
+      ) : (
+        /* ── Cards View ──────────────────────────────────────────────────────── */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {loading && users.length === 0 ? (
+            <div className="col-span-full">
+              <TableSkeleton rows={4} />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Leave Management Modal */}
-      {leaveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F0F4F8]/80 backdrop-blur-sm p-4 montserrat-regular">
-          <div className="neu-flat rounded-lg p-5 sm:p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar relative z-[60]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-[#1F2328]">
-                Leave Mgmt: <span className="text-[#0969DA]">{selectedUser?.username}</span>
-              </h2>
-              <button type="button" className="neu-flat-sm neu-action-btn rounded-md p-1.5 text-[#656D76]" onClick={() => setLeaveModalOpen(false)}>
-                <Close fontSize="small" />
-              </button>
+          ) : filteredUsers.length === 0 ? (
+            <div className="col-span-full ent-card p-12 text-center text-slate-500 font-medium bg-white">
+              No employees match your search or filter.
             </div>
+          ) : (
+            filteredUsers.map((u) => (
+              <div
+                key={u._id}
+                className="ent-card p-4 bg-white border-[#EAE3D6] shadow-xs flex flex-col justify-between hover:shadow-md transition-all space-y-4"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#1E40AF] text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs border-2 border-white">
+                        {u.username ? u.username.charAt(0).toUpperCase() : "U"}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-slate-900 text-sm">{u.username}</h3>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium">{u.designation || "Staff Member"}</p>
+                      </div>
+                    </div>
+                    <Badge variant={getRoleBadgeVariant(u.role)}>
+                      {u.role ? u.role.replace("_", " ").toUpperCase() : "STAFF"}
+                    </Badge>
+                  </div>
 
-            <div className="space-y-8">
-              {/* Leave Balance Section */}
-              <div className="neu-pressed rounded-md p-5 flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-                <div className="flex-1 w-full relative z-10">
-                  <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Leave Balance Overview</label>
-                  <input
-                    type="number"
-                    className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none relative z-20 cursor-text"
-                    value={leaveBalance}
-                    onChange={(e) => setLeaveBalance(parseFloat(e.target.value))}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="neu-btn-primary px-6 py-3 rounded-md text-white font-bold text-sm w-full sm:w-auto neu-action-btn"
-                  onClick={handleSaveLeaveBalance}
-                >
-                  Update Balance
-                </button>
-              </div>
+                  <div className="mt-3.5 space-y-2 pt-3 border-t border-[#FAF8F5]">
+                    <div className="flex items-center gap-2 text-xs text-slate-700">
+                      <Mail size={12} className="text-slate-400 shrink-0" />
+                      <a href={`mailto:${u.email}`} className="truncate hover:text-[#2563EB]">
+                        {u.email}
+                      </a>
+                    </div>
 
-              {/* Leave History Table */}
-              <div className="relative z-10">
-                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Leave History Log</label>
-                <div className="neu-flat rounded-lg overflow-x-auto custom-scrollbar p-2">
-                  <table className="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                      <tr>
-                        <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Start Date</th>
-                        <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">End Date</th>
-                        <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Type</th>
-                        <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Note</th>
-                        <th className="p-3 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaveHistory.map((record, index) => (
-                        <tr key={index} className="border-b border-[#D1DCEB]/30 last:border-0 hover:bg-[#D1DCEB]/10 transition-colors">
-                          <td className="p-3 text-sm font-medium text-[#1F2328]">{new Date(record.startDate).toLocaleDateString()}</td>
-                          <td className="p-3 text-sm font-medium text-[#1F2328]">{new Date(record.endDate).toLocaleDateString()}</td>
-                          <td className="p-3 text-sm font-medium text-[#1F2328] capitalize">
-                            <span className="neu-pressed-sm rounded-md px-2 py-1 inline-block">{record.type}</span>
-                          </td>
-                          <td className="p-3 text-sm font-medium text-[#1F2328]">{record.note}</td>
-                          <td className="p-3 text-center">
-                            <button
-                              type="button"
-                              className="neu-flat-sm neu-action-btn rounded-md p-2 text-[#D1242F]"
-                              onClick={() => handleDeleteLeaveRecord(record._id)}
-                            >
-                              <Delete fontSize="small" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {leaveHistory.length === 0 && (
-                        <tr>
-                          <td colSpan="5" className="p-6 text-center text-sm font-medium text-[#656D76]">
-                            No leave records found.
-                          </td>
-                        </tr>
+                    <div className="flex items-center gap-2 text-xs text-slate-700 font-mono">
+                      <Phone size={12} className="text-slate-400 shrink-0" />
+                      {u.phone ? (
+                        <a href={`tel:${u.phone}`} className="hover:text-[#2563EB]">
+                          {u.phone}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 font-sans">No contact added</span>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Add Leave Record Form */}
-              <div className="neu-flat rounded-lg p-5 relative z-10">
-                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-4 block">Register New Leave</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Start Date</label>
-                    <input
-                      type="date"
-                      className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20"
-                      value={leaveStartDate}
-                      onChange={(e) => setLeaveStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">End Date</label>
-                    <input
-                      type="date"
-                      className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20"
-                      value={leaveEndDate}
-                      onChange={(e) => setLeaveEndDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Note</label>
-                    <input
-                      type="text"
-                      className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none relative z-20 cursor-text"
-                      value={leaveNote}
-                      onChange={(e) => setLeaveNote(e.target.value)}
-                      placeholder="Reason for taking leave..."
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1.5 block">Leave Type</label>
-                    <select
-                      className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer relative z-20"
-                      value={leaveType}
-                      onChange={(e) => setLeaveType(e.target.value)}
-                    >
-                      <option value="full">Full Day</option>
-                      <option value="half">Half Day</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="mt-6 flex justify-end">
+                <div className="flex items-center gap-1.5 pt-3 border-t border-[#EAE3D6]">
                   <button
                     type="button"
-                    className="neu-btn-primary px-6 py-3 rounded-md text-white font-bold text-sm neu-action-btn"
-                    onClick={handleAddLeaveRecord}
+                    onClick={() => handleOpenPassword(u)}
+                    className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded text-xs font-bold transition-colors"
+                    title="Change Password"
                   >
-                    Add Leave Record
+                    <KeyRound size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(u)}
+                    className="flex-1 py-1.5 bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE] rounded text-xs font-bold transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Edit2 size={12} /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUser(u._id, u.username)}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
-            </div>
+            ))
+          )}
+        </div>
+      )}
 
-            <div className="mt-8 flex justify-end border-t border-[#D1DCEB]/50 pt-5">
+      {/* ── Change Password Modal ────────────────────────────────────────────── */}
+      <Modal
+        isOpen={Boolean(passwordUser)}
+        onClose={() => setPasswordUser(null)}
+        title={`Change Password - ${passwordUser?.username || "Employee"}`}
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setPasswordUser(null)}
+              className="ent-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="change-password-modal-form"
+              disabled={submitting}
+              className="ent-btn-primary"
+            >
+              {submitting ? "Updating..." : "Update Password"}
+            </button>
+          </>
+        }
+      >
+        <form id="change-password-modal-form" onSubmit={handleSavePassword} className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs font-semibold text-rose-800 flex items-center gap-2">
+              <X size={14} className="shrink-0 text-rose-600" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs font-semibold text-emerald-800 flex items-center gap-2">
+              <Check size={14} className="shrink-0 text-emerald-600" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          <div className="p-2.5 bg-[#FAF8F5] border border-[#EAE3D6] rounded text-xs space-y-0.5">
+            <div className="font-bold text-slate-900">{passwordUser?.username}</div>
+            <div className="text-slate-500 font-mono text-[11px]">{passwordUser?.email}</div>
+          </div>
+
+          <div>
+            <label className="ent-label">New Password *</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Minimum 6 characters"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                className="ent-input text-xs pr-10"
+              />
               <button
                 type="button"
-                className="px-6 py-2 neu-flat neu-action-btn rounded-lg text-sm font-bold text-[#656D76]"
-                onClick={() => setLeaveModalOpen(false)}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
               >
-                Close Window
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Custom Snackbar */}
-      {snackbarOpen && (
-        <div className="fixed bottom-6 right-6 z-[999] flex items-center gap-4 neu-flat rounded-lg p-4 montserrat-medium">
-          <span className={`text-sm font-bold ${snackbarSeverity === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>
-            {snackbarMessage}
-          </span>
-          <button
-            type="button"
-            onClick={() => setSnackbarOpen(false)}
-            className="neu-flat-sm neu-action-btn rounded-md p-1.5 text-[#656D76]"
-          >
-            <Close fontSize="small" />
-          </button>
-        </div>
-      )}
+          <div>
+            <label className="ent-label">Confirm New Password *</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              placeholder="Re-type new password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+              className="ent-input text-xs"
+            />
+          </div>
+        </form>
+      </Modal>
 
-      {/* Neumorphic CSS Rules */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; 
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB;
+      {/* ── Onboard Employee Modal ───────────────────────────────────────────── */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Onboard New Employee"
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              className="ent-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="create-user-modal-form"
+              disabled={submitting}
+              className="ent-btn-primary"
+            >
+              {submitting ? "Creating..." : "Save & Onboard"}
+            </button>
+          </>
         }
-        .neu-base { background-color: var(--neu-bg); }
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-        
-        /* Force Input Clickability and Text Selection globally over any wrapper rules */
-        input, textarea, select {
-          position: relative;
-          z-index: 20;
-          pointer-events: auto !important;
-          user-select: text !important;
-          -webkit-user-select: text !important;
-        }
-        
-        select {
-          cursor: pointer !important;
-        }
+      >
+        <form id="create-user-modal-form" onSubmit={handleCreateUser} className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs font-semibold text-rose-800 flex items-center gap-2">
+              <X size={14} className="shrink-0 text-rose-600" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-        /* Fixed Interactive Buttons to Ensure Clickability */
-        .neu-action-btn { 
-          cursor: pointer; 
-          transition: all 0.2s ease; 
-          position: relative;
-          z-index: 20;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-action-btn:active {
-          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
-        }
-        .neu-btn-primary {
-          background-color: #0969DA;
-          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
-          border: none;
-          position: relative;
-          z-index: 20;
-          cursor: pointer;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-btn-primary:active {
-          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
-        }
+          <div>
+            <label className="ent-label">Full Name *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Asad Ullah"
+              value={userForm.username}
+              onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+              className="ent-input text-xs"
+            />
+          </div>
 
-        /* Prevent SVG Icons from intercepting parent button clicks */
-        button svg {
-          pointer-events: none !important;
-        }
+          <div>
+            <label className="ent-label">Email Address *</label>
+            <input
+              type="email"
+              required
+              placeholder="employee@starway.com"
+              value={userForm.email}
+              onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+              className="ent-input text-xs"
+            />
+          </div>
 
-        input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-          -webkit-text-fill-color: #1F2328 !important;
+          <div>
+            <label className="ent-label">Initial Password *</label>
+            <input
+              type="password"
+              required
+              placeholder="Minimum 6 characters"
+              value={userForm.password}
+              onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+              className="ent-input text-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="ent-label">System Role *</label>
+              <select
+                value={userForm.role}
+                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                className="ent-select text-xs"
+              >
+                {SYSTEM_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="ent-label">Designation *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Senior Frontend Developer"
+                value={userForm.designation}
+                onChange={(e) => setUserForm({ ...userForm, designation: e.target.value })}
+                className="ent-input text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="ent-label">Contact Number</label>
+            <input
+              type="text"
+              placeholder="+1 234 567 890"
+              value={userForm.phone}
+              onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+              className="ent-input text-xs font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="ent-label">Work Shift Timing</label>
+            <select
+              value={userForm.shiftId || ""}
+              onChange={(e) => setUserForm({ ...userForm, shiftId: e.target.value })}
+              className="ent-select text-xs font-medium"
+            >
+              <option value="">-- No Shift Assigned --</option>
+              {shifts.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name} ({s.startTime} - {s.endTime}{s.isNightShift ? " 🌙 Night" : ""})
+                </option>
+              ))}
+            </select>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Edit Employee Modal ─────────────────────────────────────────────── */}
+      <Modal
+        isOpen={Boolean(editingUser)}
+        onClose={() => setEditingUser(null)}
+        title={`Edit Employee - ${editingUser?.username || ""}`}
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setEditingUser(null)}
+              className="ent-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="edit-user-modal-form"
+              disabled={submitting}
+              className="ent-btn-primary"
+            >
+              {submitting ? "Saving..." : "Save Changes"}
+            </button>
+          </>
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-      `}</style>
+      >
+        <form id="edit-user-modal-form" onSubmit={handleUpdateUser} className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs font-semibold text-rose-800 flex items-center gap-2">
+              <X size={14} className="shrink-0 text-rose-600" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="ent-label">Full Name *</label>
+            <input
+              type="text"
+              required
+              value={userForm.username}
+              onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+              className="ent-input text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="ent-label">Email Address (Read-only)</label>
+            <input
+              type="email"
+              disabled
+              value={userForm.email}
+              className="ent-input text-xs bg-slate-100 text-slate-500 cursor-not-allowed"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="ent-label">System Role *</label>
+              <select
+                value={userForm.role}
+                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                className="ent-select text-xs"
+              >
+                {SYSTEM_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="ent-label">Designation *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Senior Frontend Developer"
+                value={userForm.designation}
+                onChange={(e) => setUserForm({ ...userForm, designation: e.target.value })}
+                className="ent-input text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="ent-label">Contact Number</label>
+            <input
+              type="text"
+              placeholder="+1 234 567 890"
+              value={userForm.phone}
+              onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+              className="ent-input text-xs font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="ent-label">Work Shift Timing</label>
+            <select
+              value={userForm.shiftId || ""}
+              onChange={(e) => setUserForm({ ...userForm, shiftId: e.target.value })}
+              className="ent-select text-xs font-medium"
+            >
+              <option value="">-- No Shift Assigned --</option>
+              {shifts.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name} ({s.startTime} - {s.endTime}{s.isNightShift ? " 🌙 Night" : ""})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="ent-label">Reset Password (Optional)</label>
+            <input
+              type="password"
+              placeholder="Leave empty to keep current password"
+              value={userForm.password}
+              onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+              className="ent-input text-xs"
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

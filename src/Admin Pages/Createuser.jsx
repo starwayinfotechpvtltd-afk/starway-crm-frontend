@@ -1,33 +1,71 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Shield, 
-  ChevronDown, 
-  X, 
-  CheckCircle2, 
-  AlertTriangle, 
-  UserPlus, 
-  Loader2 
+import {
+  UserPlus,
+  User,
+  Mail,
+  Lock,
+  Phone,
+  Briefcase,
+  CheckCircle2,
+  AlertCircle,
+  ArrowLeft,
+  Shield,
+  CreditCard,
+  Building,
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { apiCache } from "../utils/apiCache";
 
-export default function UserRegistrationForm() {
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+
+const SYSTEM_ROLES = [
+  { value: "developer", label: "Developer" },
+  { value: "caller", label: "Caller / Sales" },
+  { value: "team_lead", label: "Team Lead" },
+  { value: "manager", label: "Manager" },
+  { value: "hr", label: "HR" },
+  { value: "admin", label: "Admin" },
+];
+
+// Toggle flag to hide base monthly salary input during onboarding without deleting logic
+const HIDE_BASE_SALARY = true;
+
+export default function CreateUser() {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
-    role: "caller",
+    phone: "",
+    role: "developer",
+    designation: "",
+    employeeId: `EMP-${Math.floor(100 + Math.random() * 900)}`,
+    employmentType: "full_time",
+    baseSalary: 45000,
+    shiftId: "",
   });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
+  const [shifts, setShifts] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
+
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
+  const currentRole = localStorage.getItem("role") || "admin";
+
+  useEffect(() => {
+    const fetchShifts = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/shifts`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setShifts(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch shifts:", err);
+      }
+    };
+    fetchShifts();
+  }, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,283 +75,274 @@ export default function UserRegistrationForm() {
     }));
   };
 
-  const showSnackbar = (msg, severity) => {
-    setSnackbarMessage(msg);
-    setSnackbarSeverity(severity);
-    setOpenSnackbar(true);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `${API_BASE}/api/auth/register`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      showSnackbar(response.data.message || "User registered successfully!", "success");
+    setStatusMessage(null);
 
-      setFormData({
-        username: "",
-        email: "",
-        password: "",
-        role: "caller",
+    try {
+      const payload = {
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        phone: formData.phone.trim(),
+        role: formData.role || "developer",
+        designation: formData.designation.trim(),
+        employeeId: formData.employeeId.trim(),
+        employmentType: formData.employmentType,
+        baseSalary: Number(formData.baseSalary || 0),
+        shiftId: formData.shiftId || null,
+      };
+
+      const res = await axios.post(`${API_BASE}/api/auth/register`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      apiCache.invalidate("users");
+      apiCache.invalidate("admin_overview_metrics");
+
+      setStatusMessage({
+        type: "success",
+        text: res.data.message || "Employee successfully onboarded!",
+      });
+
+      setTimeout(() => {
+        if (currentRole === "hr") {
+          navigate("/dashboard-hr/employees");
+        } else {
+          navigate("/dashboard-admin/users");
+        }
+      }, 1000);
     } catch (error) {
-      console.error("Error registering user:", error);
-      showSnackbar(error.response?.data?.message || "Failed to register user", "error");
+      console.error("Error onboarding user:", error);
+      setStatusMessage({
+        type: "error",
+        text: error.response?.data?.message || "Failed to onboard employee",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="w-full h-[90vh] overflow-hidden flex items-center justify-center neu-base p-4 sm:p-6 montserrat-regular text-[#1F2328]">
-      
-      <div className="neu-flat rounded-2xl p-6 sm:p-10 w-full max-w-md relative z-10 flex flex-col">
-        
-        <div className="flex flex-col items-center justify-center mb-8 border-b border-[#D1DCEB]/50 pb-6 shrink-0">
-          <div className="neu-pressed-sm p-4 rounded-full text-[#0969DA] mb-4">
-            <UserPlus size={32} />
-          </div>
-          <h2 className="text-xl montserrat-medium text-[#1F2328]">Add New User</h2>
-          <p className="text-[10px] montserrat-medium text-[#656D76] uppercase tracking-wider mt-1.5">Add a new member to the workspace</p>
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Top Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Onboard New Workforce Member
+          </h1>
         </div>
-        
-        {/* autoComplete="off" prevents standard autofill */}
-        <form onSubmit={handleSubmit} autoComplete="off" className="flex flex-col gap-5 flex-1 overflow-y-auto custom-scrollbar pr-2">
-          
-          {/* Honeypot hidden fields to absorb aggressive browser autofill */}
-          <input type="text" name="fakeusernameremembered" className="hidden" aria-hidden="true" tabIndex="-1" />
-          <input type="password" name="fakepasswordremembered" className="hidden" aria-hidden="true" tabIndex="-1" />
 
-          {/* Username Input */}
-          <div className="relative z-20">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-              Username <span className="text-[#D1242F]">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30">
-                <User size={16} />
-              </div>
-              <input
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-                autoComplete="new-username"
-                className="w-full neu-pressed rounded-md p-3.5 pl-10 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20"
-                placeholder="Enter username"
-              />
-            </div>
-          </div>
-
-          {/* Email Input */}
-          <div className="relative z-20">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-              Email Address <span className="text-[#D1242F]">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30">
-                <Mail size={16} />
-              </div>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                autoComplete="new-email"
-                className="w-full neu-pressed rounded-md p-3.5 pl-10 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20"
-                placeholder="email@example.com"
-              />
-            </div>
-          </div>
-
-          {/* Password Input */}
-          <div className="relative z-20">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-              Password <span className="text-[#D1242F]">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30">
-                <Lock size={16} />
-              </div>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-                className="w-full neu-pressed rounded-md p-3.5 pl-10 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20 tracking-widest"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {/* Role Select */}
-          <div className="relative z-20">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-              System Role <span className="text-[#D1242F]">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30">
-                <Shield size={16} />
-              </div>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                required
-                className="w-full neu-pressed rounded-md p-3.5 pl-10 pr-10 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent relative z-20"
-              >
-                <option value="caller">Caller</option>
-                <option value="developer">Developer</option>
-                <option value="admin">Admin</option>
-                <option value="manager">Team Manager</option>
-              </select>
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30">
-                <ChevronDown size={16} />
-              </div>
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="neu-btn-primary mt-6 w-full py-3.5 rounded-lg text-white font-bold text-sm neu-action-btn flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
-          >
-            {isSubmitting ? (
-              <><Loader2 size={18} className="animate-spin pointer-events-none" /> Processing...</>
-            ) : (
-              <><UserPlus size={18} className="pointer-events-none" /> Register User</>
-            )}
-          </button>
-        </form>
+        <Link
+          to={currentRole === "hr" ? "/dashboard-hr/employees" : "/dashboard-admin/users"}
+          className="ent-btn-secondary text-xs"
+        >
+          <ArrowLeft size={13} /> Back to Directory
+        </Link>
       </div>
 
-      {/* Custom Snackbar */}
-      <AnimatePresence>
-        {openSnackbar && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-[99999] flex items-center gap-4 neu-flat rounded-xl p-4 montserrat-medium max-w-sm"
-          >
-            <div className={`neu-pressed-sm p-2 rounded-full shrink-0 ${snackbarSeverity === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>
-               {snackbarSeverity === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+      {/* Status Feedback */}
+      {statusMessage && (
+        <div
+          className={`p-3.5 rounded border text-xs font-semibold flex items-center gap-2.5 ${
+            statusMessage.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-rose-50 text-rose-800 border-rose-200"
+          }`}
+        >
+          {statusMessage.type === "success" ? (
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+          )}
+          <span>{statusMessage.text}</span>
+        </div>
+      )}
+
+      {/* Onboarding Form Card */}
+      <div className="ent-card p-6 bg-white border-[#EAE3D6] shadow-xs">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Full Name */}
+            <div>
+              <label className="ent-label">Full Name *</label>
+              <div className="relative">
+                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  name="username"
+                  required
+                  placeholder="e.g. Alex Morgan"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="ent-input ent-input-with-icon text-xs"
+                />
+              </div>
             </div>
-            <span className={`text-xs font-bold ${snackbarSeverity === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>
-              {snackbarMessage}
-            </span>
+
+            {/* Email Address */}
+            <div>
+              <label className="ent-label">Work Email *</label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="alex.morgan@company.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="ent-input ent-input-with-icon text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Initial Password */}
+            <div>
+              <label className="ent-label">Initial Password *</label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  minLength={6}
+                  placeholder="Min 6 characters"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="ent-input ent-input-with-icon text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="ent-label">Contact Number *</label>
+              <div className="relative">
+                <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  name="phone"
+                  required
+                  placeholder="+1 (555) 000-0000"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="ent-input ent-input-with-icon text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            {/* System Role */}
+            <div>
+              <label className="ent-label">System Role *</label>
+              <div className="relative">
+                <Shield size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className="ent-select ent-input-with-icon text-xs font-bold"
+                >
+                  {SYSTEM_ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Designation */}
+            <div>
+              <label className="ent-label">Designation *</label>
+              <div className="relative">
+                <Briefcase size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  name="designation"
+                  required
+                  placeholder="e.g. Senior Fullstack Developer"
+                  value={formData.designation}
+                  onChange={handleChange}
+                  className="ent-input ent-input-with-icon text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Employee ID */}
+            <div>
+              <label className="ent-label">Employee ID Code *</label>
+              <input
+                type="text"
+                name="employeeId"
+                required
+                placeholder="EMP-101"
+                value={formData.employeeId}
+                onChange={handleChange}
+                className="ent-input text-xs font-mono font-bold"
+              />
+            </div>
+
+            {/* Base Monthly Salary */}
+            {!HIDE_BASE_SALARY && (
+              <div>
+                <label className="ent-label">Base Monthly Salary (₹) *</label>
+                <div className="relative">
+                  <CreditCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="number"
+                    name="baseSalary"
+                    required
+                    placeholder="45000"
+                    value={formData.baseSalary}
+                    onChange={handleChange}
+                    className="ent-input ent-input-with-icon text-xs font-mono font-bold"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Assigned Work Shift */}
+            <div>
+              <label className="ent-label">Work Shift Timing (Optional)</label>
+              <div className="relative">
+                <select
+                  name="shiftId"
+                  value={formData.shiftId}
+                  onChange={handleChange}
+                  className="ent-select text-xs font-medium"
+                >
+                  <option value="">-- No Shift Assigned --</option>
+                  {shifts.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name} ({s.startTime} - {s.endTime}{s.isNightShift ? " 🌙 Night" : ""})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setOpenSnackbar(false)}
-              className="neu-flat-sm neu-action-btn rounded-lg p-1.5 text-[#656D76] ml-auto shrink-0"
+              onClick={() => navigate(-1)}
+              className="ent-btn-secondary"
             >
-              <X size={14} className="pointer-events-none" />
+              Cancel
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Neumorphic CSS Rules */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; 
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB;
-        }
-        .neu-base { background-color: var(--neu-bg); }
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-        
-        /* Force Input Clickability and Text Selection globally */
-        input, textarea, select {
-          position: relative;
-          z-index: 20;
-          pointer-events: auto !important;
-          user-select: text !important;
-          -webkit-user-select: text !important;
-        }
-        
-        select {
-          cursor: pointer !important;
-          -moz-appearance: none; 
-          -webkit-appearance: none; 
-          appearance: none;
-        }
-
-        /* Fixed Interactive Buttons to Ensure Clickability */
-        .neu-action-btn { 
-          cursor: pointer; 
-          transition: all 0.2s ease; 
-          position: relative;
-          z-index: 20;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-action-btn:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important;
-        }
-        .neu-btn-primary {
-          background-color: #0969DA;
-          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
-          border: none;
-          position: relative;
-          z-index: 20;
-          cursor: pointer;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-btn-primary:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Prevent SVG Icons from intercepting parent button clicks */
-        button svg {
-          pointer-events: none !important;
-        }
-
-        /* Defeat Auto-fill styling */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active{
-          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-          -webkit-text-fill-color: #1F2328 !important;
-          transition: background-color 5000s ease-in-out 0s;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-      `}</style>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="ent-btn-primary"
+            >
+              <UserPlus size={14} />
+              {isSubmitting ? "Onboarding Staff..." : "Complete Onboarding"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

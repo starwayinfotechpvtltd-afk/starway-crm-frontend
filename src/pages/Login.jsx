@@ -59,6 +59,8 @@ const Login = () => {
       localStorage.setItem("username", username);
       const routes = {
         admin: "/dashboard-admin/",
+        hr: "/dashboard-hr",
+        team_lead: "/dashboard-team-lead",
         caller: "/dashboard-caller",
         developer: "/dashboard-developer",
         manager: "/dashboard-team-manager",
@@ -240,7 +242,7 @@ const Login = () => {
           // Declaring it here as a fallback to keep layout stable during entry.
           transformOrigin: "center bottom",
         }}
-        className="w-full max-w-[420px] bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl p-8 md:p-10 flex flex-col items-center border border-white/50"
+        className="w-full max-w-[420px] bg-white/90 backdrop-blur-md shadow-2xl rounded-4xl p-8 md:p-10 flex flex-col items-center border border-white/50"
       >
 
         {/* ── macOS Traffic-Light Dots ─────────────────────────────────────

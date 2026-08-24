@@ -30,12 +30,12 @@ const AdminAttendance = () => {
   // NEUMORPHIC STYLES (Tailwind based)
   // ==========================================
   const neoStyle = {
-    bg: "bg-[#F0F4F8]",
-    box: "bg-[#F0F4F8] shadow-[9px_9px_16px_rgba(209,220,235,0.6),-9px_-9px_16px_rgba(255,255,255,0.5)] rounded-2xl",
-    inset: "bg-[#F0F4F8] shadow-[inset_6px_6px_10px_0_rgba(209,220,235,0.7),inset_-6px_-6px_10px_0_rgba(255,255,255,0.8)] rounded-xl",
-    input: "w-full bg-[#F0F4F8] shadow-[inset_4px_4px_8px_rgba(209,220,235,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.8)] border-none outline-none p-3 rounded-xl text-[#1F2328] text-sm font-semibold",
-    btn: "bg-[#F0F4F8] shadow-[5px_5px_10px_rgba(209,220,235,0.8),-5px_-5px_10px_rgba(255,255,255,0.8)] active:shadow-[inset_4px_4px_8px_rgba(209,220,235,0.8),inset_-4px_-4px_8px_rgba(255,255,255,0.8)] text-[#656D76] font-bold py-2 px-6 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2",
-    btnActive: "bg-[#F0F4F8] shadow-[inset_4px_4px_8px_rgba(209,220,235,0.8),inset_-4px_-4px_8px_rgba(255,255,255,0.8)] text-[#4F6EF7] font-bold py-2 px-6 rounded-xl flex items-center justify-center gap-2",
+    bg: "bg-[#F8FAFC]",
+    box: "ent-card",
+    inset: "bg-slate-50/70 border border-slate-200 rounded p-4",
+    input: "ent-input",
+    btn: "ent-btn-secondary",
+    btnActive: "ent-btn-primary",
   };
 
   // ==========================================
@@ -96,6 +96,7 @@ const AdminAttendance = () => {
         role, requiredWorkHours: reqHrs, allottedBreakTime: brkHrs
       }, getAuthHeaders());
       alert("Role timing updated successfully!");
+      fetchDependencies(); // Refresh roleTimings so UI reflects saved values
     } catch (err) { alert("Error updating role"); }
   };
 

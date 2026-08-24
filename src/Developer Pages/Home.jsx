@@ -1,2013 +1,1597 @@
-// import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
-// import {
-//   ClipboardDocumentCheckIcon,
-//   ClockIcon,
-//   ExclamationCircleIcon,
-//   CheckBadgeIcon,
-//   PlusIcon,
-//   CheckIcon,
-//   MagnifyingGlassIcon,
-//   EyeIcon,
-//   ChatBubbleLeftRightIcon
-// } from "@heroicons/react/24/outline";
-// import {
-//   Dialog,
-//   DialogTitle,
-//   DialogContent,
-//   DialogActions,
-//   Typography,
-//   Box,
-// } from "@mui/material";
-// import axios from "axios";
-// import { motion } from "framer-motion";
-// import {
-//   BarChart,
-//   Bar,
-//   AreaChart,
-//   Area,
-//   XAxis,
-//   YAxis,
-//   CartesianGrid,
-//   Tooltip as RechartsTooltip,
-//   ResponsiveContainer,
-//   Legend
-// } from "recharts";
-// import {
-//   format, differenceInCalendarDays, isToday, isYesterday,
-//   isThisWeek, isThisMonth, subMonths, subDays, isWithinInterval,
-//   startOfDay, endOfDay
-// } from "date-fns";
-// import { useTasks } from "../TaskContext";
-
-// // Lazy load the Kanban Board component to optimize initial asset delivery
-// const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
-
-// const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-// // ── Framer Motion Variants ───────────────────────────────────────────────────
-// const containerVariants = {
-//   hidden: { opacity: 0 },
-//   show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-// };
-// const itemVariants = {
-//   hidden: { opacity: 0, y: 10 },
-//   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 26 } },
-// };
-
-// // ── Improved Neumorphic Skeleton Component ───────────────────────────────────
-// const Skeleton = ({ width = "100%", height = "20px", rounded = "rounded-md", className = "" }) => (
-//   <div 
-//     className={`neu-pressed-sm relative overflow-hidden ${rounded} ${className}`} 
-//     style={{ width, height }}
-//   >
-//     <div className="absolute inset-0 skeleton-shimmer" />
-//   </div>
-// );
-
-// // ── Advanced Neumorphic Skeleton Loader ──────────────────────────────────────
-// const SkeletonDashboard = () => (
-//   <div className="min-h-screen neu-base flex flex-col montserrat-regular pb-12 overflow-hidden">
-//     {/* Navbar Skeleton */}
-//     <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
-//       <div className="flex items-center gap-3 w-full sm:w-auto">
-//         <Skeleton width="40px" height="40px" rounded="rounded-full" className="shrink-0" />
-//         <div className="space-y-2">
-//           <Skeleton width="140px" height="12px" />
-//           <Skeleton width="100px" height="8px" />
-//         </div>
-//       </div>
-//       <div className="flex gap-3 w-full sm:w-auto neu-pressed p-2 rounded-lg">
-//         <Skeleton width="100px" height="24px" />
-//         <Skeleton width="140px" height="24px" />
-//       </div>
-//     </nav>
-
-//     <div className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
-//       {/* Metrics Grid Skeleton */}
-//       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-//         {[1, 2, 3, 4].map(i => (
-//           <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-//             <div className="space-y-3 w-full">
-//               <Skeleton width="50%" height="10px" />
-//               <Skeleton width="30%" height="24px" />
-//             </div>
-//             <Skeleton width="44px" height="44px" rounded="rounded-lg" className="shrink-0" />
-//           </div>
-//         ))}
-//       </div>
-
-//       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-//         {/* Main Task Board Skeleton */}
-//         <div className="xl:col-span-2 neu-flat rounded-lg p-2 flex flex-col">
-//           <div className="px-5 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-//             <div className="space-y-2 w-full sm:w-1/3">
-//               <Skeleton width="120px" height="14px" />
-//               <Skeleton width="80px" height="10px" />
-//             </div>
-//             <div className="flex gap-3 w-full sm:w-auto">
-//               <Skeleton width="180px" height="36px" />
-//               <Skeleton width="100px" height="36px" />
-//             </div>
-//           </div>
-//           <div className="neu-pressed rounded-lg p-4 mx-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[400px]">
-//             {[1, 2, 3, 4].map(i => (
-//               <div key={i} className="p-4 neu-flat rounded-md h-[150px] flex flex-col justify-between">
-//                 <div>
-//                   <div className="flex justify-between items-start mb-4">
-//                     <Skeleton width="70%" height="14px" />
-//                     <Skeleton width="45px" height="18px" />
-//                   </div>
-//                   <Skeleton width="40%" height="10px" />
-//                 </div>
-//                 <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30">
-//                   <div className="flex gap-2">
-//                     <Skeleton width="80px" height="28px" />
-//                     <Skeleton width="32px" height="28px" />
-//                   </div>
-//                   <Skeleton width="60px" height="12px" />
-//                 </div>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-
-//         {/* Sidebar History Skeleton */}
-//         <div className="neu-flat rounded-lg p-2 flex flex-col">
-//           <div className="px-5 py-6 space-y-4">
-//             <Skeleton width="140px" height="14px" />
-//             <Skeleton width="100%" height="36px" />
-//           </div>
-//           <div className="neu-pressed rounded-lg p-3 mx-3 mb-4 flex-1 min-h-[400px] flex flex-col gap-3">
-//             {[1, 2, 3, 4, 5].map(i => (
-//               <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4">
-//                 <div className="flex-1 space-y-3">
-//                   <Skeleton width="90%" height="12px" />
-//                   <Skeleton width="50%" height="10px" />
-//                 </div>
-//                 <Skeleton width="32px" height="32px" rounded="rounded-full" />
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Chart Row Skeleton */}
-//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-//         {[1, 2].map(i => (
-//           <div key={i} className="neu-flat rounded-lg p-6 space-y-6">
-//             <Skeleton width="180px" height="14px" />
-//             <div className="neu-pressed rounded-lg h-64 flex items-end justify-around p-4">
-//                 {[1,2,3,4,5,6].map(bar => (
-//                     <Skeleton key={bar} width="25px" height={`${Math.random() * 60 + 20}%`} rounded="rounded-t-md" />
-//                 ))}
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   </div>
-// );
-
-// // ── Comment Modal ─────────────────────────────────────────────────────────────
-// const CommentModal = ({ task, projectId, onClose }) => {
-//   const [text, setText] = useState("");
-//   const [posting, setPosting] = useState(false);
-//   const [posted, setPosted] = useState(false);
-
-//   const submit = async () => {
-//     if (!text.trim()) return;
-//     setPosting(true);
-//     try {
-//       const token = localStorage.getItem("token");
-//       await axios.post(
-//         `${API_BASE}/api/tasks/${projectId}/${task._id}/comments`,
-//         { text: text.trim() },
-//         { headers: { Authorization: `Bearer ${token}` } }
-//       );
-//       setPosted(true);
-//       setTimeout(onClose, 900);
-//     } catch (err) {
-//       console.error("Comment error:", err);
-//     } finally {
-//       setPosting(false);
-//     }
-//   };
-
-//   return (
-//     <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#1F2328]/40 backdrop-blur-sm animate-fadeIn">
-//       <div onClick={e => e.stopPropagation()} className="neu-flat rounded-lg w-full max-w-sm overflow-hidden montserrat-regular relative z-10">
-//         <div className="px-5 py-4 border-b border-[#D1DCEB]/40 flex justify-between items-center">
-//           <div>
-//             <div className="text-[10px] text-[#656D76] montserrat-bold uppercase tracking-wider">Add Comment</div>
-//             <div className="text-xs montserrat-bold text-[#1F2328] mt-1 break-words max-w-[280px]">{task.title}</div>
-//           </div>
-//           <button onClick={onClose} className="text-[#656D76] hover:text-[#D1242F] text-xl montserrat-bold neu-action-btn w-8 h-8 rounded-full flex items-center justify-center">&times;</button>
-//         </div>
-//         {posted ? (
-//           <div className="text-center py-8 text-[#1A7F37] montserrat-medium text-xs">
-//             ✓ Comment posted successfully!
-//           </div>
-//         ) : (
-//           <div className="p-5 space-y-4">
-//             <textarea
-//               autoFocus
-//               value={text}
-//               onChange={e => setText(e.target.value)}
-//               placeholder="Write your comment..."
-//               rows={3}
-//               className="w-full neu-pressed rounded-md p-3 text-xs outline-none resize-none bg-transparent text-[#1F2328] relative z-20 custom-scrollbar"
-//             />
-//             <div className="flex justify-end gap-3 pt-2 relative z-20">
-//               <button onClick={onClose} className="px-4 py-2 text-xs montserrat-bold text-[#656D76] neu-flat neu-action-btn rounded-md transition-all">Cancel</button>
-//               <button onClick={submit} disabled={!text.trim() || posting} className="px-5 py-2 text-xs montserrat-bold text-white neu-btn-primary neu-action-btn rounded-md transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-//                 {posting && <div className="btn-spinner" />}
-//                 {posting ? "Posting..." : "Post Comment"}
-//               </button>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// // ── Task Creation Modal ────────────────────────────────────────────────────────
-// const AddTaskModal = ({ open, onClose, projects, onSuccess, currentUserId, currentUsername }) => {
-//   const [form, setForm] = useState({ title: '', description: '', priority: 'Medium', deadline: '', projectId: '' });
-//   const [submitting, setSubmitting] = useState(false);
-
-//   const sortedProjects = useMemo(() => {
-//     return [...projects].sort((a, b) =>
-//       (a.projectName || "").localeCompare(b.projectName || "", undefined, { sensitivity: "base" })
-//     );
-//   }, [projects]);
-
-//   useEffect(() => {
-//     if (open) {
-//       setForm({ title: '', description: '', priority: 'Medium', deadline: '', projectId: sortedProjects[0]?._id || '' });
-//     }
-//   }, [open, sortedProjects]);
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     if (!form.projectId) return alert("Please select a project");
-//     setSubmitting(true);
-//     try {
-//       const token = localStorage.getItem("token");
-//       const res = await axios.post(`${API_BASE}/api/tasks/${form.projectId}`, {
-//         ...form,
-//         assignedTo: { id: currentUserId, username: currentUsername }
-//       }, { headers: { Authorization: `Bearer ${token}` } });
-
-//       const newTask = res.data?.task || res.data || { ...form, _id: Math.random().toString(), createdAt: new Date().toISOString(), status: "Todo" };
-//       onSuccess(newTask, form.projectId);
-//       onClose();
-//     } catch (err) {
-//       console.error(err);
-//       alert("Failed to create task");
-//     } finally {
-//       setSubmitting(false);
-//     }
-//   };
-
-//   if (!open) return null;
-
-//   return (
-//     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#1F2328]/40 backdrop-blur-sm">
-//       <div className="neu-flat rounded-lg w-full max-w-md overflow-hidden montserrat-regular relative z-10">
-//         <div className="px-5 py-4 border-b border-[#D1DCEB]/40 flex justify-between items-center shrink-0">
-//           <h2 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider">Create New Task</h2>
-//           <button onClick={onClose} className="text-[#656D76] hover:text-[#D1242F] text-xl montserrat-bold neu-action-btn w-8 h-8 rounded-full flex items-center justify-center">&times;</button>
-//         </div>
-//         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
-//           <div className="relative z-20">
-//             <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Project</label>
-//             <select required value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] montserrat-medium cursor-pointer relative z-20 appearance-none">
-//               {sortedProjects.map(p => <option key={p._id} value={p._id}>{p.projectName}</option>)}
-//             </select>
-//           </div>
-//           <div className="relative z-20">
-//             <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Title</label>
-//             <input required autoFocus value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] relative z-20 cursor-text" placeholder="What needs to be done?" />
-//           </div>
-//           <div className="grid grid-cols-2 gap-4 relative z-20">
-//             <div className="relative z-20">
-//               <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Priority</label>
-//               <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] montserrat-medium cursor-pointer relative z-20 appearance-none">
-//                 <option value="Low">Low</option>
-//                 <option value="Medium">Medium</option>
-//                 <option value="High">High</option>
-//                 <option value="Critical">Critical</option>
-//               </select>
-//             </div>
-//             <div className="relative z-20">
-//               <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Deadline</label>
-//               <input required type="date" min={new Date().toISOString().split('T')[0]} value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] cursor-pointer relative z-20" />
-//             </div>
-//           </div>
-//           <div className="relative z-20">
-//             <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Description</label>
-//             <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] resize-none custom-scrollbar relative z-20 cursor-text" rows="3" placeholder="Add context or criteria..."></textarea>
-//           </div>
-//           <div className="pt-4 flex justify-end gap-4 mt-2 relative z-20">
-//             <button type="button" onClick={onClose} className="px-5 py-2 text-xs montserrat-bold text-[#656D76] neu-flat neu-action-btn rounded-md transition-all">Cancel</button>
-//             <button type="submit" disabled={submitting} className="px-6 py-2 text-xs montserrat-bold text-white neu-btn-primary neu-action-btn rounded-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-//               {submitting && <div className="btn-spinner" />}
-//               {submitting ? 'Creating...' : 'Create Task'}
-//             </button>
-//           </div>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// };
-
-// // ── Main Dashboard App ─────────────────────────────────────────────────────────
-// export default function Home() {
-//   const currentUserId = localStorage.getItem("userId");
-//   const username = localStorage.getItem("username") || "Developer";
-
-//   // USE THE SHARED CONTEXT INSTEAD OF LOCAL DATA FETCHING
-//   const { projects, pendingTasks, completions, loading, completeTask, addTaskToState, refreshData } = useTasks();
-
-//   // Global Filter States
-//   const [globalTimeFilter, setGlobalTimeFilter] = useState("Last 2 Weeks");
-//   const [globalCustomDates, setGlobalCustomDates] = useState({ start: "", end: "" });
-//   const [globalProjectFilter, setGlobalProjectFilter] = useState("All");
-
-//   // Inline List Searches
-//   const [pendingSearchQuery, setPendingSearchQuery] = useState("");
-//   const [completedSearchQuery, setCompletedSearchQuery] = useState("");
-
-//   // UI & Pagination States
-//   const [completingTaskId, setCompletingTaskId] = useState(null);
-//   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
-//   const [completedVisibleCount, setCompletedVisibleCount] = useState(10);
-
-//   // Detail & Comment Modals
-//   const [selectedCompletedTask, setSelectedCompletedTask] = useState(null);
-//   const [openTaskDialog, setOpenTaskDialog] = useState(false);
-//   const [commentTask, setCommentTask] = useState(null);
-
-//   // Kanban States
-//   const [kanbanProject, setKanbanProject] = useState(null);
-//   const [kanbanOpen, setKanbanOpen] = useState(false);
-//   const [openingKanbanId, setOpeningKanbanId] = useState(null);
-
-//   // Reset pagination when filters change
-//   useEffect(() => {
-//     setCompletedVisibleCount(10);
-//   }, [globalTimeFilter, globalProjectFilter, globalCustomDates]);
-
-//   // Total active derived directly from context projects
-//   const totalActiveProjectsCount = useMemo(() => {
-//     return projects.filter(p => p.status !== "Closed").length;
-//   }, [projects]);
-
-//   // ── Kanban Action ────────────────────────────────────────────────────────────
-//   const handleOpenKanban = useCallback((pId) => {
-//     setOpeningKanbanId(pId);
-//     const targetProject = projects.find(p => p._id === pId);
-
-//     setTimeout(() => {
-//       if (targetProject) {
-//         setKanbanProject(targetProject);
-//         setKanbanOpen(true);
-//       }
-//       setOpeningKanbanId(null);
-//     }, 450);
-//   }, [projects]);
-
-//   // ── Process Task Action ───────────────────────────────────────────────────────
-//   const handleCompleteTask = async (taskId, projectId) => {
-//     setCompletingTaskId(taskId);
-//     await completeTask(taskId, projectId); // Calling context method
-//     setCompletingTaskId(null);
-//   };
-
-//   const handleQuickAddSuccess = (newTask, projectId) => {
-//     addTaskToState(newTask, projectId); // Calling context method
-//   };
-
-//   // ── Global Filter Logic ──────────────────────────────────────────────────────
-//   const isDateInRange = useCallback((dateStr) => {
-//     if (!dateStr) return false;
-//     const d = new Date(dateStr);
-//     switch (globalTimeFilter) {
-//       case "Today": return isToday(d);
-//       case "Yesterday": return isYesterday(d);
-//       case "This Week": return isThisWeek(d);
-//       case "Last 2 Weeks": {
-//         const twoWeeksAgo = subDays(new Date(), 14);
-//         return isWithinInterval(d, { start: startOfDay(twoWeeksAgo), end: endOfDay(new Date()) });
-//       }
-//       case "This Month": return isThisMonth(d);
-//       case "Last Month": {
-//         const lm = subMonths(new Date(), 1);
-//         return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
-//       }
-//       case "All Time": return true;
-//       case "Custom":
-//         if (globalCustomDates.start && globalCustomDates.end) {
-//           return isWithinInterval(d, { start: startOfDay(new Date(globalCustomDates.start)), end: endOfDay(new Date(globalCustomDates.end)) });
-//         }
-//         return true;
-//       default: return true;
-//     }
-//   }, [globalTimeFilter, globalCustomDates]);
-
-//   const globallyFilteredCompletions = useMemo(() => {
-//     let list = completions;
-//     if (globalProjectFilter !== "All") list = list.filter(c => c._projectId === globalProjectFilter);
-//     list = list.filter(c => isDateInRange(c.completedAt));
-//     if (completedSearchQuery.trim()) {
-//       const query = completedSearchQuery.toLowerCase();
-//       list = list.filter(c => (c.taskTitle || c.title || "").toLowerCase().includes(query));
-//     }
-//     return list;
-//   }, [completions, globalProjectFilter, isDateInRange, completedSearchQuery]);
-
-//   const globallyFilteredPending = useMemo(() => {
-//     let list = pendingTasks;
-//     if (globalProjectFilter !== "All") list = list.filter(t => t._projectId === globalProjectFilter);
-
-//     if (globalTimeFilter !== "All Time") {
-//       list = list.filter(t =>
-//         isDateInRange(t.createdAt) ||
-//         isDateInRange(t.deadline) ||
-//         (t.deadline && differenceInCalendarDays(new Date(t.deadline), new Date()) < 0)
-//       );
-//     }
-//     if (pendingSearchQuery.trim()) {
-//       const query = pendingSearchQuery.toLowerCase();
-//       list = list.filter(t => (t.title || "").toLowerCase().includes(query));
-//     }
-//     return list;
-//   }, [pendingTasks, globalProjectFilter, globalTimeFilter, isDateInRange, pendingSearchQuery]);
-
-//   const globallyFilteredOverdue = useMemo(() => {
-//     return globallyFilteredPending.filter(t => t.deadline && differenceInCalendarDays(new Date(t.deadline), new Date()) < 0);
-//   }, [globallyFilteredPending]);
-
-//   // ── Chart Data Calculations ──────────────────────────────────────────────────
-//   const projectBarData = useMemo(() => {
-//     const targetProjects = globalProjectFilter === "All" ? projects : projects.filter(p => p._id === globalProjectFilter);
-//     return targetProjects.map(p => ({
-//       name: p.projectName,
-//       Completed: globallyFilteredCompletions.filter(c => c._projectId === p._id).length,
-//       Pending: globallyFilteredPending.filter(t => t._projectId === p._id).length
-//     })).filter(p => p.Completed > 0 || p.Pending > 0)
-//       .sort((a, b) => (b.Completed + b.Pending) - (a.Completed + a.Pending))
-//       .slice(0, 10);
-//   }, [projects, globallyFilteredCompletions, globallyFilteredPending, globalProjectFilter]);
-
-//   const priorityBarData = useMemo(() => {
-//     const priorities = ["Critical", "High", "Medium", "Low"];
-//     return priorities.map(pri => ({
-//       priority: pri,
-//       Completed: globallyFilteredCompletions.filter(c => c.priority === pri).length
-//     }));
-//   }, [globallyFilteredCompletions]);
-
-//   const dailyCompletionData = useMemo(() => {
-//     const groups = {};
-//     globallyFilteredCompletions.forEach(c => {
-//       const key = format(new Date(c.completedAt), "yyyy-MM-dd");
-//       groups[key] = (groups[key] || 0) + 1;
-//     });
-//     return Object.keys(groups).sort().map(key => ({
-//       date: format(new Date(key), "MMM dd"),
-//       Completed: groups[key]
-//     }));
-//   }, [globallyFilteredCompletions]);
-
-//   const getPriorityColor = (priority) => {
-//     switch (priority) {
-//       case 'Critical': return 'text-[#D1242F] neu-pressed-sm border-none';
-//       case 'High': return 'text-[#BF8700] neu-pressed-sm border-none';
-//       case 'Low': return 'text-[#1A7F37] neu-pressed-sm border-none';
-//       default: return 'text-[#0969DA] neu-pressed-sm border-none';
-//     }
-//   };
-
-//   // Replace old local skeleton loader variable with context loading state
-//   if (loading) return <SkeletonDashboard />;
-
-//   return (
-//     <div className="neu-base min-h-screen montserrat-regular antialiased text-[#1F2328] pb-12 flex flex-col relative">
-
-//       {/* ── Global Top Navbar ── */}
-//       <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
-//         <div className="flex items-center gap-3">
-//           <div className="w-10 h-10 rounded-full bg-[#0969DA] shadow-sm text-white flex items-center justify-center montserrat-bold text-sm">
-//             {username.charAt(0).toUpperCase()}
-//           </div>
-//           <div>
-//             <h1 className="text-sm montserrat-bold leading-tight text-[#1F2328]">Developer Workspace</h1>
-//             <p className="text-[10px] text-[#656D76] uppercase tracking-wider montserrat-bold mt-0.5">Active Assignment: {username}</p>
-//           </div>
-//         </div>
-
-//         <div className="flex flex-wrap items-center gap-3 neu-pressed px-2 py-1.5 rounded-lg">
-//           <div className="flex items-center gap-2 px-3 border-r border-[#D1DCEB]">
-//             <ClockIcon className="w-4 h-4 text-[#656D76]" />
-//             <select
-//               value={globalTimeFilter}
-//               onChange={e => setGlobalTimeFilter(e.target.value)}
-//               className="bg-transparent border-none text-[11px] montserrat-bold text-[#1F2328] outline-none cursor-pointer py-1"
-//             >
-//               <option value="Today" className="bg-[#F0F4F8]">Today</option>
-//               <option value="Yesterday" className="bg-[#F0F4F8]">Yesterday</option>
-//               <option value="This Week" className="bg-[#F0F4F8]">This Week</option>
-//               <option value="Last 2 Weeks" className="bg-[#F0F4F8]">Last 2 Weeks</option>
-//               <option value="This Month" className="bg-[#F0F4F8]">This Month</option>
-//               <option value="Last Month" className="bg-[#F0F4F8]">Last Month</option>
-//               <option value="All Time" className="bg-[#F0F4F8]">All Time</option>
-//               <option value="Custom" className="bg-[#F0F4F8]">Custom Range...</option>
-//             </select>
-//           </div>
-
-//           {globalTimeFilter === "Custom" && (
-//             <div className="flex items-center gap-2 px-3 border-r border-[#D1DCEB] animate-fadeIn">
-//               <input type="date" value={globalCustomDates.start} onChange={e => setGlobalCustomDates({ ...globalCustomDates, start: e.target.value })} className="neu-pressed bg-transparent rounded text-[10px] px-2 py-1 outline-none montserrat-medium text-[#1F2328]" />
-//               <span className="text-[10px] text-[#656D76] montserrat-bold">to</span>
-//               <input type="date" value={globalCustomDates.end} onChange={e => setGlobalCustomDates({ ...globalCustomDates, end: e.target.value })} className="neu-pressed bg-transparent rounded text-[10px] px-2 py-1 outline-none montserrat-medium text-[#1F2328]" />
-//             </div>
-//           )}
-
-//           <div className="flex items-center gap-2 px-3">
-//             <ClipboardDocumentCheckIcon className="w-4 h-4 text-[#656D76]" />
-//             <select
-//               value={globalProjectFilter}
-//               onChange={e => setGlobalProjectFilter(e.target.value)}
-//               className="bg-transparent border-none text-[11px] montserrat-bold text-[#1F2328] outline-none cursor-pointer py-1 max-w-[180px]"
-//             >
-//               <option value="All" className="bg-[#F0F4F8]">All Projects</option>
-//               {projects.map(p => <option key={p._id} value={p._id} className="bg-[#F0F4F8]">{p.projectName}</option>)}
-//             </select>
-//           </div>
-//         </div>
-//       </nav>
-
-//       <AddTaskModal
-//         open={addTaskModalOpen}
-//         onClose={() => setAddTaskModalOpen(false)}
-//         projects={projects.filter(p => p.status !== "Closed")}
-//         onSuccess={handleQuickAddSuccess}
-//         currentUserId={currentUserId}
-//         currentUsername={username}
-//       />
-
-//       <main className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
-
-//         {/* --- Metrics Overview Grid --- */}
-//         <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-//           <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-//             <div>
-//               <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Active Projects</p>
-//               <p className="text-2xl montserrat-bold text-[#1F2328] mt-1">{totalActiveProjectsCount}</p>
-//             </div>
-//             <div className="p-3 neu-pressed rounded-lg"><ClipboardDocumentCheckIcon className="h-6 w-6 text-[#0969DA]" /></div>
-//           </motion.div>
-//           <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-//             <div>
-//               <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Pending Tasks</p>
-//               <p className="text-2xl montserrat-bold text-[#0969DA] mt-1">{globallyFilteredPending.length}</p>
-//             </div>
-//             <div className="p-3 neu-pressed rounded-lg"><ClockIcon className="h-6 w-6 text-[#0969DA]" /></div>
-//           </motion.div>
-//           <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-//             <div>
-//               <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Overdue</p>
-//               <p className="text-2xl montserrat-bold text-[#D1242F] mt-1">{globallyFilteredOverdue.length}</p>
-//             </div>
-//             <div className="p-3 neu-pressed rounded-lg"><ExclamationCircleIcon className="h-6 w-6 text-[#D1242F]" /></div>
-//           </motion.div>
-//           <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-//             <div>
-//               <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Completed Tasks</p>
-//               <p className="text-2xl montserrat-bold text-[#1A7F37] mt-1">{globallyFilteredCompletions.length}</p>
-//             </div>
-//             <div className="p-3 neu-pressed rounded-lg"><CheckBadgeIcon className="h-6 w-6 text-[#1A7F37]" /></div>
-//           </motion.div>
-//         </motion.div>
-
-//         {/* --- Primary Workspace: Pending Workspace Docket & Completions History --- */}
-//         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
-//           {/* Unified Action Work Board System */}
-//           <div className="xl:col-span-2 neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
-//             <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-//               <div>
-//                 <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">My Pending Tasks</h3>
-//                 <span className="text-[10px] text-[#656D76] montserrat-medium pl-1">{globallyFilteredPending.length} Tasks Scheduled</span>
-//               </div>
-
-//               <div className="flex gap-4 items-center w-full sm:w-auto">
-//                 <div className="relative flex-1 sm:flex-initial">
-//                   <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
-//                   <input
-//                     type="text"
-//                     value={pendingSearchQuery}
-//                     onChange={e => setPendingSearchQuery(e.target.value)}
-//                     placeholder="Search tasks..."
-//                     className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
-//                   />
-//                 </div>
-//                 <button onClick={() => setAddTaskModalOpen(true)} className="flex items-center gap-1.5 text-white neu-btn-primary text-xs montserrat-bold py-2.5 px-4 rounded-md transition-all flex-shrink-0">
-//                   <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} /> Add Task
-//                 </button>
-//               </div>
-//             </div>
-
-//             {/* Task Workspace List */}
-//             <div className="p-4 mx-3 neu-pressed rounded-lg flex-1 min-h-[420px] overflow-y-auto max-h-[420px] custom-scrollbar">
-//               {globallyFilteredPending.length === 0 ? (
-//                 <div className="text-center py-20 text-xs text-[#8C959F] montserrat-medium">No pending tasks found. Add some more!</div>
-//               ) : (
-//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                   {globallyFilteredPending.map(task => {
-//                     const isOverdue = task.deadline && differenceInCalendarDays(new Date(task.deadline), new Date()) < 0;
-//                     const isCompleting = completingTaskId === task._id;
-//                     const isKanbanLoading = openingKanbanId === task._projectId;
-
-//                     return (
-//                       <div key={task._id} className={`p-4 neu-flat rounded-md transition-all relative flex flex-col justify-between ${isOverdue ? "border-l-4 border-l-[#D1242F] border-transparent" : "border-l-4 border-l-transparent"}`}>
-//                         <div>
-//                           <div className="flex justify-between items-start gap-2 mb-2">
-//                             <span className="text-xs montserrat-bold text-[#1F2328] leading-tight block break-words">{task.title}</span>
-//                             <span className={`text-[8px] montserrat-bold uppercase px-2 py-1 rounded-md flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-//                               {task.priority}
-//                             </span>
-//                           </div>
-//                           <span className="text-[9px] text-[#656D76] montserrat-bold block truncate mb-5">{task._projectName}</span>
-//                         </div>
-
-//                         <div className="flex justify-between items-center pt-3 mt-auto border-t border-[#D1DCEB]/30">
-//                           <div className="flex gap-3">
-//                             <button
-//                               disabled={isCompleting}
-//                               onClick={() => handleCompleteTask(task._id, task._projectId)}
-//                               className="flex items-center gap-1.5 text-[10px] montserrat-bold text-[#1A7F37] neu-flat neu-action-btn px-3 py-1.5 rounded-md transition-all disabled:opacity-50"
-//                             >
-//                               {isCompleting ? (
-//                                 <div className="btn-spinner mr-1 text-[#1A7F37]" />
-//                               ) : (
-//                                 <CheckIcon className="w-3.5 h-3.5 text-[#1A7F37]" strokeWidth={3} />
-//                               )}
-//                               {isCompleting ? "Marking..." : "Mark As Done"}
-//                             </button>
-
-//                             <button onClick={() => setCommentTask(task)} disabled={isCompleting} className="p-1.5 text-[#656D76] hover:text-[#0969DA] neu-flat neu-action-btn rounded-md transition-all disabled:opacity-50">
-//                               <ChatBubbleLeftRightIcon className="w-4 h-4" />
-//                             </button>
-//                           </div>
-
-//                           <div className="flex items-center gap-3">
-//                             {task.deadline && (
-//                               <span className={`text-[9px] montserrat-bold flex items-center ${isOverdue ? 'text-[#D1242F]' : 'text-[#656D76]'}`}>
-//                                 {isOverdue ? 'Overdue' : format(new Date(task.deadline), "MMM d")}
-//                               </span>
-//                             )}
-//                             <button
-//                               disabled={isKanbanLoading || isCompleting}
-//                               onClick={() => handleOpenKanban(task._projectId)}
-//                               className="text-[10px] text-[#0969DA] flex items-center gap-1 montserrat-bold cursor-pointer disabled:opacity-50 hover:opacity-70 transition-opacity"
-//                             >
-//                               {isKanbanLoading && <div className="btn-spinner" />}
-//                               Kanban ↗
-//                             </button>
-//                           </div>
-//                         </div>
-//                       </div>
-//                     )
-//                   })}
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-
-//           {/* Completed History List */}
-//           <div className="neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
-//             <div className="px-5 py-4 flex flex-col gap-4 flex-shrink-0">
-//               <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">Completed History ({globallyFilteredCompletions.length})</h3>
-
-//               <div className="relative w-full">
-//                 <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
-//                 <input
-//                   type="text"
-//                   value={completedSearchQuery}
-//                   onChange={e => setCompletedSearchQuery(e.target.value)}
-//                   placeholder="Search completions..."
-//                   className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
-//                 />
-//               </div>
-//             </div>
-
-//             <div className="max-h-[420px] mx-3 p-3 neu-pressed rounded-lg overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-3">
-//               {globallyFilteredCompletions.length === 0 ? (
-//                 <div className="p-8 text-center text-xs text-[#656D76] montserrat-medium">No completions found.</div>
-//               ) : (
-//                 <>
-//                   {globallyFilteredCompletions.slice(0, completedVisibleCount).map((task) => (
-//                     <div
-//                       key={task._id || task.taskId}
-//                       className="p-3 neu-flat rounded-md cursor-pointer flex justify-between items-center gap-4 neu-action-btn transition-all"
-//                       onClick={() => { setSelectedCompletedTask(task); setOpenTaskDialog(true); }}
-//                     >
-//                       <div className="min-w-0 flex-1">
-//                         <p className="text-xs montserrat-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
-//                         <p className="text-[9px] text-[#656D76] mt-1 uppercase tracking-wider montserrat-bold truncate">
-//                           {projects.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
-//                         </p>
-//                         <div className="flex gap-4 items-center mt-2.5 text-[10px] text-[#656D76] montserrat-medium">
-//                           <span className="flex items-center"><ClockIcon className="w-3 h-3 mr-1" />{format(new Date(task.completedAt), "MMM d")}</span>
-//                         </div>
-//                       </div>
-
-//                       <button className="flex items-center justify-center neu-pressed w-8 h-8 rounded-full text-[#656D76] flex-shrink-0">
-//                         <EyeIcon className="w-4 h-4" />
-//                       </button>
-//                     </div>
-//                   ))}
-//                   {completedVisibleCount < globallyFilteredCompletions.length && (
-//                     <div className="p-2 text-center mt-2">
-//                       <button
-//                         onClick={() => setCompletedVisibleCount(prev => prev + 10)}
-//                         className="text-xs montserrat-bold text-[#0969DA] hover:opacity-70 transition-opacity"
-//                       >
-//                         Load More
-//                       </button>
-//                     </div>
-//                   )}
-//                 </>
-//               )}
-//             </div>
-//           </div>
-//         </motion.div>
-
-//         {/* --- Visual Analysis Row --- */}
-//         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-//           <div className="neu-flat rounded-lg p-6">
-//             <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed vs Pending Assignments</h3>
-//             <div className="h-64 w-full">
-//               {projectBarData.length === 0 ? (
-//                 <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No data matches current operations.</div>
-//               ) : (
-//                 <ResponsiveContainer width="100%" height="100%">
-//                   <BarChart data={projectBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-//                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-//                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} tickFormatter={(v) => v.length > 12 ? v.substring(0, 11) + "..." : v} />
-//                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-//                     <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-//                     <Legend wrapperStyle={{ fontSize: '11px', pt: 10 }} />
-//                     <Bar dataKey="Completed" fill="#1A7F37" radius={[4, 4, 0, 0]} maxBarSize={30} />
-//                     <Bar dataKey="Pending" fill="#0969DA" radius={[4, 4, 0, 0]} maxBarSize={30} />
-//                   </BarChart>
-//                 </ResponsiveContainer>
-//               )}
-//             </div>
-//           </div>
-
-//           <div className="neu-flat rounded-lg p-6">
-//             <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed Tasks Sorted By Priority</h3>
-//             <div className="h-64 w-full">
-//               {globallyFilteredCompletions.length === 0 ? (
-//                 <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No tasks completed within current filters.</div>
-//               ) : (
-//                 <ResponsiveContainer width="100%" height="100%">
-//                   <BarChart data={priorityBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-//                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-//                     <XAxis dataKey="priority" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
-//                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-//                     <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-//                     <Bar dataKey="Completed" fill="#BF8700" radius={[4, 4, 0, 0]} maxBarSize={45} />
-//                   </BarChart>
-//                 </ResponsiveContainer>
-//               )}
-//             </div>
-//           </div>
-
-//           <div className="lg:col-span-2 neu-flat rounded-lg p-6 mb-8">
-//             <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Daily Completions Progress Tracker</h3>
-//             <div className="h-64 w-full">
-//               {dailyCompletionData.length === 0 ? (
-//                 <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">
-//                   No completed tasks listed in this date range.
-//                 </div>
-//               ) : (
-//                 <ResponsiveContainer width="100%" height="100%">
-//                   <AreaChart data={dailyCompletionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-//                     <defs>
-//                       <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-//                         <stop offset="5%" stopColor="#8250DF" stopOpacity={0.4} />
-//                         <stop offset="95%" stopColor="#8250DF" stopOpacity={0} />
-//                       </linearGradient>
-//                     </defs>
-//                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-//                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
-//                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-//                     <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-//                     <Area type="monotone" dataKey="Completed" stroke="#8250DF" fillOpacity={1} fill="url(#colorCompleted)" strokeWidth={3} />
-//                   </AreaChart>
-//                 </ResponsiveContainer>
-//               )}
-//             </div>
-//           </div>
-//         </motion.div>
-
-//       </main>
-
-//       {/* --- Completed Task Details Modal --- */}
-//       {selectedCompletedTask && (
-//         <Dialog open={openTaskDialog} onClose={() => setOpenTaskDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none' } }}>
-//           <div className="neu-flat rounded-lg overflow-hidden w-full">
-//             <DialogTitle sx={{ py: 3, px: 4, borderBottom: '1px solid rgba(209, 220, 235, 0.4)' }}>
-//               <Typography variant="span" className="montserrat-bold" sx={{ fontSize: '0.85rem', color: '#1F2328', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-//                 Completed Task Profile
-//               </Typography>
-//             </DialogTitle>
-//             <DialogContent sx={{ py: 4, px: 4 }}>
-//               <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
-//                 <div className="neu-pressed p-4 rounded-md">
-//                   <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Task Title</Typography>
-//                   <Typography className="montserrat-bold" sx={{ fontSize: '1rem', color: '#1F2328' }}>
-//                     {selectedCompletedTask.taskTitle || selectedCompletedTask.title}
-//                   </Typography>
-//                 </div>
-//                 <div className="grid grid-cols-2 gap-5">
-//                   <Box className="neu-pressed p-4 rounded-md">
-//                     <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Project Space</Typography>
-//                     <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#0969DA' }}>
-//                       {projects.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
-//                     </Typography>
-//                   </Box>
-//                   <Box className="neu-pressed p-4 rounded-md">
-//                     <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Completions Metric</Typography>
-//                     <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#1F2328' }}>
-//                       {format(new Date(selectedCompletedTask.completedAt), "MMM d, yyyy 'at' h:mm a")}
-//                     </Typography>
-//                   </Box>
-//                 </div>
-//                 <div className="grid grid-cols-2 gap-5">
-//                   <Box className="neu-pressed p-4 rounded-md">
-//                     <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Completed By</Typography>
-//                     <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#1F2328' }}>
-//                       {selectedCompletedTask.completedBy?.username || "System Owner"}
-//                     </Typography>
-//                   </Box>
-//                   <Box className="neu-pressed p-4 rounded-md">
-//                     <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Originally Assigned By</Typography>
-//                     <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#1F2328' }}>
-//                       {selectedCompletedTask.assignedBy?.username || "System Assignment"}
-//                     </Typography>
-//                   </Box>
-//                 </div>
-//               </Box>
-//             </DialogContent>
-//             <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(209, 220, 235, 0.4)', px: 4 }}>
-//               <button onClick={() => setOpenTaskDialog(false)} className="neu-flat neu-action-btn text-xs montserrat-bold text-[#1F2328] py-2.5 px-6 rounded-md transition-all">
-//                 Close Overview
-//               </button>
-//             </DialogActions>
-//           </div>
-//         </Dialog>
-//       )}
-
-//       {/* Comment Trigger Modal */}
-//       {commentTask && (
-//         <CommentModal
-//           task={commentTask}
-//           projectId={commentTask._projectId}
-//           onClose={() => setCommentTask(null)}
-//         />
-//       )}
-
-//       {/* Lazy-Loaded Fullscreen Kanban Integration */}
-//       {kanbanProject && (
-//         <Suspense fallback={
-//           <div style={{
-//             position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-//             zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center"
-//           }}>
-//             <div className="neu-flat p-6 rounded-lg flex items-center gap-4">
-//               <span className="btn-spinner" style={{ color: "#0969DA" }} />              
-//               <span className="montserrat-medium text-[#1F2328] text-sm">Loading Kanban Board...</span>
-//             </div>
-//           </div>
-//         }>
-//           <ProjectKanban
-//             open={kanbanOpen}
-//             onClose={() => {
-//               setKanbanOpen(false);
-//               setKanbanProject(null);
-//               refreshData(true); // <-- Now calling the context refresh when closing Kanban
-//             }}
-//             project={kanbanProject}
-//           />
-//         </Suspense>
-//       )}
-
-//       {/* Global Neumorphism CSS & Scrollbar Styles */}
-//       <style>{`
-//         :root {
-//           --neu-bg: #F0F4F8; /* Professional light neutral */
-//           --neu-light: #FFFFFF;
-//           --neu-dark: #D1DCEB; /* Soft clear shadow */
-//         }
-
-//         .neu-base {
-//           background-color: var(--neu-bg);
-//         }
-
-//         /* Subtle, structural drop shadows rather than floaty bubbles */
-//         .neu-flat {
-//           background-color: var(--neu-bg);
-//           box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-//         }
-
-//         .neu-flat-sm {
-//           background-color: var(--neu-bg);
-//           box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-//         }
-
-//         /* Soft debossing */
-//         .neu-pressed {
-//           background-color: var(--neu-bg);
-//           box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-//         }
-
-//         .neu-pressed-sm {
-//           background-color: var(--neu-bg);
-//           box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-//         }
-
-//         /* Primary standard-looking button (no weird floating color glow) */
-//         .neu-btn-primary {
-//           background-color: #0969DA;
-//           box-shadow: 2px 2px 6px rgba(9, 105, 218, 0.3);
-//           border: none;
-//         }
-
-//         .neu-btn-primary:active {
-//           box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15);
-//         }
-
-//         .neu-action-btn:active {
-//           box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
-//         }
-
-//         /* Prevent auto-fill background from overriding transparency */
-//         input:-webkit-autofill,
-//         input:-webkit-autofill:hover, 
-//         input:-webkit-autofill:focus, 
-//         input:-webkit-autofill:active{
-//             -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-//             -webkit-text-fill-color: #1F2328 !important;
-//         }
-
-//         /* Scoped Custom Scrollbar */
-//         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-//         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-//         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-//         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
-
-//         @keyframes spin {
-//           to { transform: rotate(360deg); }
-//         }
-
-//         .btn-spinner {
-//           display: inline-block;
-//           width: 14px;
-//           height: 14px;
-//           border: 2px solid currentColor;
-//           border-right-color: transparent;
-//           border-radius: 50%;
-//           animation: spin 0.75s linear infinite;
-//           vertical-align: middle;
-//         }
-
-//         /* Advanced Shimmer Effect */
-//         @keyframes shimmer {
-//           0% { transform: translateX(-100%); }
-//           100% { transform: translateX(100%); }
-//         }
-//         .skeleton-shimmer {
-//           background: linear-gradient(
-//             90deg, 
-//             transparent 0%, 
-//             rgba(255, 255, 255, 0.4) 50%, 
-//             transparent 100%
-//           );
-//           animation: shimmer 1.8s infinite linear;
-//         }
-//       `}</style>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
-import {
-  ClipboardDocumentCheckIcon,
-  ClockIcon,
-  ExclamationCircleIcon,
-  CheckBadgeIcon,
-  PlusIcon,
-  CheckIcon,
-  MagnifyingGlassIcon,
-  EyeIcon,
-  ChatBubbleLeftRightIcon
-} from "@heroicons/react/24/outline";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Typography,
-  Box,
-} from "@mui/material";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { motion } from "framer-motion";
 import {
-  BarChart,
-  Bar,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FolderKanban,
+  ExternalLink,
+  MessageSquare,
+  Search,
+  Filter,
+  Layers,
+  ArrowRight,
+  User,
+  Building2,
+  Calendar,
+  Send,
+  Plus,
+  Play,
+  RotateCcw,
+  AlertTriangle,
+  Eye,
+  List,
+  BarChart3,
+  TrendingUp,
+  PieChart as PieIcon,
+  X,
+  Trash2,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Legend
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
-import {
-  format, differenceInCalendarDays, isToday, isYesterday,
-  isThisWeek, isThisMonth, subMonths, subDays, isWithinInterval,
-  startOfDay, endOfDay
-} from "date-fns";
-import { useTasks } from "../TaskContext";
-
-// Lazy load the Kanban Board component to optimize initial asset delivery
-const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
+import Badge from "../components/ui/Badge";
+import StatCard from "../components/ui/StatCard";
+import Modal from "../components/ui/Modal";
+import { TableSkeleton, StatCardsSkeleton, ChartSkeleton } from "../components/ui/Skeleton";
+import { apiCache } from "../utils/apiCache";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
-// ── Framer Motion Variants ───────────────────────────────────────────────────
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-};
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 26 } },
+const PRIORITY_COLORS = {
+  Critical: "#DC2626",
+  High: "#D97706",
+  Medium: "#2563EB",
+  Low: "#059669",
 };
 
-// ── Improved Neumorphic Skeleton Component ───────────────────────────────────
-const Skeleton = ({ width = "100%", height = "20px", rounded = "rounded-md", className = "" }) => (
-  <div 
-    className={`neu-pressed-sm relative overflow-hidden ${rounded} ${className}`} 
-    style={{ width, height }}
-  >
-    <div className="absolute inset-0 skeleton-shimmer" />
-  </div>
-);
-
-// ── Comment Modal ─────────────────────────────────────────────────────────────
-const CommentModal = ({ task, projectId, onClose }) => {
-  const [text, setText] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [posted, setPosted] = useState(false);
-
-  const submit = async () => {
-    if (!text.trim()) return;
-    setPosting(true);
+export default function DeveloperHome() {
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `${API_BASE}/api/tasks/${projectId}/${task._id}/comments`,
-        { text: text.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setPosted(true);
-      setTimeout(onClose, 900);
-    } catch (err) {
-      console.error("Comment error:", err);
-    } finally {
-      setPosting(false);
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
     }
-  };
+  });
+  const [loading, setLoading] = useState(true);
 
-  return (
-    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#1F2328]/40 backdrop-blur-sm animate-fadeIn">
-      <div onClick={e => e.stopPropagation()} className="neu-flat rounded-lg w-full max-w-sm overflow-hidden montserrat-regular relative z-10">
-        <div className="px-5 py-4 border-b border-[#D1DCEB]/40 flex justify-between items-center">
-          <div>
-            <div className="text-[10px] text-[#656D76] montserrat-bold uppercase tracking-wider">Add Comment</div>
-            <div className="text-xs montserrat-bold text-[#1F2328] mt-1 break-words max-w-[280px]">{task.title}</div>
-          </div>
-          <button onClick={onClose} className="text-[#656D76] hover:text-[#D1242F] text-xl montserrat-bold neu-action-btn w-8 h-8 rounded-full flex items-center justify-center">&times;</button>
-        </div>
-        {posted ? (
-          <div className="text-center py-8 text-[#1A7F37] montserrat-medium text-xs">
-            ✓ Comment posted successfully!
-          </div>
-        ) : (
-          <div className="p-5 space-y-4">
-            <textarea
-              autoFocus
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Write your comment..."
-              rows={3}
-              className="w-full neu-pressed rounded-md p-3 text-xs outline-none resize-none bg-transparent text-[#1F2328] relative z-20 custom-scrollbar"
-            />
-            <div className="flex justify-end gap-3 pt-2 relative z-20">
-              <button onClick={onClose} className="px-4 py-2 text-xs montserrat-bold text-[#656D76] neu-flat neu-action-btn rounded-md transition-all">Cancel</button>
-              <button onClick={submit} disabled={!text.trim() || posting} className="px-5 py-2 text-xs montserrat-bold text-white neu-btn-primary neu-action-btn rounded-md transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                {posting && <div className="btn-spinner" />}
-                {posting ? "Posting..." : "Post Comment"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+  // Table Filters
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
-// ── Task Creation Modal ────────────────────────────────────────────────────────
-const AddTaskModal = ({ open, onClose, projects, onSuccess, currentUserId, currentUsername }) => {
-  const [form, setForm] = useState({ title: '', description: '', priority: 'Medium', deadline: '', projectId: '' });
-  const [submitting, setSubmitting] = useState(false);
+  // Chart Analytics Filters
+  const [chartTimeframe, setChartTimeframe] = useState("30"); // "7", "30", "all"
+  const [chartProject, setChartProject] = useState("all");
 
+  // Inspect / Details Modal
+  const [inspectTask, setInspectTask] = useState(null);
+  const [newCommentText, setNewCommentText] = useState("");
+  const [commenting, setCommenting] = useState(false);
+
+  // Multi-Select & Bulk Actions
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  // Create Task Modal State
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState(() => {
+    return localStorage.getItem("last_selected_project_id") || "";
+  });
+  const [taskItems, setTaskItems] = useState([
+    { id: "task-1", title: "", description: "", priority: "Medium", deadline: "", links: "" },
+  ]);
+  const [creatingTask, setCreatingTask] = useState(false);
+
+  // Alphabetically sorted projects
   const sortedProjects = useMemo(() => {
     return [...projects].sort((a, b) =>
       (a.projectName || "").localeCompare(b.projectName || "", undefined, { sensitivity: "base" })
     );
   }, [projects]);
 
+  // Pre-select remembered project when projects are loaded
   useEffect(() => {
-    if (open) {
-      setForm({ title: '', description: '', priority: 'Medium', deadline: '', projectId: sortedProjects[0]?._id || '' });
+    if (sortedProjects.length > 0) {
+      const savedId = localStorage.getItem("last_selected_project_id");
+      const exists = sortedProjects.some((p) => p._id === savedId);
+      if (!selectedProjectId || !exists) {
+        const fallbackId = exists ? savedId : sortedProjects[0]._id;
+        setSelectedProjectId(fallbackId);
+      }
     }
-  }, [open, sortedProjects]);
+  }, [sortedProjects]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.projectId) return alert("Please select a project");
-    setSubmitting(true);
+  const addTaskRow = () => {
+    setTaskItems((prev) => [
+      ...prev,
+      {
+        id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        title: "",
+        description: "",
+        priority: "Medium",
+        deadline: "",
+        links: "",
+      },
+    ]);
+  };
+
+  const removeTaskRow = (id) => {
+    if (taskItems.length <= 1) return;
+    setTaskItems((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const updateTaskRow = (id, field, value) => {
+    setTaskItems((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
+    );
+  };
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    fetchDeveloperData();
+  }, []);
+
+  const toggleSelectTask = (taskId) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTaskIds.size === filteredTasks.length && filteredTasks.length > 0) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map((t) => t._id)));
+    }
+  };
+
+  const handleBulkStatusChange = async (newStatus) => {
+    if (selectedTaskIds.size === 0) return;
+    setBulkUpdating(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(`${API_BASE}/api/tasks/${form.projectId}`, {
-        ...form,
-        assignedTo: { id: currentUserId, username: currentUsername }
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const taskIds = Array.from(selectedTaskIds);
 
-      const newTask = res.data?.task || res.data || { ...form, _id: Math.random().toString(), createdAt: new Date().toISOString(), status: "Todo" };
-      onSuccess(newTask, form.projectId);
-      onClose();
+      await axios.put(
+        `${API_BASE}/api/tasks/bulk-status`,
+        { taskIds, status: newStatus },
+        config
+      );
+
+      setTasks((prev) => {
+        const updated = prev.map((t) =>
+          selectedTaskIds.has(t._id)
+            ? { ...t, status: newStatus, completedAt: newStatus === "Done" ? new Date() : t.completedAt }
+            : t
+        );
+        apiCache.set("dev_tasks", updated);
+        return updated;
+      });
+
+      apiCache.invalidate("tasks");
+      setSelectedTaskIds(new Set());
     } catch (err) {
-      console.error(err);
-      alert("Failed to create task");
+      console.error("Bulk status change failed, trying fallback:", err);
+      try {
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const promises = Array.from(selectedTaskIds).map((taskId) => {
+          const task = tasks.find((t) => t._id === taskId);
+          const projId = typeof task?.projectId === "object" ? task.projectId?._id : task?.projectId;
+          return axios.put(`${API_BASE}/api/tasks/${projId}/${taskId}`, { status: newStatus }, config);
+        });
+        await Promise.all(promises);
+        setTasks((prev) => {
+          const updated = prev.map((t) => (selectedTaskIds.has(t._id) ? { ...t, status: newStatus } : t));
+          apiCache.set("dev_tasks", updated);
+          return updated;
+        });
+        apiCache.invalidate("tasks");
+        setSelectedTaskIds(new Set());
+      } catch (fallbackErr) {
+        console.error("Fallback bulk update failed:", fallbackErr);
+        alert("Failed to update selected tasks");
+      }
     } finally {
-      setSubmitting(false);
+      setBulkUpdating(false);
     }
   };
 
-  if (!open) return null;
+  const handleCreateTask = async (e) => {
+    e.preventDefault();
+    const validItems = taskItems.filter((t) => t.title.trim());
+    if (validItems.length === 0) {
+      alert("Please enter at least one task title");
+      return;
+    }
+    if (!selectedProjectId && sortedProjects.length > 0) {
+      alert("Please select a project suite");
+      return;
+    }
 
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#1F2328]/40 backdrop-blur-sm">
-      <div className="neu-flat rounded-lg w-full max-w-md overflow-hidden montserrat-regular relative z-10">
-        <div className="px-5 py-4 border-b border-[#D1DCEB]/40 flex justify-between items-center shrink-0">
-          <h2 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider">Create New Task</h2>
-          <button onClick={onClose} className="text-[#656D76] hover:text-[#D1242F] text-xl montserrat-bold neu-action-btn w-8 h-8 rounded-full flex items-center justify-center">&times;</button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
-          <div className="relative z-20">
-            <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Project</label>
-            <select required value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] montserrat-medium cursor-pointer relative z-20 appearance-none">
-              {sortedProjects.map(p => <option key={p._id} value={p._id}>{p.projectName}</option>)}
-            </select>
-          </div>
-          <div className="relative z-20">
-            <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Title</label>
-            <input required autoFocus value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] relative z-20 cursor-text" placeholder="What needs to be done?" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 relative z-20">
-            <div className="relative z-20">
-              <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Priority</label>
-              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] montserrat-medium cursor-pointer relative z-20 appearance-none">
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Critical">Critical</option>
-              </select>
-            </div>
-            <div className="relative z-20">
-              <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Deadline</label>
-              <input required type="date" min={new Date().toISOString().split('T')[0]} value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] cursor-pointer relative z-20" />
-            </div>
-          </div>
-          <div className="relative z-20">
-            <label className="block text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider mb-1.5 ml-1">Description</label>
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full neu-pressed rounded-md p-2.5 text-xs outline-none bg-transparent text-[#1F2328] resize-none custom-scrollbar relative z-20 cursor-text" rows="3" placeholder="Add context or criteria..."></textarea>
-          </div>
-          <div className="pt-4 flex justify-end gap-4 mt-2 relative z-20">
-            <button type="button" onClick={onClose} className="px-5 py-2 text-xs montserrat-bold text-[#656D76] neu-flat neu-action-btn rounded-md transition-all">Cancel</button>
-            <button type="submit" disabled={submitting} className="px-6 py-2 text-xs montserrat-bold text-white neu-btn-primary neu-action-btn rounded-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              {submitting && <div className="btn-spinner" />}
-              {submitting ? 'Creating...' : 'Create Task'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+    const projId = selectedProjectId || sortedProjects[0]?._id;
+    setCreatingTask(true);
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      localStorage.setItem("last_selected_project_id", projId);
 
-// ── Main Dashboard App ─────────────────────────────────────────────────────────
-export default function Home() {
-  const currentUserId = localStorage.getItem("userId");
-  const username = localStorage.getItem("username") || "Developer";
+      const createdList = [];
+      for (const item of validItems) {
+        const linksArray = item.links
+          ? item.links.split("\n").map((l) => l.trim()).filter(Boolean)
+          : [];
 
-  // USE THE SHARED CONTEXT INSTEAD OF LOCAL DATA FETCHING
-  const { projects, pendingTasks, completions, loading, completeTask, addTaskToState, refreshData } = useTasks();
+        const payload = {
+          title: item.title.trim(),
+          description: item.description.trim(),
+          priority: item.priority || "Medium",
+          deadline: item.deadline || null,
+          links: linksArray,
+          assignedTo: { id: currentUser._id, username: currentUser.username },
+        };
 
-  // Global Filter States
-  const [globalTimeFilter, setGlobalTimeFilter] = useState("Last 2 Weeks");
-  const [globalCustomDates, setGlobalCustomDates] = useState({ start: "", end: "" });
-  const [globalProjectFilter, setGlobalProjectFilter] = useState("All");
-
-  // Inline List Searches
-  const [pendingSearchQuery, setPendingSearchQuery] = useState("");
-  const [completedSearchQuery, setCompletedSearchQuery] = useState("");
-
-  // UI & Pagination States
-  const [completingTaskId, setCompletingTaskId] = useState(null);
-  const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
-  const [completedVisibleCount, setCompletedVisibleCount] = useState(10);
-
-  // Detail & Comment Modals
-  const [selectedCompletedTask, setSelectedCompletedTask] = useState(null);
-  const [openTaskDialog, setOpenTaskDialog] = useState(false);
-  const [commentTask, setCommentTask] = useState(null);
-
-  // Kanban States
-  const [kanbanProject, setKanbanProject] = useState(null);
-  const [kanbanOpen, setKanbanOpen] = useState(false);
-  const [openingKanbanId, setOpeningKanbanId] = useState(null);
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCompletedVisibleCount(10);
-  }, [globalTimeFilter, globalProjectFilter, globalCustomDates]);
-
-  // Total active derived directly from context projects
-  const totalActiveProjectsCount = useMemo(() => {
-    return projects.filter(p => p.status !== "Closed").length;
-  }, [projects]);
-
-  // ── Kanban Action ────────────────────────────────────────────────────────────
-  const handleOpenKanban = useCallback((pId) => {
-    setOpeningKanbanId(pId);
-    const targetProject = projects.find(p => p._id === pId);
-
-    setTimeout(() => {
-      if (targetProject) {
-        setKanbanProject(targetProject);
-        setKanbanOpen(true);
-      }
-      setOpeningKanbanId(null);
-    }, 450);
-  }, [projects]);
-
-  // ── Process Task Action ───────────────────────────────────────────────────────
-  const handleCompleteTask = async (taskId, projectId) => {
-    setCompletingTaskId(taskId);
-    await completeTask(taskId, projectId); // Calling context method
-    setCompletingTaskId(null);
-  };
-
-  const handleQuickAddSuccess = (newTask, projectId) => {
-    addTaskToState(newTask, projectId); // Calling context method
-  };
-
-  // ── Global Filter Logic ──────────────────────────────────────────────────────
-  const isDateInRange = useCallback((dateStr) => {
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    switch (globalTimeFilter) {
-      case "Today": return isToday(d);
-      case "Yesterday": return isYesterday(d);
-      case "This Week": return isThisWeek(d);
-      case "Last 2 Weeks": {
-        const twoWeeksAgo = subDays(new Date(), 14);
-        return isWithinInterval(d, { start: startOfDay(twoWeeksAgo), end: endOfDay(new Date()) });
-      }
-      case "This Month": return isThisMonth(d);
-      case "Last Month": {
-        const lm = subMonths(new Date(), 1);
-        return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
-      }
-      case "All Time": return true;
-      case "Custom":
-        if (globalCustomDates.start && globalCustomDates.end) {
-          return isWithinInterval(d, { start: startOfDay(new Date(globalCustomDates.start)), end: endOfDay(new Date(globalCustomDates.end)) });
+        const res = await axios.post(`${API_BASE}/api/tasks/${projId}`, payload, config);
+        if (res.data) {
+          const matchedProj = projects.find((p) => p._id === projId);
+          createdList.push({
+            ...res.data,
+            projectId: matchedProj || { _id: projId, projectName: "Project Deliverable" },
+          });
         }
-        return true;
-      default: return true;
+      }
+
+      if (createdList.length > 0) {
+        setTasks((prev) => {
+          const updated = [...createdList, ...prev];
+          apiCache.set("dev_tasks", updated);
+          return updated;
+        });
+        apiCache.invalidate("tasks");
+      }
+
+      setCreateModalOpen(false);
+      // Reset items back to 1 row, but preserve selectedProjectId for next click!
+      setTaskItems([
+        { id: `task-${Date.now()}`, title: "", description: "", priority: "Medium", deadline: "", links: "" },
+      ]);
+    } catch (err) {
+      console.error("Failed to create task(s):", err);
+      alert(err.response?.data?.message || "Failed to create task(s)");
+    } finally {
+      setCreatingTask(false);
     }
-  }, [globalTimeFilter, globalCustomDates]);
+  };
 
-  const globallyFilteredCompletions = useMemo(() => {
-    let list = completions;
-    if (globalProjectFilter !== "All") list = list.filter(c => c._projectId === globalProjectFilter);
-    list = list.filter(c => isDateInRange(c.completedAt));
-    if (completedSearchQuery.trim()) {
-      const query = completedSearchQuery.toLowerCase();
-      list = list.filter(c => (c.taskTitle || c.title || "").toLowerCase().includes(query));
+  const fetchDeveloperData = async () => {
+    // Check Cache first for instant 0ms rendering
+    const cachedTasks = apiCache.get("dev_tasks");
+    const cachedProjects = apiCache.get("dev_projects");
+
+    if (cachedTasks?.data && cachedProjects?.data) {
+      setTasks(cachedTasks.data);
+      setProjects(cachedProjects.data);
+      setLoading(false);
+    } else {
+      setLoading(true);
     }
-    return list;
-  }, [completions, globalProjectFilter, isDateInRange, completedSearchQuery]);
 
-  const globallyFilteredPending = useMemo(() => {
-    let list = pendingTasks;
-    if (globalProjectFilter !== "All") list = list.filter(t => t._projectId === globalProjectFilter);
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
 
-    if (globalTimeFilter !== "All Time") {
-      list = list.filter(t =>
-        isDateInRange(t.createdAt) ||
-        isDateInRange(t.deadline) ||
-        (t.deadline && differenceInCalendarDays(new Date(t.deadline), new Date()) < 0)
+      const [userRes, tasksRes, projectsRes] = await Promise.allSettled([
+        axios.get(`${API_BASE}/api/auth/user`, config),
+        axios.get(`${API_BASE}/api/tasks/developer/tasks`, config),
+        axios.get(`${API_BASE}/api/newproject/projects`, config),
+      ]);
+
+      let userObj = currentUser;
+      if (userRes.status === "fulfilled" && userRes.value.data) {
+        userObj = userRes.value.data;
+        setCurrentUser(userObj);
+        localStorage.setItem("user", JSON.stringify(userObj));
+      }
+
+      const allTasks = tasksRes.status === "fulfilled" ? tasksRes.value.data || [] : [];
+      setTasks(allTasks);
+      apiCache.set("dev_tasks", allTasks, 3 * 60 * 1000);
+
+      const allProjects = projectsRes.status === "fulfilled" ? projectsRes.value.data || [] : [];
+      const myProjects = allProjects.filter((p) => {
+        if (userObj.role === "admin") return true;
+        const devs = p.assignedDeveloper || [];
+        return devs.some(
+          (d) =>
+            d.id?.toString() === userObj._id?.toString() ||
+            d.username?.toLowerCase() === userObj.username?.toLowerCase()
+        );
+      });
+      setProjects(myProjects);
+      apiCache.set("dev_projects", myProjects, 3 * 60 * 1000);
+    } catch (err) {
+      console.error("Error fetching developer data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (task, newStatus) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const projId = typeof task.projectId === "object" ? task.projectId?._id : task.projectId;
+
+      await axios.put(
+        `${API_BASE}/api/tasks/${projId}/${task._id}`,
+        { status: newStatus },
+        config
+      );
+
+      setTasks((prev) => {
+        const updated = prev.map((t) => (t._id === task._id ? { ...t, status: newStatus } : t));
+        apiCache.set("dev_tasks", updated);
+        return updated;
+      });
+
+      apiCache.invalidate("tasks");
+
+      if (inspectTask && inspectTask._id === task._id) {
+        setInspectTask((prev) => ({ ...prev, status: newStatus }));
+      }
+    } catch (err) {
+      console.error("Failed to update task status:", err);
+      alert("Failed to update status");
+    }
+  };
+
+  const handlePostComment = async (e) => {
+    e.preventDefault();
+    if (!newCommentText.trim() || !inspectTask) return;
+    setCommenting(true);
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const projId = typeof inspectTask.projectId === "object" ? inspectTask.projectId?._id : inspectTask.projectId;
+
+      await axios.post(
+        `${API_BASE}/api/tasks/${projId}/${inspectTask._id}/comments`,
+        { text: newCommentText.trim() },
+        config
+      );
+      setNewCommentText("");
+      await fetchDeveloperData();
+    } catch (err) {
+      console.error("Failed to post comment:", err);
+      alert("Failed to add comment");
+    } finally {
+      setCommenting(false);
+    }
+  };
+
+  // Metrics
+  const metrics = useMemo(() => {
+    const totalAssigned = tasks.length;
+    const inProgress = tasks.filter((t) => (t.status || "").toLowerCase() === "in progress").length;
+    const done = tasks.filter((t) => (t.status || "").toLowerCase() === "done").length;
+    const pending = tasks.filter(
+      (t) => (t.status || "").toLowerCase() === "todo" || (t.status || "").toLowerCase() === "to do"
+    ).length;
+    const completionRate = totalAssigned > 0 ? Math.round((done / totalAssigned) * 100) : 0;
+
+    return { totalAssigned, inProgress, done, pending, completionRate, activeProjects: projects.length };
+  }, [tasks, projects]);
+
+  // Chart 1: Deliverables Velocity Timeline
+  const velocityChartData = useMemo(() => {
+    // Filter tasks based on chartProject
+    const filtered = tasks.filter((t) => {
+      if (chartProject === "all") return true;
+      const pId = typeof t.projectId === "object" ? t.projectId?._id : t.projectId;
+      return pId === chartProject;
+    });
+
+    const daysCount = chartTimeframe === "7" ? 7 : chartTimeframe === "30" ? 30 : 60;
+    const now = new Date();
+    const buckets = {};
+
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      buckets[key] = { name: key, assigned: 0, completed: 0 };
+    }
+
+    filtered.forEach((t) => {
+      if (t.createdAt) {
+        const d = new Date(t.createdAt);
+        const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        if (buckets[key]) buckets[key].assigned += 1;
+      }
+      if ((t.status || "").toLowerCase() === "done" && t.completedAt) {
+        const d = new Date(t.completedAt);
+        const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        if (buckets[key]) buckets[key].completed += 1;
+      }
+    });
+
+    return Object.values(buckets);
+  }, [tasks, chartTimeframe, chartProject]);
+
+  // Chart 2: Priority & Status Breakdown
+  const priorityChartData = useMemo(() => {
+    const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    tasks.forEach((t) => {
+      const p = t.priority || "Medium";
+      if (counts[p] !== undefined) counts[p] += 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({
+      name,
+      value,
+      color: PRIORITY_COLORS[name] || "#2563EB",
+    }));
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      const matchSearch =
+        search === "" ||
+        t.title?.toLowerCase().includes(search.toLowerCase()) ||
+        t.description?.toLowerCase().includes(search.toLowerCase()) ||
+        t.projectId?.projectName?.toLowerCase().includes(search.toLowerCase());
+
+      const curStatus = (t.status || "Todo").toLowerCase();
+      let matchStatus = true;
+      if (statusFilter === "Todo") {
+        matchStatus = curStatus === "todo" || curStatus === "to do";
+      } else if (statusFilter === "In Progress") {
+        matchStatus = curStatus === "in progress";
+      } else if (statusFilter === "Done") {
+        matchStatus = curStatus === "done";
+      }
+
+      const matchPriority =
+        priorityFilter === "all" ||
+        (t.priority || "Medium").toLowerCase() === priorityFilter.toLowerCase();
+
+      return matchSearch && matchStatus && matchPriority;
+    });
+  }, [tasks, search, statusFilter, priorityFilter]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, priorityFilter, pageSize]);
+
+  const totalPages = Math.ceil(filteredTasks.length / pageSize) || 1;
+
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredTasks.slice(startIndex, startIndex + pageSize);
+  }, [filteredTasks, currentPage, pageSize]);
+
+  const getDeadlineBadge = (deadline, status, completedAt) => {
+    const isDone = (status || "").toLowerCase() === "done";
+
+    // 1. Completed Deliverable Handling
+    if (isDone) {
+      if (!deadline) {
+        return (
+          <div className="flex flex-col">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 w-fit">
+              <CheckCircle2 size={11} /> Done
+            </span>
+            {completedAt && (
+              <span className="text-[10px] text-slate-400 font-medium mt-0.5">
+                {new Date(completedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </span>
+            )}
+          </div>
+        );
+      }
+
+      const d = new Date(deadline);
+      const completionDate = completedAt ? new Date(completedAt) : new Date();
+      const diffMs = completionDate.getTime() - d.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 0) {
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-300 w-fit"
+              title={`Target deadline was ${d.toLocaleDateString()} - Completed ${diffDays} day(s) late`}
+            >
+              <AlertTriangle size={11} className="text-amber-600" /> Done ({diffDays}d Late)
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium">
+              Completed {completionDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+          </div>
+        );
+      } else {
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 w-fit">
+              <CheckCircle2 size={11} /> Done On Time
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">
+              {completionDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+          </div>
+        );
+      }
+    }
+
+    // 2. Active / Pending Deliverable Handling
+    if (!deadline) return <span className="text-slate-400 text-xs font-mono">—</span>;
+    const d = new Date(deadline);
+    const now = new Date();
+    const diffDays = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 w-fit animate-pulse">
+            <AlertTriangle size={11} /> Overdue by {Math.abs(diffDays)}d
+          </span>
+          <span className="text-[10px] text-rose-600 font-medium">
+            Due {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        </div>
+      );
+    } else if (diffDays === 0) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 w-fit">
+            <Clock size={11} /> Due Today
+          </span>
+          <span className="text-[10px] text-slate-500 font-medium">
+            {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        </div>
+      );
+    } else if (diffDays <= 3) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 w-fit">
+            <Clock size={11} /> In {diffDays} days
+          </span>
+          <span className="text-[10px] text-slate-500 font-medium">
+            {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        </div>
       );
     }
-    if (pendingSearchQuery.trim()) {
-      const query = pendingSearchQuery.toLowerCase();
-      list = list.filter(t => (t.title || "").toLowerCase().includes(query));
-    }
-    return list;
-  }, [pendingTasks, globalProjectFilter, globalTimeFilter, isDateInRange, pendingSearchQuery]);
 
-  const globallyFilteredOverdue = useMemo(() => {
-    return globallyFilteredPending.filter(t => t.deadline && differenceInCalendarDays(new Date(t.deadline), new Date()) < 0);
-  }, [globallyFilteredPending]);
-
-  // ── Chart Data Calculations ──────────────────────────────────────────────────
-  const projectBarData = useMemo(() => {
-    const targetProjects = globalProjectFilter === "All" ? projects : projects.filter(p => p._id === globalProjectFilter);
-    return targetProjects.map(p => ({
-      name: p.projectName,
-      Completed: globallyFilteredCompletions.filter(c => c._projectId === p._id).length,
-      Pending: globallyFilteredPending.filter(t => t._projectId === p._id).length
-    })).filter(p => p.Completed > 0 || p.Pending > 0)
-      .sort((a, b) => (b.Completed + b.Pending) - (a.Completed + a.Pending))
-      .slice(0, 10);
-  }, [projects, globallyFilteredCompletions, globallyFilteredPending, globalProjectFilter]);
-
-  const priorityBarData = useMemo(() => {
-    const priorities = ["Critical", "High", "Medium", "Low"];
-    return priorities.map(pri => ({
-      priority: pri,
-      Completed: globallyFilteredCompletions.filter(c => c.priority === pri).length
-    }));
-  }, [globallyFilteredCompletions]);
-
-  const dailyCompletionData = useMemo(() => {
-    const groups = {};
-    globallyFilteredCompletions.forEach(c => {
-      const key = format(new Date(c.completedAt), "yyyy-MM-dd");
-      groups[key] = (groups[key] || 0) + 1;
-    });
-    return Object.keys(groups).sort().map(key => ({
-      date: format(new Date(key), "MMM dd"),
-      Completed: groups[key]
-    }));
-  }, [globallyFilteredCompletions]);
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'Critical': return 'text-[#D1242F] neu-pressed-sm border-none';
-      case 'High': return 'text-[#BF8700] neu-pressed-sm border-none';
-      case 'Low': return 'text-[#1A7F37] neu-pressed-sm border-none';
-      default: return 'text-[#0969DA] neu-pressed-sm border-none';
-    }
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[11px] text-slate-700 font-semibold">
+          {d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+        </span>
+        <span className="text-[10px] text-slate-400 font-medium">
+          In {diffDays} days
+        </span>
+      </div>
+    );
   };
 
   return (
-    <div className="neu-base min-h-screen montserrat-regular antialiased text-[#1F2328] pb-12 flex flex-col relative">
+    <div className="space-y-3.5 w-full">
+      {/* ── Top Action Row ─────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-end gap-2 pb-1 border-b border-slate-200">
+        <button
+          onClick={() => setCreateModalOpen(true)}
+          className="ent-btn-primary text-xs"
+        >
+          <Plus size={13} /> Add Task
+        </button>
+        <Link
+          to="/dashboard-developer/tasks"
+          className="ent-btn-secondary text-xs"
+        >
+          View All Tasks
+        </Link>
+      </div>
 
-      {/* ── Global Top Navbar ── */}
-      <nav className="neu-flat sticky top-0 z-[50] px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center w-full mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#0969DA] shadow-sm text-white flex items-center justify-center montserrat-bold text-sm">
-            {username.charAt(0).toUpperCase()}
+      {/* ── KPI Metric Cards ───────────────────────────────────────────────── */}
+      {loading && tasks.length === 0 ? (
+        <StatCardsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Assigned Tasks"
+            value={metrics.totalAssigned}
+            subtitle={`${metrics.pending} pending action`}
+            icon={Clock}
+            variant="blue"
+          />
+          <StatCard
+            title="In Progress"
+            value={metrics.inProgress}
+            subtitle="Currently in progress"
+            icon={AlertCircle}
+            variant="amber"
+          />
+          <StatCard
+            title="Completed Tasks"
+            value={metrics.done}
+            subtitle={`${metrics.completionRate}% completion rate`}
+            icon={CheckCircle2}
+            variant="emerald"
+          />
+          <StatCard
+            title="Active Projects"
+            value={metrics.activeProjects}
+            subtitle="Assigned projects"
+            icon={FolderKanban}
+            variant="royal"
+          />
+        </div>
+      )}
+
+      {/* ── Performance & Analytics ─────────────────────────────────────────── */}
+      {loading && tasks.length === 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2">
+            <ChartSkeleton />
           </div>
           <div>
-            <h1 className="text-sm montserrat-bold leading-tight text-[#1F2328]">Developer Workspace</h1>
-            <p className="text-[10px] text-[#656D76] uppercase tracking-wider montserrat-bold mt-0.5">Active Assignment: {username}</p>
+            <ChartSkeleton />
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3 neu-pressed px-2 py-1.5 rounded-lg">
-          <div className="flex items-center gap-2 px-3 border-r border-[#D1DCEB]">
-            <ClockIcon className="w-4 h-4 text-[#656D76]" />
-            <select
-              value={globalTimeFilter}
-              onChange={e => setGlobalTimeFilter(e.target.value)}
-              className="bg-transparent border-none text-[11px] montserrat-bold text-[#1F2328] outline-none cursor-pointer py-1"
-            >
-              <option value="Today" className="bg-[#F0F4F8]">Today</option>
-              <option value="Yesterday" className="bg-[#F0F4F8]">Yesterday</option>
-              <option value="This Week" className="bg-[#F0F4F8]">This Week</option>
-              <option value="Last 2 Weeks" className="bg-[#F0F4F8]">Last 2 Weeks</option>
-              <option value="This Month" className="bg-[#F0F4F8]">This Month</option>
-              <option value="Last Month" className="bg-[#F0F4F8]">Last Month</option>
-              <option value="All Time" className="bg-[#F0F4F8]">All Time</option>
-              <option value="Custom" className="bg-[#F0F4F8]">Custom Range...</option>
-            </select>
-          </div>
-
-          {globalTimeFilter === "Custom" && (
-            <div className="flex items-center gap-2 px-3 border-r border-[#D1DCEB] animate-fadeIn">
-              <input type="date" value={globalCustomDates.start} onChange={e => setGlobalCustomDates({ ...globalCustomDates, start: e.target.value })} className="neu-pressed bg-transparent rounded text-[10px] px-2 py-1 outline-none montserrat-medium text-[#1F2328]" />
-              <span className="text-[10px] text-[#656D76] montserrat-bold">to</span>
-              <input type="date" value={globalCustomDates.end} onChange={e => setGlobalCustomDates({ ...globalCustomDates, end: e.target.value })} className="neu-pressed bg-transparent rounded text-[10px] px-2 py-1 outline-none montserrat-medium text-[#1F2328]" />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Chart 1: Velocity & Trends */}
+        <div className="lg:col-span-2 ent-card p-5 bg-white border-[#EAE3D6] shadow-xs flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EAE3D6] mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <TrendingUp size={15} className="text-[#2563EB]" />
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Task Velocity & Completion Timeline
+                </h3>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Task assignment and completion throughput over time
+              </p>
             </div>
-          )}
 
-          <div className="flex items-center gap-2 px-3">
-            <ClipboardDocumentCheckIcon className="w-4 h-4 text-[#656D76]" />
-            <select
-              value={globalProjectFilter}
-              onChange={e => setGlobalProjectFilter(e.target.value)}
-              className="bg-transparent border-none text-[11px] montserrat-bold text-[#1F2328] outline-none cursor-pointer py-1 max-w-[180px]"
-            >
-              <option value="All" className="bg-[#F0F4F8]">All Projects</option>
-              {projects.map(p => <option key={p._id} value={p._id} className="bg-[#F0F4F8]">{p.projectName}</option>)}
-            </select>
+            {/* Filter Controls */}
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center bg-[#F5EFE6] p-0.5 rounded border border-[#EAE3D6] gap-0.5 text-xs">
+                <button
+                  onClick={() => setChartTimeframe("7")}
+                  className={`px-2 py-0.5 rounded font-bold transition-all ${
+                    chartTimeframe === "7"
+                      ? "bg-[#2563EB] text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  7D
+                </button>
+                <button
+                  onClick={() => setChartTimeframe("30")}
+                  className={`px-2 py-0.5 rounded font-bold transition-all ${
+                    chartTimeframe === "30"
+                      ? "bg-[#2563EB] text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  30D
+                </button>
+                <button
+                  onClick={() => setChartTimeframe("all")}
+                  className={`px-2 py-0.5 rounded font-bold transition-all ${
+                    chartTimeframe === "all"
+                      ? "bg-[#2563EB] text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  All
+                </button>
+              </div>
+
+              {projects.length > 0 && (
+                <select
+                  value={chartProject}
+                  onChange={(e) => setChartProject(e.target.value)}
+                  className="h-7 py-0 px-2 text-[11px] bg-white border border-[#D8CEBE] rounded text-slate-700 focus:border-[#2563EB] outline-none max-w-[130px] truncate"
+                >
+                  <option value="all">All Projects</option>
+                  {projects.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.projectName}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={velocityChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorAssigned" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748B" }} axisLine={{ stroke: "#EAE3D6" }} />
+                <YAxis tick={{ fontSize: 10, fill: "#64748B" }} axisLine={{ stroke: "#EAE3D6" }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#FFFFFF",
+                    borderColor: "#EAE3D6",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: "11px", fontWeight: 600, paddingTop: "8px" }} />
+                <Area
+                  type="monotone"
+                  dataKey="assigned"
+                  name="Assigned Deliverables"
+                  stroke="#2563EB"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorAssigned)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="completed"
+                  name="Completed Deliverables"
+                  stroke="#059669"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorCompleted)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      </nav>
 
-      <AddTaskModal
-        open={addTaskModalOpen}
-        onClose={() => setAddTaskModalOpen(false)}
-        projects={projects.filter(p => p.status !== "Closed")}
-        onSuccess={handleQuickAddSuccess}
-        currentUserId={currentUserId}
-        currentUsername={username}
-      />
+        {/* Chart 2: Priority & Workload Distribution */}
+        <div className="ent-card p-5 bg-white border-[#EAE3D6] shadow-xs flex flex-col justify-between">
+          <div className="pb-3 border-b border-[#EAE3D6] mb-3">
+            <div className="flex items-center gap-2">
+              <PieIcon size={15} className="text-[#2563EB]" />
+              <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                Workload by Priority
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Task distribution across criticality tiers
+            </p>
+          </div>
 
-      <main className="max-w-[95%] mx-auto sm:px-6 lg:px-8 space-y-8 w-full flex-1">
+          <div className="h-44 w-full relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={priorityChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={48}
+                  outerRadius={68}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {priorityChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#FFFFFF",
+                    borderColor: "#EAE3D6",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
 
-        {/* --- Metrics Overview Grid --- */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-                <div className="w-full space-y-2">
-                  <Skeleton width="60%" height="10px" />
-                  <Skeleton width="30%" height="28px" />
+            {/* Centered Total */}
+            <div className="absolute flex flex-col items-center pointer-events-none">
+              <span className="text-xl font-bold text-slate-900 leading-none">{tasks.length}</span>
+              <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mt-0.5">
+                Tasks
+              </span>
+            </div>
+          </div>
+
+          {/* Legend Grid */}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EAE3D6]">
+            {priorityChartData.map((item) => (
+              <div key={item.name} className="flex items-center justify-between text-xs p-1.5 bg-[#FAF8F5] rounded border border-[#EAE3D6]">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="font-semibold text-slate-700 text-[11px]">{item.name}</span>
                 </div>
-                <Skeleton width="48px" height="48px" rounded="rounded-lg" className="shrink-0 ml-4" />
+                <span className="font-bold text-slate-900 text-xs font-mono">{item.value}</span>
               </div>
             ))}
           </div>
-        ) : (
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Active Projects</p>
-                <p className="text-2xl montserrat-bold text-[#1F2328] mt-1">{totalActiveProjectsCount}</p>
-              </div>
-              <div className="p-3 neu-pressed rounded-lg"><ClipboardDocumentCheckIcon className="h-6 w-6 text-[#0969DA]" /></div>
-            </motion.div>
-            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Pending Tasks</p>
-                <p className="text-2xl montserrat-bold text-[#0969DA] mt-1">{globallyFilteredPending.length}</p>
-              </div>
-              <div className="p-3 neu-pressed rounded-lg"><ClockIcon className="h-6 w-6 text-[#0969DA]" /></div>
-            </motion.div>
-            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Overdue</p>
-                <p className="text-2xl montserrat-bold text-[#D1242F] mt-1">{globallyFilteredOverdue.length}</p>
-              </div>
-              <div className="p-3 neu-pressed rounded-lg"><ExclamationCircleIcon className="h-6 w-6 text-[#D1242F]" /></div>
-            </motion.div>
-            <motion.div variants={itemVariants} className="neu-flat p-5 rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-[10px] montserrat-bold text-[#656D76] uppercase tracking-wider">Completed Tasks</p>
-                <p className="text-2xl montserrat-bold text-[#1A7F37] mt-1">{globallyFilteredCompletions.length}</p>
-              </div>
-              <div className="p-3 neu-pressed rounded-lg"><CheckBadgeIcon className="h-6 w-6 text-[#1A7F37]" /></div>
-            </motion.div>
-          </motion.div>
-        )}
+        </div>
+      </div>
+      )}
 
-        {/* --- Primary Workspace: Pending Workspace Docket & Completions History --- */}
-        {loading ? (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
-            <div className="xl:col-span-2 neu-flat rounded-lg p-2 flex flex-col">
-              <div className="px-5 py-6 flex justify-between items-center">
-                <div className="space-y-2">
-                  <Skeleton width="160px" height="14px" />
-                  <Skeleton width="90px" height="10px" />
-                </div>
-                <Skeleton width="120px" height="36px" rounded="rounded-md" />
-              </div>
-              <div className="neu-pressed rounded-lg p-4 mx-3 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[420px]">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="p-4 neu-flat rounded-md h-[140px] flex flex-col justify-between">
-                    <div>
-                      <Skeleton width="80%" height="16px" className="mb-2" />
-                      <Skeleton width="50%" height="12px" />
-                    </div>
-                    <div className="flex justify-between items-center pt-3 border-t border-[#D1DCEB]/30">
-                      <div className="flex gap-2">
-                        <Skeleton width="70px" height="24px" rounded="rounded-md" />
-                        <Skeleton width="36px" height="24px" rounded="rounded-md" />
-                      </div>
-                      <Skeleton width="50px" height="14px" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* ── Main Work Queue Matrix ─────────────────────────────────────────── */}
+      <div className="ent-card overflow-hidden bg-white border-[#EAE3D6]">
+        {/* Table Header & Controls */}
+        <div className="p-4 border-b border-[#EAE3D6] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                My Assigned Tasks
+              </h2>
+              <span className="text-[11px] font-bold bg-[#F5EFE6] text-[#785E3E] px-2 py-0.5 rounded border border-[#EAE3D6]">
+                {tasks.length}
+              </span>
             </div>
-            <div className="neu-flat rounded-lg p-2 flex flex-col">
-              <div className="px-5 py-6">
-                <Skeleton width="150px" height="14px" />
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Review assigned tasks, update status, and view details.
+            </p>
+          </div>
+
+          {/* Filters Suite */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {/* Status Segmented Pill Bar */}
+            <div className="inline-flex items-center bg-[#F5EFE6] p-0.5 rounded border border-[#EAE3D6] gap-0.5">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                  statusFilter === "all"
+                    ? "bg-[#2563EB] text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setStatusFilter("Todo")}
+                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                  statusFilter === "Todo"
+                    ? "bg-[#2563EB] text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                To Do
+              </button>
+              <button
+                onClick={() => setStatusFilter("In Progress")}
+                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                  statusFilter === "In Progress"
+                    ? "bg-[#2563EB] text-white shadow-xs"
+                    : "text-blue-700 hover:bg-blue-50"
+                }`}
+              >
+                In Progress
+              </button>
+              <button
+                onClick={() => setStatusFilter("Done")}
+                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                  statusFilter === "Done"
+                    ? "bg-[#059669] text-white shadow-xs"
+                    : "text-emerald-700 hover:bg-emerald-50"
+                }`}
+              >
+                Done
+              </button>
+            </div>
+
+            {/* Search Box */}
+            <div className="relative flex items-center">
+              <Search size={13} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 pr-2.5 py-1 text-xs bg-white border border-[#D8CEBE] rounded text-slate-800 placeholder-slate-400 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none h-8 w-40 sm:w-48"
+              />
+            </div>
+
+            {/* Priority Select */}
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="h-8 py-1 px-2 text-xs bg-white border border-[#D8CEBE] rounded text-slate-700 focus:border-[#2563EB] outline-none cursor-pointer min-w-[110px]"
+            >
+              <option value="all">All Priorities</option>
+              <option value="Critical">Critical 🔴</option>
+              <option value="High">High 🟡</option>
+              <option value="Medium">Medium 🔵</option>
+              <option value="Low">Low 🟢</option>
+            </select>
+
+            {/* Clear Button */}
+            {(search || statusFilter !== "all" || priorityFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                }}
+                className="h-8 px-2 bg-[#F5EFE6] hover:bg-[#EAE3D6] text-[#785E3E] text-xs font-semibold rounded border border-[#EAE3D6] flex items-center gap-1 transition-colors shrink-0"
+              >
+                <X size={12} /> Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tasks Table */}
+        <div className="overflow-x-auto">
+          <table className="ent-table">
+            <thead>
+              <tr>
+                <th className="w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredTasks.length > 0 && selectedTaskIds.size === filteredTasks.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded text-[#2563EB] focus:ring-[#2563EB] cursor-pointer"
+                    title="Select all visible tasks"
+                  />
+                </th>
+                <th>Task Title</th>
+                <th>Project</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Deadline</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && tasks.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-2">
+                    <TableSkeleton rows={5} />
+                  </td>
+                </tr>
+              ) : filteredTasks.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-12 text-slate-500 font-medium">
+                    No assigned tasks found. Tasks delegated to you by Team Leads will appear here.
+                  </td>
+                </tr>
+              ) : (
+                paginatedTasks.map((task) => {
+                  const statusNorm = (task.status || "Todo").toLowerCase();
+                  const isDone = statusNorm === "done";
+                  const isInProgress = statusNorm === "in progress";
+                  const isSelected = selectedTaskIds.has(task._id);
+
+                  return (
+                    <tr
+                      key={task._id}
+                      className={`hover:bg-[#FAF7F2] transition-colors ${
+                        isSelected ? "bg-[#EFF6FF]/80" : isDone ? "bg-slate-50/40 opacity-75" : ""
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectTask(task._id)}
+                          className="w-4 h-4 rounded text-[#2563EB] focus:ring-[#2563EB] cursor-pointer"
+                        />
+                      </td>
+
+                      <td className="max-w-md">
+                        <div className="cursor-pointer" onClick={() => setInspectTask(task)}>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`font-bold text-xs hover:text-blue-600 transition-colors ${
+                                isDone ? "text-slate-400 line-through" : "text-slate-900"
+                              }`}
+                            >
+                              {task.title}
+                            </span>
+                            {task.links?.length > 0 && (
+                              <span className="text-[10px] bg-[#F5EFE6] text-[#785E3E] px-1.5 py-0.2 rounded border border-[#EAE3D6]">
+                                {task.links.length} link{task.links.length > 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
+                          {task.description && (
+                            <div className="text-[11px] text-slate-500 font-normal truncate max-w-sm mt-0.5">
+                              {task.description}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="font-semibold text-xs text-slate-800 flex items-center gap-1.5">
+                          <FolderKanban size={13} className="text-slate-400" />
+                          {task.projectId?.projectName || "General"}
+                        </span>
+                      </td>
+                      <td>
+                        <Badge
+                          variant={
+                            task.priority === "Critical"
+                              ? "red"
+                              : task.priority === "High"
+                              ? "amber"
+                              : task.priority === "Medium"
+                              ? "blue"
+                              : "green"
+                          }
+                        >
+                          {task.priority || "Medium"}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge
+                          variant={
+                            isDone
+                              ? "green"
+                              : isInProgress
+                              ? "blue"
+                              : "slate"
+                          }
+                        >
+                          {task.status || "Todo"}
+                        </Badge>
+                      </td>
+                      <td>{getDeadlineBadge(task.deadline, task.status, task.completedAt)}</td>
+                      <td className="text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          {!isInProgress && !isDone && (
+                            <button
+                              onClick={() => handleStatusChange(task, "In Progress")}
+                              className="px-2.5 py-1 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded text-[11px] font-bold transition-colors flex items-center gap-1 shadow-xs"
+                            >
+                              <Play size={10} /> Start
+                            </button>
+                          )}
+                          {isInProgress && (
+                            <button
+                              onClick={() => handleStatusChange(task, "Done")}
+                              className="px-2.5 py-1 bg-[#059669] hover:bg-[#047857] text-white rounded text-[11px] font-bold transition-colors flex items-center gap-1 shadow-xs"
+                            >
+                              <CheckCircle2 size={11} /> Done
+                            </button>
+                          )}
+                          {isDone && (
+                            <button
+                              onClick={() => handleStatusChange(task, "In Progress")}
+                              className="px-2 py-1 bg-[#F5EFE6] hover:bg-[#EAE3D6] text-slate-700 rounded text-[11px] font-bold transition-colors flex items-center gap-1"
+                            >
+                              <RotateCcw size={10} /> Reopen
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setInspectTask(task)}
+                            className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-[#F5EFE6] transition-colors"
+                            title="Inspect Task & Specs"
+                          >
+                            <Eye size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer Bar */}
+        <div className="p-3 border-t border-[#EAE3D6] bg-[#FAF8F5] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-slate-600 font-medium">
+            <span>
+              Showing <span className="font-bold text-slate-900">{filteredTasks.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to{" "}
+              <span className="font-bold text-slate-900">{Math.min(currentPage * pageSize, filteredTasks.length)}</span> of{" "}
+              <span className="font-bold text-slate-900">{filteredTasks.length}</span> deliverables
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Page Size Select */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Show:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="h-7 py-0 px-2 text-xs bg-white border border-[#D8CEBE] rounded text-slate-800 font-semibold focus:border-[#2563EB] outline-none cursor-pointer"
+              >
+                <option value={25}>25 / page</option>
+                <option value={75}>75 / page</option>
+                <option value={100}>100 / page</option>
+                <option value={200}>200 / page</option>
+                <option value={300}>300 / page</option>
+              </select>
+            </div>
+
+            {/* Page Nav Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="h-7 px-2.5 bg-white border border-[#D8CEBE] rounded text-slate-700 font-bold hover:bg-[#F5EFE6] disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              >
+                Prev
+              </button>
+
+              <div className="flex items-center gap-1 px-1 font-bold text-slate-700">
+                <span>Page {currentPage} of {totalPages}</span>
               </div>
-              <div className="neu-pressed rounded-lg p-3 mx-3 mb-4 flex-1 min-h-[420px] flex flex-col gap-3">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="p-3 neu-flat rounded-md flex justify-between items-center gap-4">
-                    <div className="flex-1 space-y-2">
-                      <Skeleton width="85%" height="14px" />
-                      <Skeleton width="45%" height="10px" />
-                    </div>
-                    <Skeleton width="32px" height="32px" rounded="rounded-full" className="shrink-0" />
-                  </div>
-                ))}
-              </div>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage >= totalPages}
+                className="h-7 px-2.5 bg-white border border-[#D8CEBE] rounded text-slate-700 font-bold hover:bg-[#F5EFE6] disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              >
+                Next
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Active Projects Grid ───────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+              My Active Client Projects ({projects.length})
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Projects currently in development where you are an appointed engineer.
+            </p>
+          </div>
+        </div>
+
+        {projects.length === 0 ? (
+          <div className="ent-card p-8 text-center text-xs text-slate-400 border-[#EAE3D6]">
+            No active projects assigned to your profile yet.
+          </div>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Unified Action Work Board System */}
-            <div className="xl:col-span-2 neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
-              <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projects.map((proj) => (
+              <div
+                key={proj._id}
+                className="ent-card p-4 flex flex-col justify-between hover:border-[#2563EB]/40 transition-all bg-white border-[#EAE3D6]"
+              >
                 <div>
-                  <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">My Pending Tasks</h3>
-                  <span className="text-[10px] text-[#656D76] montserrat-medium pl-1">{globallyFilteredPending.length} Tasks Scheduled</span>
-                </div>
-
-                <div className="flex gap-4 items-center w-full sm:w-auto">
-                  <div className="relative flex-1 sm:flex-initial">
-                    <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
-                    <input
-                      type="text"
-                      value={pendingSearchQuery}
-                      onChange={e => setPendingSearchQuery(e.target.value)}
-                      placeholder="Search tasks..."
-                      className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
-                    />
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="font-bold text-xs text-slate-900">{proj.projectName}</span>
+                    <Badge variant="green">{proj.status || "Active"}</Badge>
                   </div>
-                  {/* BEAUTIFUL SLIGHTLY BLUISH NEUMORPHIC BUTTON */}
-                  <button onClick={() => setAddTaskModalOpen(true)} className="flex items-center gap-1.5 text-xs montserrat-bold py-2.5 px-4 rounded-md transition-all flex-shrink-0 neu-action-btn neu-btn-soft-blue">
-                    <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} /> Add Task
-                  </button>
-                </div>
-              </div>
+                  <p className="text-[11px] text-slate-600 line-clamp-2 mb-3">
+                    {proj.projectDetails || "No details provided."}
+                  </p>
 
-              {/* Task Workspace List */}
-              <div className="p-4 mx-3 neu-pressed rounded-lg flex-1 min-h-[420px] overflow-y-auto max-h-[420px] custom-scrollbar">
-                {globallyFilteredPending.length === 0 ? (
-                  <div className="text-center py-20 text-xs text-[#8C959F] montserrat-medium">No pending tasks found. Add some more!</div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {globallyFilteredPending.map(task => {
-                      const isOverdue = task.deadline && differenceInCalendarDays(new Date(task.deadline), new Date()) < 0;
-                      const isCompleting = completingTaskId === task._id;
-                      const isKanbanLoading = openingKanbanId === task._projectId;
-
-                      return (
-                        <div key={task._id} className={`p-4 neu-flat rounded-md transition-all relative flex flex-col justify-between ${isOverdue ? "border-l-4 border-l-[#D1242F] border-transparent" : "border-l-4 border-l-transparent"}`}>
-                          <div>
-                            <div className="flex justify-between items-start gap-2 mb-2">
-                              <span className="text-xs montserrat-bold text-[#1F2328] leading-tight block break-words">{task.title}</span>
-                              <span className={`text-[8px] montserrat-bold uppercase px-2 py-1 rounded-md flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-                                {task.priority}
-                              </span>
-                            </div>
-                            <span className="text-[9px] text-[#656D76] montserrat-bold block truncate mb-5">{task._projectName}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-3 mt-auto border-t border-[#D1DCEB]/30">
-                            <div className="flex gap-3">
-                              <button
-                                disabled={isCompleting}
-                                onClick={() => handleCompleteTask(task._id, task._projectId)}
-                                className="flex items-center gap-1.5 text-[10px] montserrat-bold text-[#1A7F37] neu-flat neu-action-btn px-3 py-1.5 rounded-md transition-all disabled:opacity-50"
-                              >
-                                {isCompleting ? (
-                                  <div className="btn-spinner mr-1 text-[#1A7F37]" />
-                                ) : (
-                                  <CheckIcon className="w-3.5 h-3.5 text-[#1A7F37]" strokeWidth={3} />
-                                )}
-                                {isCompleting ? "Marking..." : "Mark As Done"}
-                              </button>
-
-                              <button onClick={() => setCommentTask(task)} disabled={isCompleting} className="p-1.5 text-[#656D76] hover:text-[#0969DA] neu-flat neu-action-btn rounded-md transition-all disabled:opacity-50">
-                                <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                              </button>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                              {task.deadline && (
-                                <span className={`text-[9px] montserrat-bold flex items-center ${isOverdue ? 'text-[#D1242F]' : 'text-[#656D76]'}`}>
-                                  {isOverdue ? 'Overdue' : format(new Date(task.deadline), "MMM d")}
-                                </span>
-                              )}
-                              <button
-                                disabled={isKanbanLoading || isCompleting}
-                                onClick={() => handleOpenKanban(task._projectId)}
-                                className="text-[10px] text-[#0969DA] flex items-center gap-1 montserrat-bold cursor-pointer disabled:opacity-50 hover:opacity-70 transition-opacity"
-                              >
-                                {isKanbanLoading && <div className="btn-spinner" />}
-                                Kanban ↗
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                  <div className="space-y-1.5 text-[11px] text-slate-500">
+                    <div className="flex items-center justify-between">
+                      <span>Client:</span>
+                      <span className="font-semibold text-slate-800">{proj.clientName}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Services:</span>
+                      <span className="font-semibold text-slate-800">
+                        {proj.serviceType?.join(", ") || "Development"}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* Completed History List */}
-            <div className="neu-flat rounded-lg overflow-hidden flex flex-col pt-2 pb-4 px-2">
-              <div className="px-5 py-4 flex flex-col gap-4 flex-shrink-0">
-                <h3 className="text-xs montserrat-bold text-[#1F2328] uppercase tracking-wider pl-1">Completed History ({globallyFilteredCompletions.length})</h3>
-
-                <div className="relative w-full">
-                  <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-[#8C959F]" />
-                  <input
-                    type="text"
-                    value={completedSearchQuery}
-                    onChange={e => setCompletedSearchQuery(e.target.value)}
-                    placeholder="Search completions..."
-                    className="w-full neu-pressed bg-transparent rounded-md py-2 pl-9 pr-4 text-xs outline-none montserrat-medium text-[#1F2328]"
-                  />
+                <div className="pt-3 mt-3 border-t border-[#EAE3D6] flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Created {new Date(proj.createdDate || proj.createdAt).toLocaleDateString()}</span>
+                  <span className="font-bold text-[#1E40AF] text-[10px] uppercase tracking-wider">{proj.subscriptionType || "Active Deliverable"}</span>
                 </div>
               </div>
-
-              <div className="max-h-[420px] mx-3 p-3 neu-pressed rounded-lg overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-3">
-                {globallyFilteredCompletions.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-[#656D76] montserrat-medium">No completions found.</div>
-                ) : (
-                  <>
-                    {globallyFilteredCompletions.slice(0, completedVisibleCount).map((task) => (
-                      <div
-                        key={task._id || task.taskId}
-                        className="p-3 neu-flat rounded-md cursor-pointer flex justify-between items-center gap-4 neu-action-btn transition-all"
-                        onClick={() => { setSelectedCompletedTask(task); setOpenTaskDialog(true); }}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs montserrat-bold text-[#1F2328] leading-normal break-words">{task.taskTitle || task.title}</p>
-                          <p className="text-[9px] text-[#656D76] mt-1 uppercase tracking-wider montserrat-bold truncate">
-                            {projects.find(p => p._id === task._projectId)?.projectName || "N/A Project"}
-                          </p>
-                          <div className="flex gap-4 items-center mt-2.5 text-[10px] text-[#656D76] montserrat-medium">
-                            <span className="flex items-center"><ClockIcon className="w-3 h-3 mr-1" />{format(new Date(task.completedAt), "MMM d")}</span>
-                          </div>
-                        </div>
-
-                        <button className="flex items-center justify-center neu-pressed w-8 h-8 rounded-full text-[#656D76] flex-shrink-0">
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    {completedVisibleCount < globallyFilteredCompletions.length && (
-                      <div className="p-2 text-center mt-2">
-                        <button
-                          onClick={() => setCompletedVisibleCount(prev => prev + 10)}
-                          className="text-xs montserrat-bold text-[#0969DA] hover:opacity-70 transition-opacity"
-                        >
-                          Load More
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </motion.div>
+            ))}
+          </div>
         )}
+      </div>
 
-        {/* --- Visual Analysis Row --- */}
-        {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-            {[1, 2].map(i => (
-              <div key={i} className="neu-flat rounded-lg p-6 space-y-6">
-                <Skeleton width="200px" height="14px" />
-                <div className="neu-pressed rounded-lg h-64 flex items-end justify-around p-4">
-                  {[1, 2, 3, 4, 5, 6].map(bar => (
-                    <Skeleton key={bar} width="35px" height={`${Math.random() * 60 + 20}%`} rounded="rounded-t-md" />
+      {/* ── Task Inspection & Comments Modal ───────────────────────────────── */}
+      <Modal
+        isOpen={Boolean(inspectTask)}
+        onClose={() => setInspectTask(null)}
+        title={inspectTask?.title || "Task Details"}
+        subtitle={`Project: ${inspectTask?.projectId?.projectName || "Engineering"} • Assigned to ${currentUser.username}`}
+        maxWidth="max-w-2xl"
+        footer={
+          <>
+            <div className="flex items-center gap-2 mr-auto">
+              {(inspectTask?.status || "").toLowerCase() !== "in progress" && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(inspectTask, "In Progress")}
+                  className="px-3 py-1.5 bg-[#2563EB] text-white rounded text-xs font-bold hover:bg-[#1D4ED8] shadow-xs"
+                >
+                  <Play size={12} className="inline mr-1" /> Start Task
+                </button>
+              )}
+              {(inspectTask?.status || "").toLowerCase() !== "done" && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(inspectTask, "Done")}
+                  className="px-3 py-1.5 bg-[#059669] text-white rounded text-xs font-bold hover:bg-[#047857] shadow-xs"
+                >
+                  <CheckCircle2 size={12} className="inline mr-1" /> Mark Complete
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setInspectTask(null)}
+              className="ent-btn-secondary"
+            >
+              Close
+            </button>
+          </>
+        }
+      >
+        {inspectTask && (
+          <div className="space-y-5">
+            {/* Meta Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#FAF8F5] p-3 rounded border border-[#EAE3D6]">
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Priority</span>
+                <Badge
+                  variant={
+                    inspectTask.priority === "Critical"
+                      ? "red"
+                      : inspectTask.priority === "High"
+                      ? "amber"
+                      : inspectTask.priority === "Medium"
+                      ? "blue"
+                      : "green"
+                  }
+                >
+                  {inspectTask.priority || "Medium"}
+                </Badge>
+              </div>
+
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Status</span>
+                <Badge
+                  variant={
+                    (inspectTask.status || "").toLowerCase() === "done"
+                      ? "green"
+                      : (inspectTask.status || "").toLowerCase() === "in progress"
+                      ? "blue"
+                      : "slate"
+                  }
+                >
+                  {inspectTask.status || "Todo"}
+                </Badge>
+              </div>
+
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Target Deadline</span>
+                <span className="text-xs font-bold text-slate-800">
+                  {inspectTask.deadline
+                    ? new Date(inspectTask.deadline).toLocaleDateString()
+                    : "No deadline"}
+                </span>
+              </div>
+
+              <div>
+                <span className="ent-label text-[10px] mb-0.5">Delivery Status</span>
+                <div>{getDeadlineBadge(inspectTask.deadline, inspectTask.status, inspectTask.completedAt)}</div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="ent-label">Description & Notes</label>
+              <div className="p-3 bg-[#FAF8F5] border border-[#EAE3D6] rounded text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                {inspectTask.description || "No specific instructions provided for this task."}
+              </div>
+            </div>
+
+            {/* External Links */}
+            {inspectTask.links?.length > 0 && (
+              <div>
+                <label className="ent-label">Reference Links</label>
+                <div className="flex flex-wrap gap-2">
+                  {inspectTask.links.map((link, idx) => (
+                    <a
+                      key={idx}
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded border border-[#BFDBFE] hover:bg-[#DBEAFE]"
+                    >
+                      <ExternalLink size={12} /> {link}
+                    </a>
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Fast Comment Box */}
+            <div className="border-t border-[#EAE3D6] pt-4">
+              <label className="ent-label mb-2">Post Comment / Update</label>
+              <form onSubmit={handlePostComment} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Type note, blockers, or progress update..."
+                  value={newCommentText}
+                  onChange={(e) => setNewCommentText(e.target.value)}
+                  className="ent-input text-xs border-[#D8CEBE]"
+                />
+                <button
+                  type="submit"
+                  disabled={commenting || !newCommentText.trim()}
+                  className="ent-btn-primary shrink-0"
+                >
+                  <Send size={12} /> {commenting ? "Posting..." : "Send"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Create Task Modal ────────────────────────────────────── */}
+      <Modal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        title={taskItems.length > 1 ? `Create ${taskItems.length} Project Tasks` : "Create New Task"}
+        subtitle="Add one or multiple deliverables to your assigned project"
+        maxWidth="max-w-2xl"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(false)}
+              className="ent-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="create-task-form-home"
+              disabled={creatingTask}
+              className="ent-btn-primary"
+            >
+              {creatingTask
+                ? "Creating..."
+                : taskItems.length > 1
+                ? `Create ${taskItems.length} Tasks`
+                : "Create Task"}
+            </button>
+          </>
+        }
+      >
+        <form id="create-task-form-home" onSubmit={handleCreateTask} className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="ent-label">Target Project *</label>
+
+            </div>
+            <select
+              required
+              value={selectedProjectId}
+              onChange={(e) => {
+                setSelectedProjectId(e.target.value);
+                localStorage.setItem("last_selected_project_id", e.target.value);
+              }}
+              className="ent-select text-xs font-semibold"
+            >
+              {sortedProjects.length === 0 ? (
+                <option value="">No active projects assigned</option>
+              ) : (
+                sortedProjects.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.projectName} ({p.clientName})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Task Deliverables ({taskItems.length})
+              </span>
+              {taskItems.length > 1 && (
+                <span className="text-[10px] bg-blue-50 text-[#1E40AF] px-2 py-0.5 rounded font-bold">
+                  Batch Creation Active
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={addTaskRow}
+              className="px-2.5 py-1 bg-blue-50 text-[#1E40AF] hover:bg-blue-100 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <Plus size={13} /> Add Another Task
+            </button>
+          </div>
+
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+            {taskItems.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`p-3.5 rounded border transition-all ${
+                  taskItems.length > 1
+                    ? "bg-[#FAF8F5]/70 border-[#EAE3D6] space-y-3 relative"
+                    : "space-y-3 border-transparent p-0"
+                }`}
+              >
+                {taskItems.length > 1 && (
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-[#1E40AF] text-white text-[9px] flex items-center justify-center font-mono font-bold">
+                        {idx + 1}
+                      </span>
+                      Deliverable #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeTaskRow(item.id)}
+                      className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition-colors"
+                      title="Remove this deliverable"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+
+                <div>
+                  <label className="ent-label">Task Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder={`e.g. ${
+                      idx === 0
+                        ? "Implement user authentication flow"
+                        : idx === 1
+                        ? "Setup database migration & models"
+                        : "Build responsive dashboard widgets"
+                    }`}
+                    value={item.title}
+                    onChange={(e) => updateTaskRow(item.id, "title", e.target.value)}
+                    className="ent-input text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="ent-label">Priority</label>
+                    <select
+                      value={item.priority}
+                      onChange={(e) => updateTaskRow(item.id, "priority", e.target.value)}
+                      className="ent-select text-xs"
+                    >
+                      <option value="Critical">Critical 🔴</option>
+                      <option value="High">High 🟡</option>
+                      <option value="Medium">Medium 🔵</option>
+                      <option value="Low">Low 🟢</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="ent-label">Deadline</label>
+                    <input
+                      type="date"
+                      value={item.deadline}
+                      onChange={(e) => updateTaskRow(item.id, "deadline", e.target.value)}
+                      className="ent-input text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="ent-label">Description (Optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Provide task details or instructions..."
+                    value={item.description}
+                    onChange={(e) => updateTaskRow(item.id, "description", e.target.value)}
+                    className="ent-input text-xs resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="ent-label">Reference Links (Optional, one per line)</label>
+                  <textarea
+                    rows={1}
+                    placeholder="https://github.com/..."
+                    value={item.links}
+                    onChange={(e) => updateTaskRow(item.id, "links", e.target.value)}
+                    className="ent-input text-xs resize-none font-mono"
+                  />
+                </div>
+              </div>
             ))}
           </div>
-        ) : (
-          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="neu-flat rounded-lg p-6">
-              <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed vs Pending Assignments</h3>
-              <div className="h-64 w-full">
-                {projectBarData.length === 0 ? (
-                  <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No data matches current operations.</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={projectBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} tickFormatter={(v) => v.length > 12 ? v.substring(0, 11) + "..." : v} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-                      <Legend wrapperStyle={{ fontSize: '11px', pt: 10 }} />
-                      <Bar dataKey="Completed" fill="#1A7F37" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                      <Bar dataKey="Pending" fill="#0969DA" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
+        </form>
+      </Modal>
 
-            <div className="neu-flat rounded-lg p-6">
-              <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Completed Tasks Sorted By Priority</h3>
-              <div className="h-64 w-full">
-                {globallyFilteredCompletions.length === 0 ? (
-                  <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">No tasks completed within current filters.</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={priorityBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                      <XAxis dataKey="priority" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-                      <Bar dataKey="Completed" fill="#BF8700" radius={[4, 4, 0, 0]} maxBarSize={45} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
 
-            <div className="lg:col-span-2 neu-flat rounded-lg p-6 mb-8">
-              <h3 className="text-xs montserrat-bold text-[#1F2328] mb-6 uppercase tracking-wider pl-1">Daily Completions Progress Tracker</h3>
-              <div className="h-64 w-full">
-                {dailyCompletionData.length === 0 ? (
-                  <div className="h-full w-full flex items-center justify-center text-xs montserrat-medium text-[#656D76]">
-                    No completed tasks listed in this date range.
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dailyCompletionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8250DF" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#8250DF" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D1DCEB" opacity={0.6} />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#656D76' }} allowDecimals={false} />
-                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#F0F4F8', borderRadius: '8px', border: 'none', boxShadow: '4px 4px 10px #D1DCEB, -4px -4px 10px #FFFFFF', fontSize: '11px', fontFamily: "'Montserrat', sans-serif" }} />
-                      <Area type="monotone" dataKey="Completed" stroke="#8250DF" fillOpacity={1} fill="url(#colorCompleted)" strokeWidth={3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-      </main>
-
-      {/* --- Completed Task Details Modal --- */}
-      {selectedCompletedTask && (
-        <Dialog open={openTaskDialog} onClose={() => setOpenTaskDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none' } }}>
-          <div className="neu-flat rounded-lg overflow-hidden w-full">
-            <DialogTitle sx={{ py: 3, px: 4, borderBottom: '1px solid rgba(209, 220, 235, 0.4)' }}>
-              <Typography variant="span" className="montserrat-bold" sx={{ fontSize: '0.85rem', color: '#1F2328', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Completed Task Profile
-              </Typography>
-            </DialogTitle>
-            <DialogContent sx={{ py: 4, px: 4 }}>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
-                <div className="neu-pressed p-4 rounded-md">
-                  <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Task Title</Typography>
-                  <Typography className="montserrat-bold" sx={{ fontSize: '1rem', color: '#1F2328' }}>
-                    {selectedCompletedTask.taskTitle || selectedCompletedTask.title}
-                  </Typography>
-                </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <Box className="neu-pressed p-4 rounded-md">
-                    <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Project Space</Typography>
-                    <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#0969DA' }}>
-                      {projects.find(p => p._id === selectedCompletedTask._projectId)?.projectName || "N/A Project"}
-                    </Typography>
-                  </Box>
-                  <Box className="neu-pressed p-4 rounded-md">
-                    <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Completions Metric</Typography>
-                    <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#1F2328' }}>
-                      {format(new Date(selectedCompletedTask.completedAt), "MMM d, yyyy 'at' h:mm a")}
-                    </Typography>
-                  </Box>
-                </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <Box className="neu-pressed p-4 rounded-md">
-                    <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Completed By</Typography>
-                    <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#1F2328' }}>
-                      {selectedCompletedTask.completedBy?.username || "System Owner"}
-                    </Typography>
-                  </Box>
-                  <Box className="neu-pressed p-4 rounded-md">
-                    <Typography className="montserrat-bold" sx={{ fontSize: '0.65rem', color: '#656D76', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1 }}>Originally Assigned By</Typography>
-                    <Typography className="montserrat-medium" sx={{ fontSize: '0.82rem', color: '#1F2328' }}>
-                      {selectedCompletedTask.assignedBy?.username || "System Assignment"}
-                    </Typography>
-                  </Box>
-                </div>
-              </Box>
-            </DialogContent>
-            <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(209, 220, 235, 0.4)', px: 4 }}>
-              <button onClick={() => setOpenTaskDialog(false)} className="neu-flat neu-action-btn text-xs montserrat-bold text-[#1F2328] py-2.5 px-6 rounded-md transition-all">
-                Close Overview
-              </button>
-            </DialogActions>
+      {/* ── Floating Bulk Action Bar ────────────────────────────────────────── */}
+      {selectedTaskIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#1E40AF] text-white px-5 py-3 rounded shadow-2xl border border-white/20 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-white text-[#1E40AF] font-bold text-xs flex items-center justify-center font-mono shadow-xs">
+              {selectedTaskIds.size}
+            </span>
+            <span className="text-xs font-bold text-white tracking-tight">
+              Task{selectedTaskIds.size > 1 ? "s" : ""} Selected
+            </span>
           </div>
-        </Dialog>
-      )}
 
-      {/* Comment Trigger Modal */}
-      {commentTask && (
-        <CommentModal
-          task={commentTask}
-          projectId={commentTask._projectId}
-          onClose={() => setCommentTask(null)}
-        />
-      )}
+          <div className="h-4 w-px bg-white/30" />
 
-      {/* Lazy-Loaded Fullscreen Kanban Integration */}
-      {kanbanProject && (
-        <Suspense fallback={
-          <div style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-            zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center"
-          }}>
-            <div className="neu-flat p-6 rounded-lg flex items-center gap-4">
-              <span className="btn-spinner" style={{ color: "#0969DA" }} />              
-              <span className="montserrat-medium text-[#1F2328] text-sm">Loading Kanban Board...</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleBulkStatusChange("Done")}
+              disabled={bulkUpdating}
+              className="px-3.5 py-1.5 bg-[#059669] hover:bg-[#047857] text-white text-xs font-bold rounded shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <CheckCircle2 size={13} /> {bulkUpdating ? "Updating..." : "Mark as Done"}
+            </button>
+
+            <button
+              onClick={() => handleBulkStatusChange("In Progress")}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 bg-white text-[#1E40AF] hover:bg-[#FAF8F5] text-xs font-bold rounded shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <Play size={12} /> Move to In Progress
+            </button>
+
+            <button
+              onClick={() => handleBulkStatusChange("Todo")}
+              disabled={bulkUpdating}
+              className="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-bold rounded border border-white/30 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RotateCcw size={12} /> Set To Do
+            </button>
           </div>
-        }>
-          <ProjectKanban
-            open={kanbanOpen}
-            onClose={() => {
-              setKanbanOpen(false);
-              setKanbanProject(null);
-              refreshData(true);
-            }}
-            project={kanbanProject}
-          />
-        </Suspense>
+
+          <div className="h-4 w-px bg-white/30" />
+
+          <button
+            onClick={() => setSelectedTaskIds(new Set())}
+            className="p-1 rounded text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            title="Deselect all"
+          >
+            <X size={15} />
+          </button>
+        </div>
       )}
-
-      {/* Global Neumorphism CSS & Scrollbar Styles */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; /* Professional light neutral */
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB; /* Soft clear shadow */
-        }
-
-        .neu-base {
-          background-color: var(--neu-bg);
-        }
-
-        /* Subtle, structural drop shadows rather than floaty bubbles */
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-
-        /* Soft debossing */
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-
-        /* Primary standard-looking button */
-        .neu-btn-primary {
-          background-color: #0969DA;
-          box-shadow: 2px 2px 6px rgba(9, 105, 218, 0.3);
-          border: none;
-        }
-
-        .neu-btn-primary:active {
-          box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Soft Ice Blue Neumorphic Button */
-        .neu-btn-soft-blue {
-          background-color: #E8F1FC;
-          color: #0969DA;
-          box-shadow: 4px 4px 8px var(--neu-dark), -4px -4px 8px var(--neu-light);
-        }
-
-        .neu-btn-soft-blue:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px rgba(9, 105, 218, 0.2), inset -2px -2px 5px #FFFFFF;
-          background-color: #E0EBF8;
-        }
-
-        .neu-action-btn:active {
-          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
-        }
-
-        /* Prevent auto-fill background from overriding transparency */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active{
-            -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-            -webkit-text-fill-color: #1F2328 !important;
-        }
-
-        /* Scoped Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #8C959F; }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .btn-spinner {
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          border: 2px solid currentColor;
-          border-right-color: transparent;
-          border-radius: 50%;
-          animation: spin 0.75s linear infinite;
-          vertical-align: middle;
-        }
-
-        /* Advanced Shimmer Effect */
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .skeleton-shimmer {
-          background: linear-gradient(
-            90deg, 
-            transparent 0%, 
-            rgba(255, 255, 255, 0.5) 50%, 
-            transparent 100%
-          );
-          animation: shimmer 1.8s infinite linear;
-        }
-      `}</style>
     </div>
   );
 }

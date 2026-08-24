@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { apiCache } from "../utils/apiCache";
 import { 
   X, 
   Settings, 
@@ -135,6 +136,13 @@ export default function CreateProject() {
         setProjectName(""); setProjectDetails(""); setClientName(""); setClientEmail("");
         setClientNumber(""); setAmount(""); setAssignedDevelopers([]); setServiceType([]);
         setReferenceSite(""); setBusinessNiche(""); setComments(""); setSubscriptionType("One-Time");
+        
+        // Invalidate project and metric caches across Admin and Developer dashboards
+        sessionStorage.removeItem("admin_projects_cache");
+        apiCache.invalidate("admin_overview_metrics_v2");
+        apiCache.invalidate("dev_tasks");
+        apiCache.invalidate("tasks");
+
         showSnackbar("Project created successfully!", "success");
       } else {
         showSnackbar("Failed to create project", "error");
@@ -468,87 +476,6 @@ export default function CreateProject() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Neumorphic CSS Rules & Bug Fixes */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; 
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB;
-        }
-        .neu-base { background-color: var(--neu-bg); }
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-        
-        /* Force Input Clickability and Text Selection globally over any wrapper rules */
-        input, textarea, select {
-          position: relative;
-          z-index: 20;
-          pointer-events: auto !important;
-          user-select: text !important;
-          -webkit-user-select: text !important;
-        }
-        
-        select {
-          cursor: pointer !important;
-          -moz-appearance: none; 
-          -webkit-appearance: none; 
-          appearance: none;
-        }
-
-        /* Fixed Interactive Buttons to Ensure Clickability */
-        .neu-action-btn { 
-          cursor: pointer; 
-          transition: all 0.2s ease; 
-          position: relative;
-          z-index: 20;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-action-btn:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important;
-        }
-        .neu-btn-primary {
-          background-color: #0969DA;
-          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
-          border: none;
-          position: relative;
-          z-index: 20;
-          cursor: pointer;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-btn-primary:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Prevent SVG Icons from intercepting parent button clicks */
-        button svg {
-          pointer-events: none !important;
-        }
-
-        input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-          -webkit-text-fill-color: #1F2328 !important;
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 10px 0;}
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-      `}</style>
     </div>
   );
 }

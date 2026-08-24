@@ -1,62 +1,591 @@
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
-
 @import "tailwindcss";
 
+:root {
+  --font-sans: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Blue 600, Royal Blue & Soft Beige Color System */
+  --bg-main: #FAF8F5;              /* Soft Beige Canvas */
+  --bg-surface: #FFFFFF;           /* Crisp White Card Surface */
+  --bg-surface-warm: #F8F5EE;      /* Warm Soft Beige Surface */
+  
+  --border-beige: #EAE3D6;         /* Soft Beige Border */
+  --border-beige-subtle: #F3ECE1;  /* Subtle Beige Border */
+  --border-beige-dark: #D8CEBE;    /* Medium Soft Beige Border */
+  
+  --blue-600: #2563EB;             /* Blue 600 Primary */
+  --blue-700: #1D4ED8;             /* Blue 700 Accent */
+  --blue-800: #1E40AF;             /* Royal Blue (Sidebar & Deep Accents) */
+  --blue-900: #1E3A8A;             /* Deep Blue */
+  --blue-50: #EFF6FF;              /* Ice Blue / Soft Blue */
+  --blue-100: #DBEAFE;             /* Sky Blue Highlight */
+  --blue-200: #BFDBFE;             /* Blue Pill Border */
+  
+  --text-primary: #1E293B;         /* Slate-Blue Primary Text */
+  --text-secondary: #475569;       /* Medium Slate Text */
+  --text-muted: #94A3B8;           /* Muted Slate Text */
+  
+  --accent-beige: #F5EFE6;         /* Soft Beige */
+  --accent-beige-hover: #ECE4D6;   /* Soft Beige Hover */
+  --accent-beige-text: #785E3E;    /* Warm Bronze-Beige Text */
+
+  /* Legacy variable overrides */
+  --neu-bg: #FFFFFF;
+  --neu-light: #FFFFFF;
+  --neu-dark: #EAE3D6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  padding: 0;
   margin: 0;
+  padding: 0;
+  font-family: var(--font-sans) !important;
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.montserrat-regular{
-  font-family: "Montserrat", sans-serif;
-  font-optical-sizing: auto;
+/* Typography Helpers */
+.montserrat-regular {
+  font-family: var(--font-sans) !important;
   font-weight: 400;
-  font-style: normal;
 }
 
-.montserrat-medium{
-  font-family: "Montserrat", sans-serif;
-  font-optical-sizing: auto;
+.montserrat-medium {
+  font-family: var(--font-sans) !important;
   font-weight: 500;
-  font-style: normal;
 }
 
-.montserrat-bold{
-  font-family: "Montserrat", sans-serif;
-  font-optical-sizing: auto;
+.montserrat-bold {
+  font-family: var(--font-sans) !important;
   font-weight: 600;
-  font-style: normal;
 }
 
+.montserrat-extrabold {
+  font-family: var(--font-sans) !important;
+  font-weight: 700;
+}
+
+/* Sleek Blue & Soft Beige Scrollbar */
 ::-webkit-scrollbar {
-  display: none;
+  width: 5px;
+  height: 5px;
 }
 
-.event-item {
-  font-size: 1.4em;
-  padding: 0.2em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #D8CEBE;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--blue-600);
+}
+
+/* ==========================================================================
+   GLOBAL OVERRIDES FOR ALL LEGACY NEUMORPHIC & ROUNDED CLASSES
+   ========================================================================== */
+
+.neu-base {
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary) !important;
+}
+
+.neu-flat {
+  background-color: #FFFFFF !important;
+  border: 1px solid var(--border-beige) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 2px 0 rgba(30, 64, 175, 0.03) !important;
+}
+
+.neu-flat-sm {
+  background-color: #FFFFFF !important;
+  border: 1px solid var(--border-beige) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 1px 2px 0 rgba(30, 64, 175, 0.02) !important;
+}
+
+.neu-pressed {
+  background-color: var(--accent-beige) !important;
+  border: 1px solid var(--border-beige) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 1px 2px rgba(30, 64, 175, 0.02) !important;
+}
+
+.neu-pressed-sm {
+  background-color: var(--accent-beige) !important;
+  border: 1px solid var(--border-beige) !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+}
+
+.neu-btn-primary {
+  background-color: var(--blue-600) !important;
+  color: #FFFFFF !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--blue-700) !important;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
+  font-weight: 600 !important;
+}
+
+.neu-btn-primary:hover {
+  background-color: var(--blue-700) !important;
+}
+
+.neu-action-btn {
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+/* Eliminate excessive childish rounded borders */
+.rounded-2xl,
+.rounded-3xl,
+.rounded-xl {
+  border-radius: 4px !important;
+}
+
+.rounded-lg {
+  border-radius: 4px !important;
+}
+
+.rounded-md {
+  border-radius: 3px !important;
+}
+
+/* Ensure inputs and selects are crisp and sharp */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  border-radius: 4px !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* ==========================================================================
+   ENTERPRISE DESIGN SYSTEM UTILITIES (BLUE 600 & SOFT BEIGE)
+   ========================================================================== */
+
+/* Surfaces & Containers */
+.ent-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-beige);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px 0 rgba(30, 64, 175, 0.03);
+}
+
+.ent-card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-beige);
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
-/* Add to your CSS file */
-.email-body pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: inherit;
+/* Stat Cards */
+.ent-stat-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-beige);
+  border-radius: 4px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 2px 0 rgba(30, 64, 175, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.tiptap {
-  border: 1px solid #ccc;
-  padding: 10px;
-  min-height: 300px;
+.ent-stat-card:hover {
+  border-color: #C8BEAF;
+  box-shadow: 0 4px 6px -1px rgba(30, 64, 175, 0.06);
 }
 
-.tiptap img {
-  max-width: 100%;
-  height: auto;
+.ent-stat-card-blue { border-top: 3px solid var(--blue-600); }
+.ent-stat-card-royal { border-top: 3px solid var(--blue-800); }
+.ent-stat-card-beige { border-top: 3px solid #C4A47C; }
+.ent-stat-card-emerald { border-top: 3px solid #059669; }
+.ent-stat-card-amber { border-top: 3px solid #D97706; }
+.ent-stat-card-indigo { border-top: 3px solid #4F46E5; }
+.ent-stat-card-rose { border-top: 3px solid #E11D48; }
+
+/* Buttons */
+.ent-btn-primary {
+  background-color: var(--blue-600);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--blue-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15);
 }
+.ent-btn-primary:hover {
+  background-color: var(--blue-700);
+}
+.ent-btn-primary:active {
+  background-color: var(--blue-800);
+}
+
+.ent-btn-secondary {
+  background-color: #FFFFFF;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border-beige-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+}
+.ent-btn-secondary:hover {
+  background-color: var(--accent-beige);
+  border-color: #C8BEAF;
+  color: var(--blue-600);
+}
+
+.ent-btn-beige {
+  background-color: var(--accent-beige);
+  color: var(--accent-beige-text);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border-beige-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.ent-btn-beige:hover {
+  background-color: var(--accent-beige-hover);
+}
+
+.ent-btn-soft-blue {
+  background-color: var(--blue-50);
+  color: var(--blue-600);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--blue-200);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ent-btn-soft-blue:hover {
+  background-color: var(--blue-100);
+}
+
+.ent-btn-danger {
+  background-color: #DC2626;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 7px 14px;
+  border-radius: 4px;
+  border: 1px solid #B91C1C;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.ent-btn-danger:hover {
+  background-color: #B91C1C;
+}
+
+.ent-btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ent-btn-ghost:hover {
+  background-color: var(--accent-beige);
+  color: var(--blue-600);
+}
+
+/* Inputs & Form Elements */
+.ent-input {
+  width: 100%;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-beige-dark);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ent-input:focus {
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 1px var(--blue-600);
+}
+.ent-input::placeholder {
+  color: #94A3B8;
+}
+
+.ent-input-with-icon {
+  padding-left: 36px !important;
+}
+
+.ent-select {
+  width: 100%;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-beige-dark);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ent-select:focus {
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 1px var(--blue-600);
+}
+
+.ent-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+/* Data Tables */
+.ent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.ent-table thead {
+  background-color: var(--accent-beige);
+  border-bottom: 1px solid var(--border-beige);
+}
+
+.ent-table th {
+  padding: 10px 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  color: #475569;
+}
+
+.ent-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-beige-subtle);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.ent-table tr:hover td {
+  background-color: #FAF7F2;
+}
+
+/* Badges & Status Chips */
+.ent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.ent-badge-blue {
+  background-color: var(--blue-50);
+  color: var(--blue-600);
+  border-color: var(--blue-200);
+}
+
+.ent-badge-royal {
+  background-color: #EEF2FF;
+  color: var(--blue-800);
+  border-color: #C7D2FE;
+}
+
+.ent-badge-beige {
+  background-color: var(--accent-beige);
+  color: var(--accent-beige-text);
+  border-color: var(--border-beige);
+}
+
+.ent-badge-green {
+  background-color: #ECFDF5;
+  color: #047857;
+  border-color: #A7F3D0;
+}
+
+.ent-badge-amber {
+  background-color: #FFFBEB;
+  color: #B45309;
+  border-color: #FDE68A;
+}
+
+.ent-badge-red {
+  background-color: #FEF2F2;
+  color: #B91C1C;
+  border-color: #FECACA;
+}
+
+.ent-badge-purple {
+  background-color: #F5F3FF;
+  color: #6D28D9;
+  border-color: #DDD6FE;
+}
+
+.ent-badge-slate {
+  background-color: #F1F5F9;
+  color: #475569;
+  border-color: #CBD5E1;
+}
+
+/* ==========================================================================
+   FULLCALENDAR ENTERPRISE BLUE 600 & SOFT BEIGE OVERRIDES
+   ========================================================================== */
+
+.fc {
+  font-family: var(--font-sans) !important;
+}
+
+.fc-theme-standard th {
+  background-color: var(--accent-beige) !important;
+  border: 1px solid var(--border-beige) !important;
+  padding: 10px 0 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #475569 !important;
+}
+
+.fc-theme-standard td {
+  border: 1px solid var(--border-beige) !important;
+}
+
+.fc-daygrid-day-number {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  padding: 6px 8px !important;
+}
+
+.fc-day-today {
+  background-color: #F5EFE6 !important;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+  color: #FFFFFF !important;
+  background-color: var(--blue-600) !important;
+  border-radius: 50% !important;
+  width: 22px !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 4px 6px 0 auto !important;
+  font-size: 11px !important;
+}
+
+.fc-button-primary {
+  background-color: #FFFFFF !important;
+  border: 1px solid var(--border-beige-dark) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.fc-button-primary:hover {
+  background-color: var(--accent-beige) !important;
+  border-color: #C8BEAF !important;
+  color: var(--blue-600) !important;
+}
+
+.fc-button-primary:disabled {
+  background-color: #FAF8F5 !important;
+  border-color: var(--border-beige) !important;
+  color: #94A3B8 !important;
+  opacity: 0.7 !important;
+}
+
+.fc-button-primary.fc-button-active {
+  background-color: var(--blue-600) !important;
+  border-color: var(--blue-700) !important;
+  color: #FFFFFF !important;
+}
+
+/* ── Shimmer & Skeleton Animations ────────────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.ent-shimmer {
+  background: linear-gradient(90deg, #F5EFE6 25%, #FAF8F5 50%, #F5EFE6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.ent-shimmer-blue {
+  background: linear-gradient(90deg, #EFF6FF 25%, #DBEAFE 50%, #EFF6FF 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+

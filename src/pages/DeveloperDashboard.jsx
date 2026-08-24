@@ -1,54 +1,33 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import NavBar from "../Components Developer/NavBar";
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import DashboardLayout from "../layouts/DashboardLayout";
 import Home from "../Developer Pages/Home";
+import DeveloperTasks from "../Developer Pages/DeveloperTasks";
 import OneTime from "../Developer Pages/OneTime";
 import Subscription from "../Developer Pages/Subscription";
 import Website from "../Developer Pages/Website";
 import ToDoList from "../Developer Pages/ToDo";
-import Calendar from "../Caller Pages/Calender";
-import Compose from "../Mailing System/Compose";
-import Sent from "../Mailing System/Sent";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import Calendar from "../Developer Pages/Calender";
+import MyLeaves from "../components/leaves/MyLeaves";
+import MyPayrollPortal from "../components/payroll/MyPayrollPortal";
+import MyAttendancePage from "../components/attendance/MyAttendancePage";
 
 const DeveloperDashboard = () => {
-  const [dashboardData, setDashboardData] = useState("");
-
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_BASE}/api/dashboard`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setDashboardData(res.data.dashboard);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      }
-    };
-    fetchDashboardData();
-  }, []);
-
   return (
-    <div>
-      <NavBar />
-      <div className="mx-">
-        <Routes>
-          <Route index element={<Home />} />
-          <Route path="one-time" element={<OneTime />} />
-          <Route path="subscription" element={<Subscription />} />
-          <Route path="website-based" element={<Website />} />
-          <Route path="to-do-list" element={<ToDoList />} />
-          <Route path="calender" element={<Calendar />} />
-          <Route path="compose" element={<Compose />} />
-          <Route path="sent" element={<Sent />} />
-        </Routes>
-        <Outlet />
-      </div>
-    </div>
+    <DashboardLayout role="developer">
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path="tasks" element={<DeveloperTasks />} />
+        <Route path="one-time" element={<OneTime />} />
+        <Route path="subscription" element={<Subscription />} />
+        <Route path="website-based" element={<Website />} />
+        <Route path="to-do-list" element={<ToDoList />} />
+        <Route path="leaves" element={<MyLeaves />} />
+        <Route path="my-payroll" element={<MyPayrollPortal />} />
+        <Route path="calendar" element={<Calendar />} />
+        <Route path="attendance" element={<MyAttendancePage />} />
+      </Routes>
+    </DashboardLayout>
   );
 };
 

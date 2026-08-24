@@ -1,47 +1,63 @@
-import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } from "react";
+import React, { useState, useCallback, useMemo, Suspense, useEffect } from "react";
 import axios from "axios";
-import { 
-  differenceInCalendarDays, format, startOfMonth, endOfMonth, 
-  eachDayOfInterval, getDay, isSameDay, isToday, addMonths, subMonths, isBefore, addDays 
+import {
+  differenceInCalendarDays,
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  getDay,
+  isSameDay,
+  isToday,
+  addMonths,
+  subMonths,
+  isBefore,
 } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FolderDot, CheckCircle2, Clock, AlertTriangle, Calendar, Eye, 
-  Trash2, Edit3, MessageSquare, ExternalLink, Plus, X, ChevronDown, 
-  ChevronUp, ChevronRight, Loader2, Briefcase, Send, Shield, Search, 
-  Badge as BadgeIcon, KanbanSquare, ChevronLeft
+  FolderDot,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Calendar,
+  Eye,
+  Trash2,
+  Edit3,
+  MessageSquare,
+  ExternalLink,
+  Plus,
+  X,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Briefcase,
+  Send,
+  Shield,
+  Search,
+  KanbanSquare,
+  Check,
+  Globe,
+  Sparkles,
+  Layers,
+  Flame,
+  ArrowUpRight,
+  Filter,
+  RefreshCw,
 } from "lucide-react";
 import { useTasks } from "../TaskContext";
+import Badge from "../components/ui/Badge";
+import Modal from "../components/ui/Modal";
 
 const ProjectKanban = React.lazy(() => import("../Admin Pages/Components/Projectkanban"));
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
-// ── Strict System Colors ──────────────────────────────────────────────────────
-const C = {
-  primary: "#0969DA",
-  success: "#1A7F37",
-  danger: "#D1242F",
-  warning: "#BF8700",
-  text: "#1F2328",
-  textSec: "#656D76"
-};
-
 const PRIORITY_ORDER = { Critical: 1, High: 2, Medium: 3, Low: 4 };
+const authHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+  "x-timezone-offset": new Date().getTimezoneOffset().toString(),
+});
 
-const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "x-timezone-offset": new Date().getTimezoneOffset().toString() });
-
-// ── Atom: UI Badge Component ──────────────────────────────────────────────────
-const Badge = ({ label, color = C.primary }) => (
-  <span 
-    className="neu-pressed-sm px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider whitespace-nowrap" 
-    style={{ color }}
-  >
-    {label}
-  </span>
-);
-
-// ── Urgency helpers ───────────────────────────────────────────────────────────
+// ── Urgency Helper ────────────────────────────────────────────────────────────
 const getUrgency = (deadline) => {
   if (!deadline) return null;
   const diff = differenceInCalendarDays(new Date(deadline), new Date());
@@ -49,757 +65,53 @@ const getUrgency = (deadline) => {
   if (diff <= 1) return "critical";
   if (diff <= 3) return "high";
   if (diff <= 6) return "medium";
-  if (diff <= 10) return "low";
-  return null;
+  return "normal";
 };
 
-// ── Atom: Priority & Deadlines ────────────────────────────────────────────────
-const PriorityBadge = ({ priority }) => {
-  const cfg = {
-    Critical: { color: C.danger },
-    High:     { color: C.warning },
-    Medium:   { color: C.primary },
-    Low:      { color: C.success }
-  }[priority] || { color: C.primary };
-
-  return (
-    <span className="neu-pressed-sm px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: cfg.color }}>
-      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-      {priority}
-    </span>
-  );
-};
-
-const DeadlineLabel = ({ deadline }) => {
-  if (!deadline) return null;
-  const diff = differenceInCalendarDays(new Date(deadline), new Date());
-  const overdue = diff < 0;
-  const critical = !overdue && diff <= 1;
-  const soon = !overdue && !critical && diff <= 3;
-  
-  let color = C.textSec;
-  if (overdue) color = C.danger;
-  else if (critical || soon) color = C.warning;
-
-  return (
-    <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color }}>
-      <Calendar size={12} />
-      {overdue ? `${Math.abs(diff)}d overdue` : diff === 0 ? "Due today" : diff === 1 ? "Due tomorrow" : `${diff}d left`}
-    </span>
-  );
-};
-
-// ── Atom: Spinner ─────────────────────────────────────────────────────────────
-const Spinner = ({ size = 14 }) => (
-  <Loader2 size={size} className="animate-spin pointer-events-none" />
-);
-
-// ── Reusable Shimmer Skeleton ────────────────────────────────────────────────
-const Skeleton = ({ width = "100%", height = "20px", rounded = "rounded-md", className = "" }) => (
-  <div className={`neu-pressed-sm relative overflow-hidden ${rounded} ${className}`} style={{ width, height }}>
-    <div className="absolute inset-0 skeleton-shimmer" />
-  </div>
-);
-
-// ── Comment Modal ─────────────────────────────────────────────────────────────
-const CommentModal = ({ task, projectId, onClose }) => {
-  const [text, setText] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [posted, setPosted] = useState(false);
-
-  const submit = async () => {
-    if (!text.trim()) return;
-    setPosting(true);
-    try {
-      await axios.post(`${API_BASE}/api/tasks/${projectId}/${task._id}/comments`, { text: text.trim() }, { headers: authHeaders() });
-      setPosted(true);
-      setTimeout(onClose, 900);
-    } catch (err) { console.error("Comment error:", err); } 
-    finally { setPosting(false); }
-  };
-
-  return (
-    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
-      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-sm flex flex-col relative z-10 overflow-hidden">
-        <div className="p-5 border-b border-[#D1DCEB]/50 flex justify-between items-center bg-[#F0F4F8]">
-          <div>
-            <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Add Comment</p>
-            <p className="text-sm font-bold text-[#1F2328] truncate max-w-[250px]">{task.title}</p>
-          </div>
-          <button onClick={onClose} className="neu-flat-sm neu-action-btn p-2 rounded-full text-[#656D76] hover:text-[#D1242F]"><X size={16} className="pointer-events-none" /></button>
-        </div>
-        {posted ? (
-          <div className="p-8 text-center text-sm font-bold text-[#1A7F37] flex flex-col items-center gap-2">
-            <CheckCircle2 size={32} /> ✓ Comment posted successfully!
-          </div>
-        ) : (
-          <div className="p-5 space-y-4">
-            <textarea autoFocus value={text} onChange={e => setText(e.target.value)} placeholder="Type your comment..." rows={4} className="w-full neu-pressed rounded-xl p-4 text-sm font-medium text-[#1F2328] outline-none resize-none custom-scrollbar" />
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={onClose} disabled={posting} className="neu-flat neu-action-btn px-5 py-2.5 rounded-lg text-xs font-bold text-[#656D76]">Cancel</button>
-              <button onClick={submit} disabled={!text.trim() || posting} className="neu-btn-primary px-6 py-2.5 rounded-lg text-xs font-bold text-white flex items-center gap-2 disabled:opacity-50 neu-action-btn">
-                {posting ? <Spinner /> : <Send size={14} className="pointer-events-none" />}
-                {posting ? "Posting…" : "Post Comment"}
-              </button>
-            </div>
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-};
-
-// ── Scheduled Tasks Helper ────────────────────────────────────────────────────
-const isScheduledTaskEditable = (task) => {
-  if (!task || !task.scheduledDates || task.scheduledDates.length === 0) return false;
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  return task.scheduledDates.some(d => new Date(d) >= tomorrow);
-};
-
-// ── Custom Neumorphic Multi-Date Calendar ──────────────────────────────────────
-const ScheduleCalendar = ({ selectedDates, onChange }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startPad = getDay(monthStart);
-
-  const toggleDate = (date) => {
-    const isSelected = selectedDates.some((d) => isSameDay(new Date(d), date));
-    if (isSelected) {
-      onChange(selectedDates.filter((d) => !isSameDay(new Date(d), date)));
-    } else {
-      onChange([...selectedDates, date]);
-    }
-  };
-
-  const isSelected = (date) => selectedDates.some((d) => isSameDay(new Date(d), date));
-  const isPast = (date) => isBefore(date, startOfMonth(new Date())) || (isBefore(date, new Date()) && !isToday(date));
-
-  return (
-    <div className="neu-pressed rounded-xl p-4 w-full">
-      <div className="flex justify-between items-center mb-4">
-        <button type="button" onClick={handlePrevMonth} className="neu-flat-sm neu-action-btn p-1.5 rounded-lg text-[#656D76]">
-          <ChevronLeft size={14} className="pointer-events-none" />
-        </button>
-        <span className="text-xs font-bold text-[#1F2328]">{format(currentMonth, "MMMM yyyy")}</span>
-        <button type="button" onClick={handleNextMonth} className="neu-flat-sm neu-action-btn p-1.5 rounded-lg text-[#656D76]">
-          <ChevronRight size={14} className="pointer-events-none" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1 text-center mb-2">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <span key={d} className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">{d}</span>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {Array.from({ length: startPad }).map((_, i) => (
-          <div key={`pad-${i}`} className="aspect-square opacity-0 pointer-events-none" />
-        ))}
-        {days.map((day) => {
-          const active = isSelected(day);
-          const disabled = isPast(day);
-          return (
-            <button
-              type="button"
-              key={day.toISOString()}
-              disabled={disabled}
-              onClick={() => toggleDate(day)}
-              className={`aspect-square rounded-lg text-[10px] font-bold flex items-center justify-center transition-all ${
-                active 
-                  ? "neu-btn-primary text-white" 
-                  : disabled 
-                    ? "text-[#656D76]/30 cursor-not-allowed neu-pressed-sm" 
-                    : "neu-flat-sm text-[#1F2328] hover:text-[#0969DA]"
-              }`}
-            >
-              {format(day, "d")}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// ── ScheduledTaskCard ──────────────────────────────────────────────────────────
-const ScheduledTaskCard = ({ task, onEdit, onDelete }) => {
-  const isEditable = isScheduledTaskEditable(task);
-
-  const deadlineLabel = task.deadlineOffset === 0 
-    ? "Same day" 
-    : task.deadlineOffset === 1 
-      ? "Next day" 
-      : `+${task.deadlineOffset} days`;
-
-  return (
-    <div className="neu-flat rounded-xl p-5 mb-4 group transition-transform hover:-translate-y-0.5 flex flex-col justify-between">
-      <div>
-        <h4 className="text-sm font-bold text-[#1F2328] mb-1 leading-snug group-hover:text-[#0969DA] transition-colors">{task.title}</h4>
-        <p className="text-[10px] font-bold text-[#656D76] truncate mb-3">{task.projectName || "Starway Project"}</p>
-        
-        {task.description && (
-          <p className="text-[10px] font-medium text-[#656D76] mb-4 line-clamp-2 leading-relaxed">
-            {task.description}
-          </p>
-        )}
-
-        <div className="space-y-3 mb-4">
-          <div>
-            <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider block mb-1.5">Scheduled Dates</span>
-            <div className="flex flex-wrap gap-1.5">
-              {task.scheduledDates.map((d, index) => (
-                <span key={index} className="neu-pressed-sm px-2.5 py-1 rounded text-[8px] font-bold text-[#0969DA] bg-[#E8F1FC]/50 uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={10} className="shrink-0" /> {format(new Date(d), "MMM d, yyyy")}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider">Deadline</span>
-            <span className="neu-pressed-sm px-2.5 py-1 rounded text-[8px] font-bold text-[#1A7F37] bg-[#1A7F37]/5 uppercase tracking-wider">
-              {deadlineLabel}
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#D1DCEB]/50">
-        {isEditable ? (
-          <>
-            <button onClick={() => onEdit(task)} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#0969DA] flex items-center gap-1.5">
-              <Edit3 size={12} className="pointer-events-none"/> Edit
-            </button>
-            <button onClick={() => onDelete(task._id)} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#D1242F] flex items-center gap-1.5">
-              <Trash2 size={12} className="pointer-events-none"/> Delete
-            </button>
-          </>
-        ) : (
-          <span className="text-[9px] font-bold text-[#656D76] italic opacity-60">Locked (Today/Live task)</span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ── EditScheduledTaskModal ────────────────────────────────────────────────────
-const EditScheduledTaskModal = ({ task, onClose, onSuccess }) => {
-  const [form, setForm] = useState({
-    title: task.title,
-    description: task.description || "",
-    priority: task.priority || "Medium",
-  });
-  const [scheduledDates, setScheduledDates] = useState(task.scheduledDates.map(d => new Date(d)));
-  const [deadlineOffset, setDeadlineOffset] = useState(task.deadlineOffset || 0);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
-  const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "x-timezone-offset": new Date().getTimezoneOffset().toString() });
-
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  const handleSubmit = async () => {
-    if (!form.title.trim()) { setErrors({ title: "Required" }); return; }
-    if (scheduledDates.length === 0) { setErrors({ calendar: "At least one date is required" }); return; }
-    setSaving(true);
-    try {
-      await axios.put(`${API_BASE}/api/scheduled-tasks/${task._id}`, {
-        title: form.title,
-        description: form.description,
-        priority: form.priority,
-        scheduledDates,
-        deadlineOffset
-      }, { headers: authHeaders() });
-      
-      onSuccess?.();
-      onClose();
-    } catch (err) {
-      console.error("Edit scheduled task error:", err);
-      setErrors({ api: err.response?.data?.message || "Failed to update scheduled task" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
-      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-lg flex flex-col relative z-10 max-h-[90vh] overflow-hidden">
-        <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
-          <h2 className="text-xl font-bold text-[#1F2328]">Edit Scheduled Task</h2>
-          <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]"><X size={18} className="pointer-events-none" /></button>
-        </div>
-
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
-          {errors.api && <div className="p-3 neu-pressed rounded-xl text-xs font-bold text-[#D1242F]">{errors.api}</div>}
-          
-          <div className="relative">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Task Title <span className="text-[#D1242F]">*</span></label>
-            <input value={form.title} onChange={e => set("title", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text" />
-            {errors.title && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.title}</span>}
-          </div>
-
-          <div className="relative">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Description</label>
-            <textarea value={form.description} onChange={e => set("description", e.target.value)} disabled={saving} placeholder="Context or criteria..." rows={3} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none resize-none custom-scrollbar cursor-text" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="relative">
-              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Priority</label>
-              <select value={form.priority} onChange={e => set("priority", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
-                <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
-            </div>
-            <div className="relative">
-              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Relative Deadline</label>
-              <div className="relative">
-                <select value={deadlineOffset} onChange={e => setDeadlineOffset(parseInt(e.target.value))} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
-                  <option value={0}>Same day</option>
-                  <option value={1}>Next day</option>
-                  <option value={2}>After 2 days</option>
-                  <option value={3}>After 3 days</option>
-                  <option value={5}>After 5 days</option>
-                  <option value={7}>After 7 days</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 pt-2">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1 block">Scheduled Dates <span className="text-[#D1242F]">*</span></label>
-            <ScheduleCalendar selectedDates={scheduledDates} onChange={setScheduledDates} />
-            {errors.calendar && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.calendar}</span>}
-          </div>
-        </div>
-
-        <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} disabled={saving} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} className="neu-btn-soft-blue px-8 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 neu-action-btn">
-            {saving ? <Spinner /> : <CheckCircle2 size={16} className="pointer-events-none" />} {saving ? "Saving…" : "Save Changes"}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-// ── Global Add Task Modal ─────────────────────────────────────────────────────
-const GlobalAddTaskModal = ({ projects, initialProjectId, currentUserId, currentUsername, onClose, onSuccess }) => {
-  const activeProjects = useMemo(() => {
-    const list = projects.filter(p => p.status !== "Closed");
-    const lastId = localStorage.getItem("last_added_project_id");
-    return list.sort((a, b) => {
-      if (a._id === lastId) return -1;
-      if (b._id === lastId) return 1;
-      return (a.projectName || "").localeCompare(b.projectName || "");
-    });
-  }, [projects]);
-
-  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || activeProjects[0]?._id || "");
-  const [form, setForm] = useState({ title: "", description: "", priority: "Medium", deadline: "", assignedTo: { id: currentUserId, username: currentUsername }, links: [] });
-  const [isScheduled, setIsScheduled] = useState(false);
-  const [scheduledDates, setScheduledDates] = useState([]);
-  const [deadlineOffset, setDeadlineOffset] = useState(0);
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { setForm(p => ({ ...p, assignedTo: { id: currentUserId, username: currentUsername } })); }, [selectedProjectId, currentUserId, currentUsername]);
-
-  if (activeProjects.length === 0) {
-    return (
-      <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
-        <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-sm p-8 text-center flex flex-col items-center">
-          <div className="neu-pressed-sm p-4 rounded-full text-[#D1242F] mb-4"><AlertTriangle size={32} /></div>
-          <h2 className="text-lg font-bold text-[#1F2328] mb-2">No Active Projects</h2>
-          <p className="text-xs font-medium text-[#656D76] mb-6">There are no active projects to assign tasks to.</p>
-          <button onClick={onClose} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Close</button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const set = (k, v) => { setForm(p => ({ ...p, [k]: v })); if (errors[k]) setErrors(p => ({ ...p, [k]: "" })); };
-  const validate = () => { const e = {}; if (!form.title.trim()) e.title = "Required"; if (!form.deadline) e.deadline = "Required"; return e; };
-
-  const handleSubmit = async () => {
-    if (isScheduled) {
-      if (!form.title.trim()) { setErrors({ title: "Required" }); return; }
-      if (scheduledDates.length === 0) { setErrors({ calendar: "At least one date is required" }); return; }
-      setSaving(true);
-      try {
-        await axios.post(`${API_BASE}/api/scheduled-tasks`, {
-          projectId: selectedProjectId,
-          title: form.title,
-          description: form.description,
-          priority: form.priority,
-          scheduledDates,
-          deadlineOffset,
-          assignedTo: form.assignedTo
-        }, { headers: authHeaders() });
-        
-        onSuccess?.(null, selectedProjectId, true);
-        onClose();
-      } catch (err) {
-        console.error("Scheduled task error:", err);
-      } finally {
-        setSaving(false);
-      }
-    } else {
-      const e = validate();
-      if (Object.keys(e).length) { setErrors(e); return; }
-      setSaving(true);
-      try {
-        const res = await axios.post(`${API_BASE}/api/tasks/${selectedProjectId}`, { ...form, deadline: form.deadline || null }, { headers: authHeaders() });
-        const newTask = res.data?.task || res.data;
-        onSuccess?.(newTask, selectedProjectId, false);
-        localStorage.setItem("last_added_project_id", selectedProjectId);
-        onClose();
-      } catch (err) { console.error("Add task error:", err); } 
-      finally { setSaving(false); }
-    }
-  };
-
-  return (
-    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
-      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className={`neu-flat rounded-2xl w-full flex flex-col relative z-10 max-h-[90vh] overflow-hidden transition-all duration-300 ${isScheduled ? "max-w-lg" : "max-w-md"}`}>
-        <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-center shrink-0">
-          <h2 className="text-xl font-bold text-[#1F2328]">{isScheduled ? "Schedule New Task" : "Create New Task"}</h2>
-          <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F]"><X size={18} className="pointer-events-none" /></button>
-        </div>
-
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
-          <div className="flex gap-4 items-center justify-between p-3 neu-pressed rounded-xl">
-            <span className="text-xs font-bold text-[#1F2328]">Task Scheduling</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsScheduled(false)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn ${!isScheduled ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}
-              >
-                Regular
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsScheduled(true)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn ${isScheduled ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}
-              >
-                Schedule
-              </button>
-            </div>
-          </div>
-
-          <div className="relative">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Project Target</label>
-            <select value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
-              {activeProjects.map(p => <option key={p._id} value={p._id}>{p.projectName} {p._id === localStorage.getItem("last_added_project_id") ? "(Last used)" : ""}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
-          </div>
-
-          <div className="relative">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Task Title <span className="text-[#D1242F]">*</span></label>
-            <input value={form.title} onChange={e => set("title", e.target.value)} disabled={saving} placeholder="What needs to be done?" className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-text" />
-            {errors.title && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.title}</span>}
-          </div>
-
-          <div className="relative">
-            <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Description</label>
-            <textarea value={form.description} onChange={e => set("description", e.target.value)} disabled={saving} placeholder="Context or criteria..." rows={3} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none resize-none custom-scrollbar cursor-text" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="relative">
-              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Priority</label>
-              <select value={form.priority} onChange={e => set("priority", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
-                <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
-            </div>
-
-            {isScheduled ? (
-              <div className="relative">
-                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Relative Deadline</label>
-                <div className="relative">
-                  <select 
-                    value={deadlineOffset} 
-                    onChange={e => setDeadlineOffset(parseInt(e.target.value))} 
-                    disabled={saving} 
-                    className="w-full neu-pressed rounded-md p-3 pr-8 text-sm font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent"
-                  >
-                    <option value={0}>Same day</option>
-                    <option value={1}>Next day</option>
-                    <option value={2}>After 2 days</option>
-                    <option value={3}>After 3 days</option>
-                    <option value={5}>After 5 days</option>
-                    <option value={7}>After 7 days</option>
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 bottom-3.5 text-[#656D76] pointer-events-none" />
-                </div>
-              </div>
-            ) : (
-              <div className="relative">
-                <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">Deadline <span className="text-[#D1242F]">*</span></label>
-                <input type="date" value={form.deadline} onChange={e => set("deadline", e.target.value)} disabled={saving} className="w-full neu-pressed rounded-md p-3 text-sm font-medium text-[#1F2328] outline-none cursor-pointer" />
-                {errors.deadline && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.deadline}</span>}
-              </div>
-            )}
-          </div>
-
-          {isScheduled && (
-            <div className="space-y-4 pt-2">
-              <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1 block">Scheduled Dates <span className="text-[#D1242F]">*</span></label>
-              <ScheduleCalendar selectedDates={scheduledDates} onChange={setScheduledDates} />
-              {errors.calendar && <span className="text-[9px] font-bold text-[#D1242F] mt-1 block">{errors.calendar}</span>}
-            </div>
-          )}
-        </div>
-
-        <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} disabled={saving} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} className="neu-btn-soft-blue px-8 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 neu-action-btn">
-            {saving ? <Spinner /> : <Plus size={16} className="pointer-events-none" />} {saving ? (isScheduled ? "Scheduling…" : "Creating…") : (isScheduled ? "Schedule task" : "Create task")}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-// ── Sidebar Task Detail Modal ─────────────────────────────────────────────────
-const SidebarTaskDetailModal = ({ task, projectId, projectName, onClose, onTaskComplete }) => {
-  const [completing, setCompleting] = useState(false);
-
-  const handleComplete = async () => {
-    setCompleting(true);
-    await onTaskComplete(task._id, projectId);
-    setCompleting(false);
-    onClose();
-  };
-
-  return (
-    <div onClick={onClose} className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#F0F4F8]/85 backdrop-blur-sm">
-      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} onClick={e => e.stopPropagation()} className="neu-flat rounded-2xl w-full max-w-md flex flex-col relative z-10 max-h-[90vh] overflow-hidden">
-        <div className="p-6 border-b border-[#D1DCEB]/50 flex justify-between items-start shrink-0">
-          <div className="pr-4">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <PriorityBadge priority={task.priority} />
-              {task.deadline && <span className="neu-pressed-sm px-2 py-1 rounded-md text-[9px] font-bold text-[#656D76]"><DeadlineLabel deadline={task.deadline} /></span>}
-            </div>
-            <h2 className="text-xl font-bold text-[#1F2328] mb-1 leading-tight">{task.title}</h2>
-            <p className="text-xs font-bold text-[#0969DA]">{projectName}</p>
-          </div>
-          <button onClick={onClose} className="neu-flat-sm neu-action-btn rounded-full p-2.5 text-[#656D76] hover:text-[#D1242F] shrink-0"><X size={16} className="pointer-events-none" /></button>
-        </div>
-
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-          <h4 className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2">Description</h4>
-          {task.description ? (
-            <div className="neu-pressed rounded-xl p-5 text-sm font-medium text-[#1F2328] whitespace-pre-wrap leading-relaxed">
-              {task.description}
-            </div>
-          ) : (
-            <div className="neu-pressed rounded-xl p-5 text-center text-sm font-medium text-[#656D76] italic">No description provided.</div>
-          )}
-        </div>
-
-        <div className="p-6 border-t border-[#D1DCEB]/50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} disabled={completing} className="neu-flat neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#656D76]">Close</button>
-          <button onClick={handleComplete} disabled={completing} className="neu-flat-sm neu-action-btn px-6 py-2.5 rounded-lg text-sm font-bold text-[#1A7F37] border border-[#1A7F37]/30 flex items-center gap-2 disabled:opacity-50">
-            {completing ? <Spinner /> : <CheckCircle2 size={16} className="pointer-events-none" />} {completing ? "Marking..." : "Mark as done"}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-// ── TaskCard ──────────────────────────────────────────────────────────────────
-const TaskCard = ({ task, projectId, projectName, onTaskComplete, onTaskClick, onOpenKanban, openingKanbanId }) => {
-  const [completing, setCompleting] = useState(false);
-  const [commentOpen, setCommentOpen] = useState(false);
-
-  const handleComplete = async (e) => {
-    e.stopPropagation();
-    setCompleting(true);
-    await onTaskComplete(task._id, projectId);
-  };
-
-  const isKanbanLoading = openingKanbanId === projectId;
-
-  return (
-    <>
-      <div onClick={() => onTaskClick(task, projectId, projectName)} className="neu-flat-sm rounded-xl p-4 mb-4 cursor-pointer neu-action-btn transition-transform hover:-translate-y-0.5 group">
-        <div className="flex gap-2 flex-wrap items-center mb-3">
-          <PriorityBadge priority={task.priority} />
-          {task.deadline && <span className="neu-pressed-sm px-2 py-1 rounded-md text-[9px] font-bold text-[#656D76]"><DeadlineLabel deadline={task.deadline} /></span>}
-        </div>
-        
-        <h4 className="text-sm font-bold text-[#1F2328] mb-1.5 leading-snug group-hover:text-[#0969DA] transition-colors">{task.title}</h4>
-        <p className="text-[10px] font-bold text-[#656D76] truncate mb-4">{projectName}</p>
-        
-        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#D1DCEB]/50">
-          <button onClick={handleComplete} disabled={completing} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#1A7F37] border border-[#1A7F37]/30 flex items-center gap-1.5 disabled:opacity-50">
-            {completing ? <Spinner size={12}/> : <CheckCircle2 size={12} className="pointer-events-none"/>} Done
-          </button>
-          <button onClick={e => { e.stopPropagation(); setCommentOpen(true); }} disabled={completing} className="neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#656D76] flex items-center gap-1.5">
-            <MessageSquare size={12} className="pointer-events-none"/> Comment
-          </button>
-          <button onClick={e => { e.stopPropagation(); onOpenKanban(projectId); }} disabled={isKanbanLoading || completing} className="ml-auto neu-flat-sm neu-action-btn px-3 py-1.5 rounded-md text-[10px] font-bold text-[#0969DA] flex items-center gap-1.5 disabled:opacity-50">
-            {isKanbanLoading ? <Spinner size={12}/> : <FolderDot size={12} className="pointer-events-none"/>} Board ↗
-          </button>
-        </div>
-      </div>
-      {commentOpen && <CommentModal task={task} projectId={projectId} onClose={() => setCommentOpen(false)} />}
-    </>
-  );
-};
-
-// ── ProjectCard ───────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, onAddTaskTrigger, onOpenKanban, openingKanbanId }) => {
-  const closed = project.status === "Closed";
-  const [expanded, setExpanded] = useState(false);
-  const isKanbanLoading = openingKanbanId === project._id;
-
-  return (
-    <div className={`neu-flat rounded-2xl mb-5 transition-all duration-300 ${closed ? "opacity-60" : "opacity-100"}`}>
-      <div onClick={() => setExpanded(!expanded)} className={`p-5 flex items-center gap-4 cursor-pointer neu-action-btn rounded-2xl transition-colors ${expanded ? "neu-pressed" : ""}`}>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${closed ? "neu-pressed-sm text-[#656D76]" : "neu-btn-primary text-white"}`}>
-          {closed ? <Shield size={18}/> : <FolderDot size={18}/>}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1.5">
-            <h3 className={`text-base font-bold truncate ${closed ? "text-[#656D76]" : "text-[#1F2328]"}`}>{project.projectName}</h3>
-            <span className={`neu-pressed-sm px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider ${closed ? "text-[#D1242F]" : "text-[#1A7F37]"}`}>{project.status}</span>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {(project.serviceType || []).map((s, i) => <Badge key={i} label={s} color={C.primary} />)}
-            {project.subscriptionType && <Badge label={project.subscriptionType} color={C.textSec} />}
-          </div>
-        </div>
-        <ChevronDown size={18} className={`text-[#656D76] transition-transform duration-300 ${expanded ? "rotate-180" : ""}`} />
-      </div>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="p-6 border-t border-[#D1DCEB]/50 bg-[#F0F4F8]/50">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-                <div className="neu-pressed rounded-xl p-4">
-                  <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Business Niche</p>
-                  <p className="text-sm font-bold text-[#1F2328]">{project.businessNiche || "—"}</p>
-                </div>
-                <div className="neu-pressed rounded-xl p-4">
-                  <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-1">Reference Site</p>
-                  {project.referenceSite ? (
-                    <a href={project.referenceSite} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-[#0969DA] hover:underline truncate block">
-                      {project.referenceSite.replace(/^https?:\/\//, "")}
-                    </a>
-                  ) : <p className="text-sm font-bold text-[#1f281f]">None</p>}
-                </div>
-              </div>
-              
-              {project.projectDetails && (
-                <div className="neu-pressed rounded-xl p-5 mb-6">
-                  <p className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider mb-2">Project Details</p>
-                  <p className="text-sm font-medium text-[#1F2328] whitespace-pre-wrap leading-relaxed">{project.projectDetails}</p>
-                </div>
-              )}
-
-              {!closed && (
-                <div className="flex justify-end gap-3 pt-2">
-                  <button onClick={e => { e.stopPropagation(); onOpenKanban(project._id); }} disabled={isKanbanLoading} className="neu-flat neu-action-btn px-5 py-2.5 rounded-lg text-xs font-bold text-[#0969DA] flex items-center gap-2 disabled:opacity-50">
-                    {isKanbanLoading ? <Spinner /> : <KanbanSquare size={14} className="pointer-events-none"/>} Open Board
-                  </button>
-                  {/* Using the soft blue button here too */}
-                  <button onClick={e => { e.stopPropagation(); onAddTaskTrigger(project._id); }} disabled={isKanbanLoading} className="neu-btn-soft-blue px-5 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2 neu-action-btn disabled:opacity-50">
-                    <Plus size={14} className="pointer-events-none"/> Add Task
-                  </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-// ── FilterSelect ──────────────────────────────────────────────────────────────
-const FilterSelect = ({ label, value, onChange, options }) => (
-  <div className="flex flex-col gap-1.5 flex-1 min-w-[130px] relative z-20">
-    <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider pl-1">{label}</label>
-    <div className="relative">
-      <select value={value} onChange={e => onChange(e.target.value)} className="w-full neu-pressed rounded-md py-2 px-3 pr-8 text-xs font-bold text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent">
-        <option value="">All</option>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none z-30" />
-    </div>
-  </div>
-);
-
-// ── Skeleton Loader Card for Sidebar ──────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="neu-flat-sm rounded-xl p-4 mb-4">
-    <div className="flex gap-2 flex-wrap mb-3">
-        <Skeleton width="60px" height="18px" />
-        <Skeleton width="80px" height="18px" />
-    </div>
-    <Skeleton width="85%" height="16px" className="mb-2" />
-    <Skeleton width="40%" height="10px" className="mb-4" />
-    <div className="flex gap-2 pt-3 border-t border-[#D1DCEB]/50">
-        <Skeleton width="60px" height="28px" />
-        <Skeleton width="80px" height="28px" />
-    </div>
-  </div>
-);
-
-// ── Main Dashboard ────────────────────────────────────────────────────────────
-const DeveloperDashboard = () => {
+export default function OneTime() {
   const currentUserId = localStorage.getItem("userId");
   const currentUsername = localStorage.getItem("username") || "Developer";
 
-  const { 
-    projects, 
-    pendingTasks, 
-    completions, 
-    loading: loadingInitial, 
-    completeTask, 
-    addTaskToState, 
-    refreshData 
+  const {
+    projects,
+    pendingTasks,
+    completions,
+    loading: loadingInitial,
+    completeTask,
+    addTaskToState,
+    refreshData,
   } = useTasks();
 
+  const [activeTab, setActiveTab] = useState("projects"); // "projects" | "tasks" | "scheduled" | "history"
+  const [search, setSearch] = useState("");
+  const [filterService, setFilterService] = useState("");
+  const [filterStatus, setFilterStatus] = useState("Active");
+
+  // Kanban Modal
   const [kanbanProject, setKanbanProject] = useState(null);
   const [kanbanOpen, setKanbanOpen] = useState(false);
   const [openingKanbanId, setOpeningKanbanId] = useState(null);
 
-  const [activeTab, setActiveTab] = useState("projects");
-
+  // Quick Add Task Modal
   const [quickAddModalOpen, setQuickAddModalOpen] = useState(false);
   const [quickAddInitialProject, setQuickAddInitialProject] = useState("");
-  const [selectedSidebarTask, setSelectedSidebarTask] = useState(null);
+
+  // Comment Modal
+  const [commentTask, setCommentTask] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+
+  // Scheduled Tasks State
+  const [scheduledTasks, setScheduledTasks] = useState([]);
+  const [editScheduledTask, setEditScheduledTask] = useState(null);
+
+  // Toast
   const [toast, setToast] = useState({ open: false, msg: "", sev: "success" });
 
-  const [search, setSearch] = useState("");
-  const [filterCreatedBy, setFilterCreatedBy] = useState("");
-  const [filterSub, setFilterSub] = useState("");
-  const [filterService, setFilterService] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-
-  const [scheduledTasks, setScheduledTasks] = useState([]);
-  const [sidebarTab, setSidebarTab] = useState("tasks");
-  const [editScheduledTask, setEditScheduledTask] = useState(null);
+  const showToast = (msg, sev = "success") => {
+    setToast({ open: true, msg, sev });
+    setTimeout(() => setToast((p) => ({ ...p, open: false })), 3500);
+  };
 
   const fetchUpcomingScheduledTasks = useCallback(async () => {
     try {
@@ -814,6 +126,47 @@ const DeveloperDashboard = () => {
     fetchUpcomingScheduledTasks();
   }, [fetchUpcomingScheduledTasks]);
 
+  const handleTaskComplete = async (taskId, projectId) => {
+    await completeTask(taskId, projectId);
+    showToast("Task marked as done! 🎉");
+  };
+
+  const handleOpenKanban = useCallback(
+    (pId) => {
+      setOpeningKanbanId(pId);
+      const target = projects.find((p) => p._id === pId);
+      setTimeout(() => {
+        if (target) {
+          setKanbanProject(target);
+          setKanbanOpen(true);
+        }
+        setOpeningKanbanId(null);
+      }, 300);
+    },
+    [projects]
+  );
+
+  const handlePostComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim() || !commentTask) return;
+    setPostingComment(true);
+    try {
+      await axios.post(
+        `${API_BASE}/api/tasks/${commentTask.projectId}/${commentTask._id}/comments`,
+        { text: commentText.trim() },
+        { headers: authHeaders() }
+      );
+      showToast("Comment posted!");
+      setCommentTask(null);
+      setCommentText("");
+      refreshData(true);
+    } catch (err) {
+      showToast("Failed to post comment", "error");
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
   const handleDeleteScheduledTask = async (taskId) => {
     if (!window.confirm("Are you sure you want to delete this scheduled task?")) return;
     try {
@@ -821,36 +174,26 @@ const DeveloperDashboard = () => {
       showToast("Scheduled task deleted");
       fetchUpcomingScheduledTasks();
     } catch (err) {
-      console.error("Delete scheduled task error:", err);
-      showToast(err.response?.data?.message || "Failed to delete scheduled task", "error");
+      showToast("Failed to delete scheduled task", "error");
     }
   };
 
-  const showToast = (msg, sev = "success") => setToast({ open: true, msg, sev });
-
-  const handleTaskComplete = async (taskId, projectId) => {
-    await completeTask(taskId, projectId);
-    showToast("Task marked as done! 🎉");
-  };
-
-  const handleQuickAddSuccess = (newTask, projectId, isSch) => {
-    if (isSch) {
-      showToast("Scheduled task created successfully");
-      fetchUpcomingScheduledTasks();
-    } else {
-      addTaskToState(newTask, projectId);
-      showToast("Task created successfully");
-    }
-  };
-
-  const handleOpenKanban = useCallback((pId) => {
-    setOpeningKanbanId(pId);
-    const target = projects.find(p => p._id === pId);
-    setTimeout(() => {
-      if (target) { setKanbanProject(target); setKanbanOpen(true); }
-      setOpeningKanbanId(null);
-    }, 450);
-  }, [projects]);
+  // Filtered lists
+  const filteredProjects = useMemo(() => {
+    const s = search.toLowerCase();
+    return projects
+      .filter((p) => {
+        const matchQuery =
+          !search ||
+          p.projectName?.toLowerCase().includes(s) ||
+          p.clientName?.toLowerCase().includes(s) ||
+          p.businessNiche?.toLowerCase().includes(s);
+        const matchService = !filterService || (p.serviceType || []).includes(filterService);
+        const matchStatus = !filterStatus || p.status === filterStatus;
+        return matchQuery && matchService && matchStatus;
+      })
+      .sort((a, b) => (a.projectName || "").localeCompare(b.projectName || ""));
+  }, [projects, search, filterService, filterStatus]);
 
   const allPendingTasks = useMemo(() => {
     return [...pendingTasks].sort((a, b) => {
@@ -863,272 +206,594 @@ const DeveloperDashboard = () => {
     });
   }, [pendingTasks]);
 
+  const overdueCount = allPendingTasks.filter((t) => getUrgency(t.deadline) === "overdue").length;
+  const urgentCount = allPendingTasks.filter((t) => ["critical", "high"].includes(getUrgency(t.deadline))).length;
+  const serviceOptions = useMemo(() => [...new Set(projects.flatMap((p) => p.serviceType || []))], [projects]);
+
   const groupedCompletedTasks = useMemo(() => {
-    const groups = { Today: [], Yesterday: [], "This week": [], Older: [] };
-    completions.forEach(c => {
-      if (!c.completedAt) { groups.Older.push(c); return; }
+    const groups = { Today: [], Yesterday: [], "This Week": [], Older: [] };
+    completions.forEach((c) => {
+      if (!c.completedAt) {
+        groups.Older.push(c);
+        return;
+      }
       const diff = differenceInCalendarDays(new Date(), new Date(c.completedAt));
       if (diff === 0) groups.Today.push(c);
       else if (diff === 1) groups.Yesterday.push(c);
-      else if (diff <= 7) groups["This week"].push(c);
+      else if (diff <= 7) groups["This Week"].push(c);
       else groups.Older.push(c);
     });
     return groups;
   }, [completions]);
 
-  const filteredProjects = useMemo(() => {
-    const list = projects.filter(p => {
-      const s = search.toLowerCase();
-      return (
-        (!search || p.projectName?.toLowerCase().includes(s) || p.clientName?.toLowerCase().includes(s)) &&
-        (!filterCreatedBy || p.createdBy === filterCreatedBy) &&
-        (!filterSub || p.subscriptionType === filterSub) &&
-        (!filterService || (p.serviceType || []).includes(filterService)) &&
-        (!filterStatus || p.status === filterStatus)
-      );
-    });
-    return list.sort((a, b) => (a.projectName || "").localeCompare(b.projectName || "", undefined, { sensitivity: "base" }));
-  }, [projects, search, filterCreatedBy, filterSub, filterService, filterStatus]);
-
-  const createdByOptions = [...new Set(projects.map(p => p.createdBy).filter(Boolean))];
-  const subOptions = [...new Set(projects.map(p => p.subscriptionType).filter(Boolean))];
-  const serviceOptions = [...new Set(projects.flatMap(p => p.serviceType || []))];
-
-  const overdueCount = allPendingTasks.filter(t => getUrgency(t.deadline) === "overdue").length;
-  const urgentCount = allPendingTasks.filter(t => ["critical", "high"].includes(getUrgency(t.deadline))).length;
-
   return (
-    <div className="h-[92.7vh] w-full flex flex-col overflow-hidden neu-base montserrat-regular text-[#1F2328] relative">
-      
-      {/* ── Main Layout Split ── */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* ── LEFT: Main Workspace ── */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-[#D1DCEB]/50">
-          
-          {/* Top Bar (Visible even while loading) */}
-          <div className="px-6 py-4 flex items-center justify-between border-b border-[#D1DCEB]/50 bg-[#F0F4F8] shrink-0 z-20 h-[72px]">
-            <div className="neu-pressed p-1.5 rounded-lg inline-flex gap-2">
-              <button onClick={() => setActiveTab("projects")} className={`px-5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn flex items-center gap-2 ${activeTab === "projects" ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-                Projects {!loadingInitial && <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] text-[#656D76] pointer-events-none">{filteredProjects.length}</span>}
-              </button>
-              <button onClick={() => setActiveTab("completed")} className={`px-5 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all neu-action-btn flex items-center gap-2 ${activeTab === "completed" ? "neu-flat text-[#1A7F37]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-                History {!loadingInitial && <span className="neu-pressed-sm px-2 py-0.5 rounded text-[8px] text-[#656D76] pointer-events-none">{completions.length}</span>}
-              </button>
-            </div>
-            
-            {/* The New Soft Blue Button */}
-            <button onClick={() => { setQuickAddInitialProject(""); setQuickAddModalOpen(true); }} className="neu-btn-soft-blue px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 neu-action-btn">
-              <Plus size={14} className="pointer-events-none"/> New Task
-            </button>
-          </div>
+    <div className="space-y-3.5 w-full">
+      {/* ── Top Header Actions ──────────────────────────────────────────────── */}
+      <div className="flex items-center justify-end gap-2 pb-1 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => refreshData(false)}
+          className="ent-btn-secondary text-xs flex items-center gap-1.5"
+          title="Refresh workspace"
+        >
+          <RefreshCw size={13} /> Refresh
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setQuickAddInitialProject("");
+            setQuickAddModalOpen(true);
+          }}
+          className="ent-btn-primary text-xs"
+        >
+          <Plus size={13} /> New Task
+        </button>
+      </div>
 
-          {/* Content Area */}
-          {loadingInitial ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* Fake Filter Bar */}
-              <div className="p-5 border-b border-[#D1DCEB]/50 bg-[#F0F4F8] shrink-0 flex flex-wrap gap-4 items-end z-10">
-                <div className="flex-1 min-w-[200px]"><Skeleton width="100%" height="36px" /></div>
-                <div className="w-[130px]"><Skeleton width="100%" height="36px" /></div>
-                <div className="w-[130px]"><Skeleton width="100%" height="36px" /></div>
-                <div className="w-[130px]"><Skeleton width="100%" height="36px" /></div>
-              </div>
-              {/* Fake Project List */}
-              <div className="flex-1 p-6 space-y-5 overflow-hidden">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="neu-flat rounded-2xl p-5 flex items-center gap-4">
-                    <Skeleton width="40px" height="40px" rounded="rounded-xl" className="shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="flex gap-3 items-center">
-                        <Skeleton width="180px" height="16px" />
-                        <Skeleton width="50px" height="14px" />
-                      </div>
-                      <div className="flex gap-2">
-                        <Skeleton width="70px" height="14px" />
-                        <Skeleton width="90px" height="14px" />
-                      </div>
-                    </div>
-                    <Skeleton width="18px" height="18px" rounded="rounded-sm" />
-                  </div>
-                ))}
-              </div>
+      {/* ── KPI Summary Cards ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="ent-card p-4 bg-white border-[#EAE3D6] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Projects</span>
+            <div className="text-2xl font-black text-[#1E40AF] mt-1 font-mono">
+              {projects.filter((p) => p.status !== "Closed").length}
             </div>
-          ) : activeTab === "projects" ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* Filter Bar */}
-              <div className="p-5 border-b border-[#D1DCEB]/50 bg-[#F0F4F8] shrink-0 flex flex-wrap gap-4 items-end z-10 relative">
-                <div className="flex-1 min-w-[200px] relative z-20">
-                  <label className="text-[9px] font-bold text-[#656D76] uppercase tracking-wider pl-1 mb-1.5 block">Search</label>
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#656D76] pointer-events-none"/>
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Project name or client…" className="w-full neu-pressed rounded-md py-2 pl-9 pr-3 text-xs font-medium text-[#1F2328] outline-none cursor-text relative z-20" />
-                  </div>
-                </div>
-                <FilterSelect label="Created by" value={filterCreatedBy} onChange={setFilterCreatedBy} options={createdByOptions} />
-                <FilterSelect label="Subscription" value={filterSub} onChange={setFilterSub} options={subOptions} />
-                <FilterSelect label="Service" value={filterService} onChange={setFilterService} options={serviceOptions} />
-                <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus} options={["Active", "Closed"]} />
-                {(search || filterCreatedBy || filterSub || filterService || filterStatus) && (
-                  <button onClick={() => { setSearch(""); setFilterCreatedBy(""); setFilterSub(""); setFilterService(""); setFilterStatus(""); }} className="neu-flat-sm neu-action-btn px-4 py-2 rounded-md text-[10px] font-bold text-[#D1242F] uppercase tracking-wider shrink-0 mb-[1px]">
-                    Clear
-                  </button>
-                )}
-              </div>
-              
-              {/* Projects List */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                {filteredProjects.length === 0 ? (
-                  <div className="text-center py-20 flex flex-col items-center">
-                    <div className="neu-pressed-sm p-6 rounded-full mb-4 text-[#656D76] opacity-50"><FolderDot size={32}/></div>
-                    <p className="text-lg font-bold text-[#1F2328] mb-1">No Projects Found</p>
-                    <p className="text-xs font-medium text-[#656D76]">Try adjusting or clearing your filters.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {filteredProjects.map(p => (
-                      <ProjectCard key={p._id} project={p} onOpenKanban={handleOpenKanban} openingKanbanId={openingKanbanId} onAddTaskTrigger={(projId) => { setQuickAddInitialProject(projId); setQuickAddModalOpen(true); }} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* History Tab */
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8">
-              {completions.length === 0 ? (
-                <div className="text-center py-20 flex flex-col items-center">
-                  <div className="neu-pressed-sm p-6 rounded-full mb-4 text-[#1A7F37] opacity-50"><CheckCircle2 size={32}/></div>
-                  <p className="text-lg font-bold text-[#1F2328] mb-1">No Completed Tasks</p>
-                  <p className="text-xs font-medium text-[#656D76]">Tasks you mark as done will appear here.</p>
-                </div>
-              ) : (
-                Object.entries(groupedCompletedTasks).map(([groupName, items]) => {
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={groupName} className="mb-8">
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[10px] font-bold text-[#656D76] uppercase tracking-widest">{groupName}</span>
-                        <span className="neu-pressed-sm px-2 py-0.5 rounded text-[9px] font-bold text-[#656D76]">{items.length}</span>
-                        <div className="flex-1 h-[2px] neu-pressed-sm opacity-50" />
-                      </div>
-                      <div className="space-y-3">
-                        {items.map((item, idx) => (
-                          <div key={idx} className="neu-flat rounded-xl p-4 flex items-center gap-4 transition-all hover:bg-[#D1DCEB]/10 cursor-default">
-                            <div className="w-8 h-8 rounded-full neu-btn-primary flex items-center justify-center shrink-0 text-white text-[10px] font-bold bg-[#1A7F37] shadow-none border-2 border-[#F0F4F8]">✓</div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-[#1F2328] mb-1 truncate">{item.taskTitle}</p>
-                              <p className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider truncate">{item.projectName}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-1">By {item.completedBy?.username}</p>
-                              {item.completedAt && <p className="neu-pressed-sm px-2 py-1 rounded-md text-[9px] font-bold text-[#656D76]">{format(new Date(item.completedAt), "MMM d · h:mm a")}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
+          </div>
+          <div className="w-11 h-11 rounded bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB] flex items-center justify-center">
+            <FolderDot size={20} />
+          </div>
         </div>
 
-        {/* ── RIGHT: Task Sidebar ── */}
-        <div className="w-[380px] shrink-0 flex flex-col min-h-0 bg-[#F0F4F8]">
-          <div className="p-6 border-b border-[#D1DCEB]/50 shrink-0 h-[80px] flex items-center justify-between">
-            <div className="neu-pressed p-1 rounded-lg inline-flex gap-1">
-              <button onClick={() => setSidebarTab("tasks")} className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all neu-action-btn ${sidebarTab === "tasks" ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-                Tasks
-              </button>
-              <button onClick={() => setSidebarTab("scheduled")} className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all neu-action-btn ${sidebarTab === "scheduled" ? "neu-flat text-[#0969DA]" : "text-[#656D76] bg-transparent shadow-none"}`}>
-                Scheduled
-              </button>
+        <div className="ent-card p-4 bg-white border-[#EAE3D6] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Tasks</span>
+            <div className="text-2xl font-black text-slate-900 mt-1 font-mono">
+              {allPendingTasks.length}
             </div>
-
-            {sidebarTab === "tasks" ? (
-              <div className="flex gap-2 items-center">
-                {!loadingInitial && (overdueCount > 0 || urgentCount > 0) && (
-                  <>
-                    {overdueCount > 0 && <span className="neu-pressed-sm px-2 py-1 rounded bg-[#D1242F]/10 border border-[#D1242F]/20 text-[9px] font-bold text-[#D1242F] uppercase tracking-wider">{overdueCount} overdue</span>}
-                    {urgentCount > 0 && <span className="neu-pressed-sm px-2 py-1 rounded bg-[#BF8700]/10 border border-[#BF8700]/20 text-[9px] font-bold text-[#BF8700] uppercase tracking-wider">{urgentCount} urgent</span>}
-                  </>
-                )}
-                <span className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider">{loadingInitial ? "Syncing…" : `${allPendingTasks.length} pending`}</span>
-              </div>
-            ) : (
-              <span className="text-[10px] font-bold text-[#0969DA] uppercase tracking-wider">{`${scheduledTasks.length} upcoming`}</span>
-            )}
           </div>
-          
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
-            {sidebarTab === "tasks" ? (
-              loadingInitial ? (
-                <div className="space-y-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
-              ) : allPendingTasks.length === 0 ? (
-                <div className="text-center py-16 flex flex-col items-center">
-                  <div className="neu-pressed-sm p-5 rounded-full mb-4 text-[#1A7F37] opacity-50"><CheckCircle2 size={24}/></div>
-                  <p className="text-sm font-bold text-[#1F2328] mb-1">All caught up!</p>
-                  <p className="text-[10px] font-bold text-[#656D76]">No pending tasks assigned to you.</p>
-                </div>
-              ) : (
-                allPendingTasks.map(t => (
-                  <TaskCard
-                    key={t._id}
-                    task={t}
-                    projectId={t.projectId}
-                    projectName={t.projectName}
-                    onTaskComplete={handleTaskComplete}
-                    onOpenKanban={handleOpenKanban}
-                    openingKanbanId={openingKanbanId}
-                    onTaskClick={(task, pId, pName) => setSelectedSidebarTask({ task, projectId: pId, projectName: pName })}
-                  />
-                ))
-              )
-            ) : (
-              scheduledTasks.length === 0 ? (
-                <div className="text-center py-16 flex flex-col items-center">
-                  <div className="neu-pressed-sm p-5 rounded-full mb-4 text-[#0969DA] opacity-50"><Calendar size={24}/></div>
-                  <p className="text-sm font-bold text-[#1F2328] mb-1">No scheduled tasks</p>
-                  <p className="text-[10px] font-bold text-[#656D76]">Upcoming schedules will appear here.</p>
-                </div>
-              ) : (
-                scheduledTasks.map(t => (
-                  <ScheduledTaskCard
-                    key={t._id}
-                    task={t}
-                    onEdit={setEditScheduledTask}
-                    onDelete={handleDeleteScheduledTask}
-                  />
-                ))
-              )
-            )}
+          <div className="w-11 h-11 rounded bg-[#FAF8F5] border border-[#EAE3D6] text-slate-700 flex items-center justify-center">
+            <Clock size={20} />
+          </div>
+        </div>
+
+        <div className="ent-card p-4 bg-white border-[#EAE3D6] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Urgent & Overdue</span>
+            <div className="text-2xl font-black text-rose-600 mt-1 font-mono">
+              {overdueCount + urgentCount}
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
+            <AlertTriangle size={20} />
+          </div>
+        </div>
+
+        <div className="ent-card p-4 bg-white border-[#EAE3D6] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Completed Tasks</span>
+            <div className="text-2xl font-black text-emerald-600 mt-1 font-mono">
+              {completions.length}
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+            <CheckCircle2 size={20} />
           </div>
         </div>
       </div>
 
-      {/* ── Modals & Overlays ── */}
-      {kanbanProject && (
-        <Suspense fallback={
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#F0F4F8]/85 backdrop-blur-sm">
-             <div className="neu-flat rounded-2xl p-8 flex items-center gap-4">
-                <div className="w-6 h-6 border-4 border-[#D1DCEB] border-t-[#0969DA] rounded-full animate-spin"></div>
-                <span className="text-xs font-bold text-[#1F2328] uppercase tracking-wider">Loading Board...</span>
-             </div>
+      {/* ── Navigation Tabs ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab("projects")}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition-all shrink-0 inline-flex items-center gap-1.5 ${
+            activeTab === "projects" ? "bg-[#1E40AF] text-white shadow-xs" : "text-slate-600 hover:bg-[#F5EFE6]"
+          }`}
+        >
+          <FolderDot size={13} /> Active Projects ({filteredProjects.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("tasks")}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition-all shrink-0 inline-flex items-center gap-1.5 ${
+            activeTab === "tasks" ? "bg-[#1E40AF] text-white shadow-xs" : "text-slate-600 hover:bg-[#F5EFE6]"
+          }`}
+        >
+          <Clock size={13} /> My Task Queue ({allPendingTasks.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("scheduled")}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition-all shrink-0 inline-flex items-center gap-1.5 ${
+            activeTab === "scheduled" ? "bg-[#1E40AF] text-white shadow-xs" : "text-slate-600 hover:bg-[#F5EFE6]"
+          }`}
+        >
+          <Calendar size={13} /> Scheduled Deliverables ({scheduledTasks.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("history")}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition-all shrink-0 inline-flex items-center gap-1.5 ${
+            activeTab === "history" ? "bg-[#1E40AF] text-white shadow-xs" : "text-slate-600 hover:bg-[#F5EFE6]"
+          }`}
+        >
+          <CheckCircle2 size={13} /> Work History ({completions.length})
+        </button>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          TAB 1: PROJECTS GRID & DETAILS
+          ════════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "projects" && (
+        <div className="space-y-4">
+          {/* Search & Filter Bar */}
+          <div className="ent-card p-3 bg-white border-[#EAE3D6] shadow-xs flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+              <div className="relative w-full">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search projects by name, client, or niche..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="ent-input text-xs pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {serviceOptions.length > 0 && (
+                <select
+                  value={filterService}
+                  onChange={(e) => setFilterService(e.target.value)}
+                  className="ent-select text-xs font-semibold"
+                >
+                  <option value="">All Services</option>
+                  {serviceOptions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              )}
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="ent-select text-xs font-semibold"
+              >
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Closed">Closed</option>
+              </select>
+
+              {(search || filterService || filterStatus !== "Active") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setFilterService("");
+                    setFilterStatus("Active");
+                  }}
+                  className="ent-btn-secondary text-xs py-1 px-2 text-rose-600"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
-        }>
-          <ProjectKanban
-            open={kanbanOpen}
-            onClose={() => { 
-              setKanbanOpen(false); 
-              setKanbanProject(null); 
-              refreshData(true); 
-            }}
-            project={kanbanProject}
-          />
-        </Suspense>
+
+          {/* Projects Grid */}
+          {loadingInitial ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="ent-card p-5 bg-white border-[#EAE3D6] shadow-xs animate-pulse space-y-3">
+                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                  <div className="h-3 bg-slate-100 rounded w-2/3" />
+                  <div className="h-8 bg-slate-50 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="ent-card p-12 bg-white border-[#EAE3D6] shadow-xs text-center space-y-2">
+              <FolderDot size={32} className="mx-auto text-slate-300" />
+              <h3 className="text-sm font-bold text-slate-800">No Projects Found</h3>
+              <p className="text-xs text-slate-500">
+                {search ? "No projects match your search query." : "You do not have any assigned projects in this view."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredProjects.map((p) => {
+                const isClosed = p.status === "Closed";
+                const isKanbanLoading = openingKanbanId === p._id;
+                const projTasks = allPendingTasks.filter((t) => String(t.projectId) === String(p._id));
+
+                return (
+                  <div
+                    key={p._id}
+                    className={`ent-card p-5 bg-white border-[#EAE3D6] shadow-xs hover:border-[#1E40AF]/40 transition-all flex flex-col justify-between space-y-4 ${
+                      isClosed ? "opacity-75 bg-slate-50/50" : ""
+                    }`}
+                  >
+                    <div>
+                      {/* Card Top: Title & Status */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider block">
+                            {p.subscriptionType || "One-Time Deliverable"}
+                          </span>
+                          <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                            {p.projectName}
+                          </h3>
+                        </div>
+                        <Badge variant={isClosed ? "neutral" : "green"}>
+                          {p.status || "ACTIVE"}
+                        </Badge>
+                      </div>
+
+                      {/* Business Niche & Client */}
+                      {p.businessNiche && (
+                        <p className="text-xs text-slate-600 mb-2">
+                          <span className="font-semibold text-slate-400 text-[10px] uppercase">Niche:</span>{" "}
+                          {p.businessNiche}
+                        </p>
+                      )}
+
+                      {/* Service Tags */}
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {(p.serviceType || []).map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EFF6FF] text-[#1E40AF] border border-[#BFDBFE]"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Reference Site Link */}
+                      {p.referenceSite && (
+                        <a
+                          href={p.referenceSite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-[#1E40AF] hover:underline inline-flex items-center gap-1 font-semibold mb-3 truncate max-w-full"
+                        >
+                          <Globe size={12} /> {p.referenceSite.replace(/^https?:\/\//, "")}
+                        </a>
+                      )}
+
+                      {/* Details / Briefing snippet */}
+                      {p.projectDetails && (
+                        <p className="text-xs text-slate-500 line-clamp-2 bg-[#FAF8F5] p-2.5 rounded border border-[#EAE3D6]">
+                          {p.projectDetails}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Card Footer Actions */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                        <Clock size={12} /> {projTasks.length} Pending Task{projTasks.length !== 1 ? "s" : ""}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickAddInitialProject(p._id);
+                            setQuickAddModalOpen(true);
+                          }}
+                          className="ent-btn-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1"
+                        >
+                          <Plus size={12} /> Task
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isKanbanLoading}
+                          onClick={() => handleOpenKanban(p._id)}
+                          className="ent-btn-primary text-xs py-1 px-3 inline-flex items-center gap-1"
+                        >
+                          <KanbanSquare size={12} /> {isKanbanLoading ? "Loading..." : "Kanban Board ↗"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
 
+      {/* ════════════════════════════════════════════════════════════════════════
+          TAB 2: MY TASK QUEUE (ACTIONABLE)
+          ════════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "tasks" && (
+        <div className="space-y-4">
+          <div className="ent-card overflow-hidden bg-white border-[#EAE3D6] shadow-xs">
+            <div className="ent-card-header flex items-center justify-between">
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                My Active Deliverables & Sprint Items ({allPendingTasks.length})
+              </h2>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="ent-table">
+                <thead>
+                  <tr>
+                    <th>Task Description</th>
+                    <th>Project</th>
+                    <th>Priority</th>
+                    <th>Deadline</th>
+                    <th>Status</th>
+                    <th className="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allPendingTasks.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="text-center py-12 text-slate-500 font-medium">
+                        All caught up! You have no pending sprint tasks assigned to your queue.
+                      </td>
+                    </tr>
+                  ) : (
+                    allPendingTasks.map((t) => {
+                      const urgency = getUrgency(t.deadline);
+                      return (
+                        <tr key={t._id} className="hover:bg-[#FAF8F5]/80 transition-colors">
+                          <td>
+                            <div className="font-bold text-slate-900 text-xs">{t.title}</div>
+                            {t.description && (
+                              <div className="text-[11px] text-slate-500 line-clamp-1 max-w-md">
+                                {t.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span className="font-semibold text-xs text-[#1E40AF]">
+                              {t.projectName || "Starway Project"}
+                            </span>
+                          </td>
+                          <td>
+                            <Badge
+                              variant={
+                                t.priority === "Critical"
+                                  ? "red"
+                                  : t.priority === "High"
+                                  ? "amber"
+                                  : t.priority === "Medium"
+                                  ? "blue"
+                                  : "green"
+                              }
+                            >
+                              {t.priority || "NORMAL"}
+                            </Badge>
+                          </td>
+                          <td>
+                            {t.deadline ? (
+                              <div
+                                className={`text-xs font-semibold flex items-center gap-1 ${
+                                  urgency === "overdue"
+                                    ? "text-rose-600 font-bold"
+                                    : urgency === "critical"
+                                    ? "text-amber-700 font-bold"
+                                    : "text-slate-700"
+                                }`}
+                              >
+                                <Calendar size={12} />
+                                {format(new Date(t.deadline), "MMM d, yyyy")}
+                                {urgency === "overdue" && " (Overdue)"}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase">
+                              {t.status || "In Progress"}
+                            </span>
+                          </td>
+                          <td className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleTaskComplete(t._id, t.projectId)}
+                                className="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 transition-colors inline-flex items-center gap-1"
+                              >
+                                <Check size={12} /> Mark Done
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCommentTask(t)}
+                                className="ent-btn-secondary text-xs py-1 px-2 inline-flex items-center gap-1"
+                              >
+                                <MessageSquare size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenKanban(t.projectId)}
+                                className="ent-btn-secondary text-xs py-1 px-2 text-[#1E40AF] inline-flex items-center gap-1"
+                                title="Open Project Board"
+                              >
+                                <KanbanSquare size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          TAB 3: SCHEDULED TASKS
+          ════════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "scheduled" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900">Automated Recurring & Scheduled Deliverables</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setQuickAddInitialProject("");
+                setQuickAddModalOpen(true);
+              }}
+              className="ent-btn-primary text-xs"
+            >
+              <Plus size={13} /> Schedule New Task
+            </button>
+          </div>
+
+          {scheduledTasks.length === 0 ? (
+            <div className="ent-card p-12 bg-white border-[#EAE3D6] shadow-xs text-center space-y-2">
+              <Calendar size={32} className="mx-auto text-slate-300" />
+              <h3 className="text-sm font-bold text-slate-800">No Scheduled Deliverables</h3>
+              <p className="text-xs text-slate-500">
+                You do not have any upcoming automated recurring tasks scheduled.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scheduledTasks.map((task) => (
+                <div key={task._id} className="ent-card p-5 bg-white border-[#EAE3D6] shadow-xs flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#1E40AF] uppercase tracking-wider block">
+                      {task.projectName || "Starway Project"}
+                    </span>
+                    <h4 className="text-sm font-bold text-slate-900 mt-0.5">{task.title}</h4>
+                    {task.description && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{task.description}</p>
+                    )}
+
+                    <div className="mt-3 space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Scheduled Dates:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {(task.scheduledDates || []).map((d, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-[#EFF6FF] text-[#1E40AF] text-[10px] font-semibold rounded border border-[#BFDBFE] inline-flex items-center gap-1"
+                          >
+                            <Calendar size={10} /> {format(new Date(d), "MMM d, yyyy")}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      Deadline: +{task.deadlineOffset || 0}d
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditScheduledTask(task)}
+                        className="ent-btn-secondary text-xs py-1 px-2 text-[#1E40AF]"
+                      >
+                        <Edit3 size={12} /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteScheduledTask(task._id)}
+                        className="ent-btn-secondary text-xs py-1 px-2 text-rose-600 hover:bg-rose-50 border-rose-200"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          TAB 4: DELIVERY HISTORY & COMPLETED LOG
+          ════════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "history" && (
+        <div className="space-y-6">
+          {completions.length === 0 ? (
+            <div className="ent-card p-12 bg-white border-[#EAE3D6] shadow-xs text-center space-y-2">
+              <CheckCircle2 size={32} className="mx-auto text-emerald-400" />
+              <h3 className="text-sm font-bold text-slate-800">No Completed Deliverables Yet</h3>
+              <p className="text-xs text-slate-500">
+                Completed tasks will be recorded here with delivery timestamps.
+              </p>
+            </div>
+          ) : (
+            Object.entries(groupedCompletedTasks).map(([groupName, items]) => {
+              if (items.length === 0) return null;
+              return (
+                <div key={groupName} className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span>{groupName}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-100 font-mono text-slate-700">
+                      {items.length}
+                    </span>
+                  </div>
+
+                  <div className="ent-card overflow-hidden bg-white border-[#EAE3D6] shadow-xs divide-y divide-slate-100">
+                    {items.map((item, idx) => (
+                      <div key={idx} className="p-3.5 flex items-center justify-between hover:bg-[#FAF8F5] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
+                            ✓
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 text-xs block">{item.taskTitle}</span>
+                            <span className="text-[11px] font-semibold text-[#1E40AF]">
+                              {item.projectName}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 font-mono block">
+                            Completed by {item.completedBy?.username || currentUsername}
+                          </span>
+                          {item.completedAt && (
+                            <span className="text-[11px] font-bold text-slate-600 font-mono">
+                              {format(new Date(item.completedAt), "MMM d, yyyy · h:mm a")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ── Add Task Modal ──────────────────────────────────────────────────── */}
       {quickAddModalOpen && (
         <GlobalAddTaskModal
           projects={projects}
@@ -1136,115 +801,587 @@ const DeveloperDashboard = () => {
           currentUserId={currentUserId}
           currentUsername={currentUsername}
           onClose={() => setQuickAddModalOpen(false)}
-          onSuccess={handleQuickAddSuccess}
+          onSuccess={(newTask, pId, isSch) => {
+            if (isSch) {
+              showToast("Scheduled task created successfully!");
+              fetchUpcomingScheduledTasks();
+            } else {
+              addTaskToState(newTask, pId);
+              showToast("Task created in workspace!");
+            }
+          }}
         />
       )}
 
-      {selectedSidebarTask && (
-        <SidebarTaskDetailModal
-          task={selectedSidebarTask.task}
-          projectId={selectedSidebarTask.projectId}
-          projectName={selectedSidebarTask.projectName}
-          onClose={() => setSelectedSidebarTask(null)}
-          onTaskComplete={handleTaskComplete}
-        />
-      )}
+      {/* ── Comment Modal ───────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={Boolean(commentTask)}
+        onClose={() => setCommentTask(null)}
+        title={`Add Comment — ${commentTask?.title || ""}`}
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <button type="button" onClick={() => setCommentTask(null)} className="ent-btn-secondary">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="post-comment-form"
+              disabled={postingComment || !commentText.trim()}
+              className="ent-btn-primary"
+            >
+              {postingComment ? "Posting..." : "Post Comment"}
+            </button>
+          </>
+        }
+      >
+        <form id="post-comment-form" onSubmit={handlePostComment} className="space-y-3 text-xs">
+          <div>
+            <label className="ent-label">Comment Message *</label>
+            <textarea
+              rows={4}
+              required
+              placeholder="Write your update, blocker note, or feedback..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="ent-input text-xs resize-none"
+            />
+          </div>
+        </form>
+      </Modal>
 
+      {/* ── Edit Scheduled Task Modal ───────────────────────────────────────── */}
       {editScheduledTask && (
         <EditScheduledTaskModal
           task={editScheduledTask}
           onClose={() => setEditScheduledTask(null)}
           onSuccess={() => {
-            showToast("Scheduled task updated");
+            showToast("Scheduled task updated successfully!");
             fetchUpcomingScheduledTasks();
           }}
         />
       )}
 
-      <AnimatePresence>
-        {toast.open && (
-          <motion.div initial={{ opacity:0, y:50, scale:0.9 }} animate={{ opacity:1, y:0, scale:1 }} exit={{ opacity:0, y:20, scale:0.9 }} className="fixed bottom-6 right-6 z-[999999] flex items-center gap-4 neu-flat rounded-xl p-4 montserrat-medium max-w-sm">
-            <div className={`neu-pressed-sm p-2 rounded-full shrink-0 ${toast.sev === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>
-               {toast.sev === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+      {/* ── Kanban Board Overlay ────────────────────────────────────────────── */}
+      {kanbanProject && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs">
+              <div className="bg-white rounded-xl p-6 shadow-xl text-xs font-bold text-slate-800">
+                Loading Board...
+              </div>
             </div>
-            <span className={`text-xs font-bold ${toast.sev === 'error' ? 'text-[#D1242F]' : 'text-[#1A7F37]'}`}>{toast.msg}</span>
-            <button type="button" onClick={() => setToast(p=>({...p, open:false}))} className="neu-flat-sm neu-action-btn rounded-lg p-1.5 text-[#656D76] ml-auto shrink-0"><X size={12} className="pointer-events-none" /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          }
+        >
+          <ProjectKanban
+            open={kanbanOpen}
+            onClose={() => {
+              setKanbanOpen(false);
+              setKanbanProject(null);
+              refreshData(true);
+            }}
+            project={kanbanProject}
+          />
+        </Suspense>
+      )}
 
-      {/* Global Neumorphism CSS */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; 
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB;
-        }
-        .neu-base { background-color: var(--neu-bg); }
-        .neu-flat { background-color: var(--neu-bg); box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light); }
-        .neu-flat-sm { background-color: var(--neu-bg); box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light); }
-        .neu-pressed { background-color: var(--neu-bg); box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light); }
-        .neu-pressed-sm { background-color: var(--neu-bg); box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light); }
-        
-        .neu-btn-primary { background-color: #0969DA; box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3); border: none; }
-        .neu-btn-primary:active:not(:disabled) { box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2); }
-        
-        /* Soft Ice Blue Neumorphic Button */
-        .neu-btn-soft-blue {
-          background-color: #E8F1FC;
-          color: #0969DA;
-          box-shadow: 4px 4px 8px var(--neu-dark), -4px -4px 8px var(--neu-light);
-          border: none;
-        }
-        .neu-btn-soft-blue:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px rgba(9, 105, 218, 0.2), inset -2px -2px 5px #FFFFFF;
-          background-color: #E0EBF8;
-        }
-
-        .neu-action-btn { cursor: pointer; transition: all 0.2s ease; position: relative; z-index: 20; user-select: none; -webkit-user-select: none; }
-        .neu-action-btn:active:not(:disabled, .neu-btn-soft-blue, .neu-btn-primary) { box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important; }
-        
-        input, textarea, select { position: relative; z-index: 20; pointer-events: auto !important; user-select: text !important; -webkit-user-select: text !important; }
-        select { cursor: pointer !important; -moz-appearance: none; -webkit-appearance: none; appearance: none; }
-        button svg { pointer-events: none !important; }
-
-        input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important; -webkit-text-fill-color: #1F2328 !important; }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 4px 0;}
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-
-        /* Smoother Glass-like Shimmer Animation */
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .skeleton-shimmer {
-          background: linear-gradient(
-            90deg, 
-            transparent 0%, 
-            rgba(255, 255, 255, 0.5) 50%, 
-            transparent 100%
-          );
-          animation: shimmer 1.8s infinite linear;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.75s linear infinite; vertical-align: middle; }
-      `}</style>
+      {/* Toast */}
+      {toast.open && (
+        <div
+          className={`fixed bottom-6 right-6 z-[99999] p-3.5 rounded-lg border text-xs font-bold shadow-lg flex items-center gap-2 ${
+            toast.sev === "error"
+              ? "bg-rose-50 text-rose-900 border-rose-200"
+              : "bg-emerald-50 text-emerald-900 border-emerald-200"
+          }`}
+        >
+          {toast.sev === "error" ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
+          <span>{toast.msg}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-export default DeveloperDashboard;  
+// ── Global Add Task Modal Component ───────────────────────────────────────────
+function GlobalAddTaskModal({ projects, initialProjectId, currentUserId, currentUsername, onClose, onSuccess }) {
+  // Alphabetically sorted active projects
+  const activeProjects = useMemo(() => {
+    return [...projects]
+      .filter((p) => p.status !== "Closed")
+      .sort((a, b) =>
+        (a.projectName || "").localeCompare(b.projectName || "", undefined, { sensitivity: "base" })
+      );
+  }, [projects]);
 
+  const [selectedProjectId, setSelectedProjectId] = useState(() => {
+    const saved = localStorage.getItem("last_selected_project_id");
+    return initialProjectId || saved || "";
+  });
 
+  // Pre-select remembered project when activeProjects load
+  useEffect(() => {
+    if (activeProjects.length > 0) {
+      const saved = localStorage.getItem("last_selected_project_id");
+      const exists = activeProjects.some((p) => p._id === (initialProjectId || saved));
+      if (!selectedProjectId || !activeProjects.some((p) => p._id === selectedProjectId)) {
+        const fallback = exists ? (initialProjectId || saved) : activeProjects[0]._id;
+        setSelectedProjectId(fallback);
+      }
+    }
+  }, [activeProjects, initialProjectId]);
 
+  // Multiple task items for regular (non-scheduled) tasks
+  const [taskItems, setTaskItems] = useState([
+    { id: "task-1", title: "", description: "", priority: "Medium", deadline: "" },
+  ]);
 
+  // Scheduled task fields
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDates, setScheduledDates] = useState([]);
+  const [deadlineOffset, setDeadlineOffset] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
+  const addTaskRow = () => {
+    setTaskItems((prev) => [
+      ...prev,
+      {
+        id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        title: "",
+        description: "",
+        priority: "Medium",
+        deadline: "",
+      },
+    ]);
+  };
 
+  const removeTaskRow = (id) => {
+    if (taskItems.length <= 1) return;
+    setTaskItems((prev) => prev.filter((t) => t.id !== id));
+  };
 
+  const updateTaskRow = (id, field, value) => {
+    setTaskItems((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
+    );
+  };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isScheduled) {
+      if (!taskItems[0]?.title?.trim()) {
+        setErrors({ title: "Task title is required" });
+        return;
+      }
+      if (scheduledDates.length === 0) {
+        setErrors({ calendar: "At least one scheduled date is required" });
+        return;
+      }
+    } else {
+      const validItems = taskItems.filter((t) => t.title.trim());
+      if (validItems.length === 0) {
+        setErrors({ title: "Please enter at least one task title" });
+        return;
+      }
+    }
 
+    if (!selectedProjectId) {
+      setErrors({ api: "Please select a target project" });
+      return;
+    }
 
+    setSaving(true);
+    try {
+      localStorage.setItem("last_selected_project_id", selectedProjectId);
 
+      if (isScheduled) {
+        await axios.post(
+          `${API_BASE}/api/scheduled-tasks`,
+          {
+            projectId: selectedProjectId,
+            title: taskItems[0].title.trim(),
+            description: taskItems[0].description.trim(),
+            priority: taskItems[0].priority,
+            scheduledDates,
+            deadlineOffset,
+            assignedTo: { id: currentUserId, username: currentUsername },
+          },
+          { headers: authHeaders() }
+        );
+        onSuccess(null, selectedProjectId, true);
+      } else {
+        const validItems = taskItems.filter((t) => t.title.trim());
+        for (const item of validItems) {
+          const res = await axios.post(
+            `${API_BASE}/api/tasks/${selectedProjectId}`,
+            {
+              title: item.title.trim(),
+              description: item.description.trim(),
+              priority: item.priority,
+              deadline: item.deadline || null,
+              assignedTo: { id: currentUserId, username: currentUsername },
+            },
+            { headers: authHeaders() }
+          );
+          onSuccess(res.data, selectedProjectId, false);
+        }
+      }
+      onClose();
+    } catch (err) {
+      setErrors({ api: err.response?.data?.message || "Failed to create task(s)" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={
+        isScheduled
+          ? "Create Scheduled Task"
+          : taskItems.length > 1
+          ? `Create ${taskItems.length} Project Tasks`
+          : "Create New Project Task"
+      }
+      maxWidth="max-w-2xl"
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="ent-btn-secondary">
+            Cancel
+          </button>
+          <button type="submit" form="add-task-form" disabled={saving} className="ent-btn-primary">
+            {saving
+              ? "Creating..."
+              : isScheduled
+              ? "Schedule Task"
+              : taskItems.length > 1
+              ? `Create ${taskItems.length} Tasks`
+              : "Create Task"}
+          </button>
+        </>
+      }
+    >
+      <form id="add-task-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {errors.api && (
+          <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 font-bold">
+            {errors.api}
+          </div>
+        )}
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="ent-label">Target Project *</label>
+
+          </div>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              localStorage.setItem("last_selected_project_id", e.target.value);
+            }}
+            className="ent-select text-xs font-bold"
+          >
+            {activeProjects.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.projectName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Schedule Mode Toggle */}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isScheduled}
+              onChange={(e) => setIsScheduled(e.target.checked)}
+              className="rounded text-[#1E40AF]"
+            />
+            <span className="font-bold text-slate-800 text-xs">
+              Make this a Scheduled Recurring Task
+            </span>
+          </label>
+
+          {!isScheduled && (
+            <button
+              type="button"
+              onClick={addTaskRow}
+              className="px-2.5 py-1 bg-blue-50 text-[#1E40AF] hover:bg-blue-100 rounded text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <Plus size={13} /> Add Another Task
+            </button>
+          )}
+        </div>
+
+        {isScheduled ? (
+          <div className="space-y-3">
+            <div>
+              <label className="ent-label">Task Title *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Monthly System Backup Verification"
+                value={taskItems[0].title}
+                onChange={(e) => updateTaskRow(taskItems[0].id, "title", e.target.value)}
+                className="ent-input text-xs font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="ent-label">Description & Acceptance Criteria</label>
+              <textarea
+                rows={3}
+                placeholder="Provide context, design references, or technical specifications..."
+                value={taskItems[0].description}
+                onChange={(e) => updateTaskRow(taskItems[0].id, "description", e.target.value)}
+                className="ent-input text-xs resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="ent-label">Priority</label>
+              <select
+                value={taskItems[0].priority}
+                onChange={(e) => updateTaskRow(taskItems[0].id, "priority", e.target.value)}
+                className="ent-select text-xs font-semibold"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE3D6] rounded space-y-3">
+              <div>
+                <label className="ent-label">Select Scheduled Dates *</label>
+                <input
+                  type="date"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setScheduledDates([...scheduledDates, new Date(e.target.value)]);
+                    }
+                  }}
+                  className="ent-input text-xs font-mono"
+                />
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {scheduledDates.map((d, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded text-[10px] bg-white border border-[#EAE3D6] font-mono flex items-center gap-1"
+                    >
+                      {format(new Date(d), "MMM d")}
+                      <button
+                        type="button"
+                        onClick={() => setScheduledDates(scheduledDates.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-600 ml-1"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+            {taskItems.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`p-3.5 rounded border transition-all ${
+                  taskItems.length > 1
+                    ? "bg-[#FAF8F5]/70 border-[#EAE3D6] space-y-3 relative"
+                    : "space-y-3 border-transparent p-0"
+                }`}
+              >
+                {taskItems.length > 1 && (
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-[#1E40AF] text-white text-[9px] flex items-center justify-center font-mono font-bold">
+                        {idx + 1}
+                      </span>
+                      Task #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeTaskRow(item.id)}
+                      className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition-colors"
+                      title="Remove this task"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+
+                <div>
+                  <label className="ent-label">Task Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder={`e.g. ${
+                      idx === 0
+                        ? "Implement Responsive Hero Banner"
+                        : idx === 1
+                        ? "Configure API endpoint & error handling"
+                        : "Optimize database queries"
+                    }`}
+                    value={item.title}
+                    onChange={(e) => updateTaskRow(item.id, "title", e.target.value)}
+                    className="ent-input text-xs font-bold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="ent-label">Priority</label>
+                    <select
+                      value={item.priority}
+                      onChange={(e) => updateTaskRow(item.id, "priority", e.target.value)}
+                      className="ent-select text-xs font-semibold"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="ent-label">Deadline</label>
+                    <input
+                      type="date"
+                      value={item.deadline}
+                      onChange={(e) => updateTaskRow(item.id, "deadline", e.target.value)}
+                      className="ent-input text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="ent-label">Description & Acceptance Criteria</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Provide context, design references, or technical specifications..."
+                    value={item.description}
+                    onChange={(e) => updateTaskRow(item.id, "description", e.target.value)}
+                    className="ent-input text-xs resize-none"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+// ── Edit Scheduled Task Modal Component ───────────────────────────────────────
+function EditScheduledTaskModal({ task, onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    title: task.title,
+    description: task.description || "",
+    priority: task.priority || "Medium",
+  });
+  const [scheduledDates, setScheduledDates] = useState(task.scheduledDates.map((d) => new Date(d)));
+  const [deadlineOffset, setDeadlineOffset] = useState(task.deadlineOffset || 0);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.title.trim() || scheduledDates.length === 0) return;
+    setSaving(true);
+    try {
+      await axios.put(
+        `${API_BASE}/api/scheduled-tasks/${task._id}`,
+        {
+          title: form.title,
+          description: form.description,
+          priority: form.priority,
+          scheduledDates,
+          deadlineOffset,
+        },
+        { headers: authHeaders() }
+      );
+      onSuccess();
+      onClose();
+    } catch (err) {
+      alert("Failed to update scheduled task");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Edit Scheduled Task"
+      maxWidth="max-w-md"
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="ent-btn-secondary">
+            Cancel
+          </button>
+          <button type="submit" form="edit-scheduled-form" disabled={saving} className="ent-btn-primary">
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </>
+      }
+    >
+      <form id="edit-scheduled-form" onSubmit={handleSubmit} className="space-y-3 text-xs">
+        <div>
+          <label className="ent-label">Task Title *</label>
+          <input
+            type="text"
+            required
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            className="ent-input text-xs font-bold"
+          />
+        </div>
+        <div>
+          <label className="ent-label">Description</label>
+          <textarea
+            rows={3}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            className="ent-input text-xs resize-none"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="ent-label">Priority</label>
+            <select
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              className="ent-select text-xs font-semibold"
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label className="ent-label">Deadline Offset</label>
+            <select
+              value={deadlineOffset}
+              onChange={(e) => setDeadlineOffset(Number(e.target.value))}
+              className="ent-select text-xs"
+            >
+              <option value={0}>Same day</option>
+              <option value={1}>+1 day</option>
+              <option value={2}>+2 days</option>
+              <option value={3}>+3 days</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </Modal>
+  );
+}

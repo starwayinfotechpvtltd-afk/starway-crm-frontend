@@ -328,30 +328,43 @@ function SplitTaskList({ tasks, onTaskClick, onUserClick, datePreset }) {
               <p className="text-sm font-bold text-[#1F2328] mb-0.5">No Completions</p>
               <p className="text-[10px] font-bold text-[#656D76]">No tasks marked done in this period.</p>
             </div>
-          ) : completedSlice.map(t => (
-            <div key={t._id} onClick={() => onTaskClick(t)} className="neu-pressed bg-[#1A7F37]/5 border border-[#1A7F37]/20 rounded-lg p-3.5 cursor-pointer neu-action-btn group flex flex-col gap-2 transition-all opacity-80 hover:opacity-100">
-              <div className="flex items-center justify-between gap-2 flex-wrap relative z-10">
-                <Badge label={t.projectName} color="#656D76" />
-                <span className="neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider text-[#1A7F37] flex items-center gap-1"><CheckCircle2 size={9}/> Done</span>
-              </div>
-              <div className="relative z-10">
-                <p className="text-xs font-bold text-[#1F2328]/60 line-through decoration-[#1A7F37] line-clamp-1">{t.title}</p>
-              </div>
-              <div className="flex items-center justify-between pt-2 mt-0.5 border-t border-[#D1DCEB]/50 relative z-10">
-                <div className="flex items-center gap-2">
-                  {t.assignedTo?.avatar ? (
-                    <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm grayscale group-hover:grayscale-0 transition-all cursor-pointer hover:scale-105" />
+          ) : completedSlice.map(t => {
+            const isLate = t.deadline && t.completedAt && new Date(t.completedAt) > new Date(t.deadline);
+            const daysLate = isLate ? differenceInCalendarDays(new Date(t.completedAt), new Date(t.deadline)) : 0;
+
+            return (
+              <div key={t._id} onClick={() => onTaskClick(t)} className={`neu-pressed ${isLate ? "bg-amber-50/60 border border-amber-300/80" : "bg-[#1A7F37]/5 border border-[#1A7F37]/20"} rounded-lg p-3.5 cursor-pointer neu-action-btn group flex flex-col gap-2 transition-all opacity-85 hover:opacity-100`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap relative z-10">
+                  <Badge label={t.projectName} color="#656D76" />
+                  {isLate ? (
+                    <span className="neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100/80 border border-amber-300 flex items-center gap-1">
+                      <AlertTriangle size={9} className="text-amber-600" /> Done ({daysLate}d Late)
+                    </span>
                   ) : (
-                    <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm bg-[#1A7F37] cursor-pointer hover:scale-105 transition-transform">
-                      {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
-                    </div>
+                    <span className="neu-pressed-sm px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider text-[#1A7F37] flex items-center gap-1">
+                      <CheckCircle2 size={9} /> Done On Time
+                    </span>
                   )}
-                  <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className="text-[10px] font-bold text-[#1A7F37] cursor-pointer hover:underline">{t.assignedTo?.username || "Unassigned"}</span>
                 </div>
-                {t.completedAt && <span className="text-[8px] font-bold text-[#656D76] uppercase tracking-wider">{fnsFormat(new Date(t.completedAt), "MMM d, yyyy")}</span>}
+                <div className="relative z-10">
+                  <p className="text-xs font-bold text-[#1F2328]/60 line-through decoration-[#1A7F37] line-clamp-1">{t.title}</p>
+                </div>
+                <div className="flex items-center justify-between pt-2 mt-0.5 border-t border-[#D1DCEB]/50 relative z-10">
+                  <div className="flex items-center gap-2">
+                    {t.assignedTo?.avatar ? (
+                      <img src={t.assignedTo.avatar} alt={t.assignedTo.username} onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo.username); }} className="w-8 h-8 rounded-full object-cover shrink-0 neu-pressed-sm grayscale group-hover:grayscale-0 transition-all cursor-pointer hover:scale-105" />
+                    ) : (
+                      <div onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm ${isLate ? "bg-amber-600" : "bg-[#1A7F37]"} cursor-pointer hover:scale-105 transition-transform`}>
+                        {t.assignedTo?.username?.charAt(0).toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <span onClick={(e) => { e.stopPropagation(); onUserClick(t.assignedTo?.username); }} className={`text-[10px] font-bold ${isLate ? "text-amber-800" : "text-[#1A7F37]"} cursor-pointer hover:underline`}>{t.assignedTo?.username || "Unassigned"}</span>
+                  </div>
+                  {t.completedAt && <span className="text-[8px] font-bold text-[#656D76] uppercase tracking-wider">{fnsFormat(new Date(t.completedAt), "MMM d, yyyy")}</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <Pagination page={completedPage} total={completedPages} onChange={setCompletedPage} />
       </div>
@@ -436,7 +449,7 @@ export default function DeveloperReports() {
   const [selectedDev,      setSelectedDev]      = useState("all");
   const [statusFilter,     setStatusFilter]     = useState("all");
   const [priorityFilter,   setPriorityFilter]   = useState("all");
-  const [datePreset,       setDatePreset]       = useState("Today");
+  const [datePreset,       setDatePreset]       = useState("This Month");
   const [customFrom,       setCustomFrom]       = useState("");
   const [customTo,         setCustomTo]         = useState("");
   const [activeTab,        setActiveTab]        = useState("tasks");
@@ -457,11 +470,13 @@ export default function DeveloperReports() {
     if (cachedData) {
       try {
         const parsed = JSON.parse(cachedData);
-        setProjects(parsed.projects || []);
-        setAllTasks(parsed.tasks || []);
-        setCompletions(parsed.completions || []);
-        if (!isSilent) setLoading(false);
-        isSilent = true; 
+        if (parsed.tasks && parsed.tasks.length > 0) {
+          setProjects(parsed.projects || []);
+          setAllTasks(parsed.tasks || []);
+          setCompletions(parsed.completions || []);
+          if (!isSilent) setLoading(false);
+          isSilent = true; 
+        }
       } catch (e) {}
     }
 
@@ -700,20 +715,8 @@ export default function DeveloperReports() {
 
   return (
     <div className="h-screen w-full overflow-hidden flex flex-col neu-base montserrat-regular text-[#1F2328]">
-      
-      {/* ── Fixed Header ── */}
-      <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-[#D1DCEB]/50 flex justify-between items-center z-20 relative bg-[#F0F4F8]">
-        <div>
-          <h1 className="text-xl montserrat-medium text-[#1F2328]">Have a look at what your developers have been up to</h1>
-        </div>
-        <div className="neu-pressed-sm rounded-md px-2.5 py-1.5 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full inline-block bg-[#1A7F37]" />
-          <span className="text-[10px] font-bold text-[#656D76]">{allTasks.length} tasks</span>
-        </div>
-      </div>
-
       {/* ── Scrollable Content Area ── */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:px-6 space-y-5 relative z-10 pb-16">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 space-y-4 relative z-10 pb-16">
         
         {/* Filters */}
         <div className="neu-flat rounded-xl p-4">
@@ -1064,29 +1067,36 @@ export default function DeveloperReports() {
                       {selectedTaskDetails.deadline ? fnsFormat(new Date(selectedTaskDetails.deadline), "MMM d, yyyy") : "None"}
                     </p>
                   </div>
-                  {selectedTaskDetails.status === "Done" && selectedTaskDetails.completedAt && (
-                    <div className="sm:col-span-4 neu-pressed-sm rounded-md p-3 flex items-center gap-2 mt-2 bg-[#1A7F37]/5 border border-[#1A7F37]/20">
-                      <div className="neu-flat-sm p-1.5 rounded-full text-[#1A7F37] flex-shrink-0"><CheckCircle2 size={12} /></div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-[11px] text-[#1A7F37] font-bold">
-                          Completed on {fnsFormat(new Date(selectedTaskDetails.completedAt), "MMM d, yyyy · h:mm a")}
-                        </p>
-                        {selectedTaskDetails.completedBy?.username && (
-                          <div className="flex items-center gap-1 ml-1 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.completedBy?.username)}>
-                            <span className="text-[11px] text-[#1A7F37] font-bold">by</span>
-                            {selectedTaskDetails.completedBy?.avatar ? (
-                              <img src={selectedTaskDetails.completedBy.avatar} alt="completed by" className="w-7 h-7 rounded-full object-cover shrink-0 inline-block neu-pressed-sm group-hover:scale-105 transition-transform" />
-                            ) : (
-                              <div className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.completedBy?.username)}}>
-                                 {selectedTaskDetails.completedBy?.username?.charAt(0).toUpperCase() || "?"}
-                              </div>
-                            )}
-                            <span className="text-[11px] text-[#1A7F37] font-bold group-hover:underline transition-all">{selectedTaskDetails.completedBy.username}</span>
-                          </div>
-                        )}
+                  {selectedTaskDetails.status === "Done" && selectedTaskDetails.completedAt && (() => {
+                    const isLate = selectedTaskDetails.deadline && new Date(selectedTaskDetails.completedAt) > new Date(selectedTaskDetails.deadline);
+                    const daysLate = isLate ? differenceInCalendarDays(new Date(selectedTaskDetails.completedAt), new Date(selectedTaskDetails.deadline)) : 0;
+                    return (
+                      <div className={`sm:col-span-4 neu-pressed-sm rounded-md p-3 flex items-center gap-2 mt-2 ${isLate ? "bg-amber-50 border border-amber-300 text-amber-800" : "bg-[#1A7F37]/5 border border-[#1A7F37]/20 text-[#1A7F37]"}`}>
+                        <div className="neu-flat-sm p-1.5 rounded-full flex-shrink-0">
+                          {isLate ? <AlertTriangle size={12} className="text-amber-600" /> : <CheckCircle2 size={12} className="text-[#1A7F37]" />}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-[11px] font-bold">
+                            Completed on {fnsFormat(new Date(selectedTaskDetails.completedAt), "MMM d, yyyy · h:mm a")}
+                            {isLate ? ` (${daysLate} day${daysLate > 1 ? "s" : ""} after deadline / Overdue)` : " (On Time)"}
+                          </p>
+                          {selectedTaskDetails.completedBy?.username && (
+                            <div className="flex items-center gap-1 ml-1 cursor-pointer group" onClick={() => handleUserClick(selectedTaskDetails.completedBy?.username)}>
+                              <span className="text-[11px] font-bold">by</span>
+                              {selectedTaskDetails.completedBy?.avatar ? (
+                                <img src={selectedTaskDetails.completedBy.avatar} alt="completed by" className="w-7 h-7 rounded-full object-cover shrink-0 inline-block neu-pressed-sm group-hover:scale-105 transition-transform" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{backgroundColor: stringToColor(selectedTaskDetails.completedBy?.username)}}>
+                                   {selectedTaskDetails.completedBy?.username?.charAt(0).toUpperCase() || "?"}
+                                </div>
+                              )}
+                              <span className="text-[11px] font-bold group-hover:underline transition-all">{selectedTaskDetails.completedBy.username}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {selectedTaskDetails.description && (
@@ -1147,43 +1157,6 @@ export default function DeveloperReports() {
           </div>
         )}
       </AnimatePresence>
-
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; 
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB;
-        }
-        .neu-base { background-color: var(--neu-bg); }
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-        
-        input, textarea, select {
-          position: relative; z-index: 20; pointer-events: auto !important;
-          user-select: text !important; -webkit-user-select: text !important;
-        }
-        select { cursor: pointer !important; -moz-appearance: none; -webkit-appearance: none; appearance: none; }
-        .neu-action-btn { cursor: pointer; transition: all 0.2s ease; position: relative; z-index: 20; user-select: none; -webkit-user-select: none; }
-        .neu-action-btn:active:not(:disabled) { box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important; }
-        button svg { pointer-events: none !important; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 4px 0;}
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-      `}</style>
     </div>
   );
 }

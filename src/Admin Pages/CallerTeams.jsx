@@ -1,24 +1,37 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
+import { Users, Plus, Edit, Trash2, GitBranch, Shield, Check, UserCheck, Search } from "lucide-react";
+import Badge from "../components/ui/Badge";
+import Modal from "../components/ui/Modal";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7000";
 
-const Teams = () => {
+export default function TeamsHub() {
   const [teams, setTeams] = useState([]);
-  const [managers, setManagers] = useState([]);
-  const [callers, setCallers] = useState([]);
-  
+  const [allUsers, setAllUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     teamName: "",
+    teamType: "development",
+    department: "Engineering",
+    description: "",
+    teamLeadId: "",
     managerId: "",
     memberIds: [],
   });
+
+  const [isNewDeptOpen, setIsNewDeptOpen] = useState(false);
+  const [newDeptInput, setNewDeptInput] = useState("");
+  const [addingDept, setAddingDept] = useState(false);
+
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchInitialData();
@@ -27,63 +40,108 @@ const Teams = () => {
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      const [teamsRes, mgrRes, callRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/teams`, config),
-        axios.get(`${API_BASE}/api/auth/admins-managers`, config),
-        axios.get(`${API_BASE}/api/auth/callers`, config),
+      const [teamsRes, usersRes, deptRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/teams`, config).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE}/api/auth/users`, config).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE}/api/departments`, config).catch(() => ({ data: [] })),
       ]);
 
-      setTeams(teamsRes.data);
-      setManagers(mgrRes.data);
-      setCallers(callRes.data);
+      // Deduplicate departments strictly by lowercased name
+      const uniqueDepts = [];
+      const seen = new Set();
+      for (const d of (deptRes.data || [])) {
+        const nameLower = d.name?.trim().toLowerCase();
+        if (nameLower && !seen.has(nameLower)) {
+          seen.add(nameLower);
+          uniqueDepts.push({ ...d, name: d.name.trim() });
+        }
+      }
+
+      setTeams(teamsRes.data || []);
+      setAllUsers(usersRes.data || []);
+      setDepartments(uniqueDepts);
     } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
+      console.error("Failed to fetch teams data:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCheckboxChange = (callerId) => {
-    setFormData((prev) => {
-      const isSelected = prev.memberIds.includes(callerId);
-      return {
-        ...prev,
-        memberIds: isSelected
-          ? prev.memberIds.filter((id) => id !== callerId)
-          : [...prev.memberIds, callerId],
-      };
-    });
+  const handleQuickAddDepartment = async () => {
+    if (!newDeptInput.trim()) return;
+    setAddingDept(true);
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.post(
+        `${API_BASE}/api/departments`,
+        { name: newDeptInput.trim() },
+        config
+      );
+      const created = res.data;
+      setDepartments((prev) => {
+        const exists = prev.some((d) => d.name.toLowerCase() === created.name.toLowerCase());
+        return exists ? prev : [...prev, created];
+      });
+      setFormData((prev) => ({ ...prev, department: created.name }));
+      setNewDeptInput("");
+      setIsNewDeptOpen(false);
+    } catch (err) {
+      console.error("Failed to add department:", err);
+      alert(err.response?.data?.message || "Failed to add department");
+    } finally {
+      setAddingDept(false);
+    }
   };
 
   const openCreateModal = () => {
     setEditingTeamId(null);
-    setFormData({ teamName: "", managerId: "", memberIds: [] });
+    setFormData({
+      teamName: "",
+      teamType: "development",
+      department: departments[0]?.name || "Engineering",
+      description: "",
+      teamLeadId: "",
+      managerId: "",
+      memberIds: [],
+    });
+    setIsNewDeptOpen(false);
     setIsModalOpen(true);
   };
 
   const openEditModal = (team) => {
     setEditingTeamId(team._id);
     setFormData({
-      teamName: team.teamName,
-      managerId: team.manager?._id || "",
-      memberIds: team.members.map(m => m._id),
+      teamName: team.teamName || "",
+      teamType: team.teamType || "development",
+      department: team.department || "Engineering",
+      description: team.description || "",
+      teamLeadId: team.teamLead?._id || team.teamLead || "",
+      managerId: team.manager?._id || team.manager || "",
+      memberIds: team.members?.map((m) => m._id || m) || [],
     });
     setIsModalOpen(true);
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingTeamId(null);
+  const handleMemberToggle = (userId) => {
+    setFormData((prev) => {
+      const isSelected = prev.memberIds.includes(userId);
+      return {
+        ...prev,
+        memberIds: isSelected
+          ? prev.memberIds.filter((id) => id !== userId)
+          : [...prev.memberIds, userId],
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.teamName.trim()) return;
+
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       if (editingTeamId) {
@@ -91,362 +149,372 @@ const Teams = () => {
       } else {
         await axios.post(`${API_BASE}/api/teams`, formData, config);
       }
-      
+
       await fetchInitialData();
-      closeModal();
+      setIsModalOpen(false);
     } catch (err) {
       console.error("Failed to save team:", err);
+      alert(err.response?.data?.message || "Failed to save team configuration");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const deleteTeam = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this team? This action cannot be undone.")) return;
+  const handleDeleteTeam = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to dismantle team "${name}"?`)) return;
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${API_BASE}/api/teams/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTeams(teams.filter((team) => team._id !== id));
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_BASE}/api/teams/${id}`, config);
+      setTeams((prev) => prev.filter((t) => t._id !== id));
     } catch (err) {
       console.error("Failed to delete team:", err);
+      alert("Failed to delete team");
     }
   };
 
+  const filteredTeams = teams.filter((t) => {
+    const matchSearch =
+      t.teamName?.toLowerCase().includes(search.toLowerCase()) ||
+      t.teamLead?.username?.toLowerCase().includes(search.toLowerCase()) ||
+      t.department?.toLowerCase().includes(search.toLowerCase());
+    return matchSearch;
+  });
+
   return (
-    <div className="w-full min-h-screen neu-base p-4 sm:p-6 md:p-8 montserrat-regular text-[#1F2328] relative">
-      
-      {/* ── Header ── */}
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 relative z-10">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <nav className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 flex items-center gap-2">
-            <span>Projects</span> 
-            <span>/</span>
-            <span>CRM Settings</span>
-          </nav>
-          <h1 className="text-2xl font-bold text-[#1F2328]">Teams Management</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Operating Teams Hub
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Form cross-functional teams, appoint any team member as Team Lead (TL), and organize team members.
+          </p>
         </div>
-        
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="neu-btn-primary px-6 py-3 rounded-lg text-white font-bold text-sm tracking-wide neu-action-btn relative z-20 flex items-center gap-2"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Create New Team
+        <button onClick={openCreateModal} className="ent-btn-primary">
+          <Plus size={14} /> Create New Team
         </button>
       </div>
 
-      {/* ── Data Table ── */}
-      <div className="max-w-7xl mx-auto relative z-0">
-        {isLoading ? (
-          <div className="neu-flat rounded-xl p-12 flex justify-center items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0969DA]"></div>
-          </div>
-        ) : teams.length === 0 ? (
-          <div className="neu-flat rounded-xl p-16 flex flex-col items-center justify-center text-center">
-            <div className="neu-pressed-sm p-5 rounded-full mb-4">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#656D76" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-            </div>
-            <p className="text-lg font-bold text-[#1F2328] mb-1">No Teams Found</p>
-            <p className="text-sm font-medium text-[#656D76]">Create your first team to get started.</p>
-          </div>
-        ) : (
-          <div className="neu-flat rounded-xl overflow-hidden p-2 sm:p-4">
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse whitespace-nowrap">
-                <thead>
-                  <tr>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Team Name</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Manager</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50">Members (Callers)</th>
-                    <th className="p-4 text-[10px] font-bold text-[#656D76] uppercase tracking-wider border-b border-[#D1DCEB]/50 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teams.map((team) => (
-                    <tr key={team._id} className="border-b border-[#D1DCEB]/30 last:border-0 hover:bg-[#D1DCEB]/10 transition-colors group">
-                      <td className="p-4 text-sm font-bold text-[#1F2328]">
-                        {team.teamName}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full neu-flat-sm text-[#0969DA] flex items-center justify-center text-xs font-bold shrink-0">
-                            {team.manager?.username?.charAt(0).toUpperCase() || "?"}
-                          </div>
-                          <span className="text-sm font-medium text-[#1F2328]">{team.manager?.username || "Unassigned"}</span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-2">
-                          {team.members.map((member) => (
-                            <span key={member._id} className="neu-pressed-sm text-[#1F2328] text-xs px-3 py-1.5 rounded-md font-bold">
-                              {member.username}
-                            </span>
-                          ))}
-                          {team.members.length === 0 && (
-                            <span className="text-xs font-medium text-[#656D76] italic neu-pressed-sm px-3 py-1.5 rounded-md">No members</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                          <button 
-                            type="button"
-                            onClick={() => openEditModal(team)}
-                            className="neu-flat-sm neu-action-btn text-[#0969DA] text-xs font-bold px-4 py-2 rounded-lg"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => deleteTeam(team._id)}
-                            className="neu-flat-sm neu-action-btn text-[#D1242F] text-xs font-bold px-4 py-2 rounded-lg"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+      {/* Search Bar */}
+      <div className="ent-card p-3 flex items-center justify-between gap-3 bg-white">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search teams by name, appointed Team Lead, or department..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="ent-input pl-9 text-xs"
+          />
+        </div>
       </div>
 
-      {/* ── Modal ── */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeModal}
-              className="fixed inset-0 bg-[#F0F4F8]/85 backdrop-blur-sm z-0 cursor-pointer"
-            />
-            
-            {/* Modal Container */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()} 
-              className="neu-flat rounded-2xl w-full max-w-lg p-6 sm:p-8 flex flex-col relative z-10"
+      {/* Teams Grid */}
+      {isLoading ? (
+        <div className="text-center py-12 text-xs text-slate-400 font-medium">
+          Loading teams...
+        </div>
+      ) : filteredTeams.length === 0 ? (
+        <div className="ent-card p-12 text-center text-slate-500">
+          <GitBranch size={32} className="mx-auto text-slate-400 mb-3 opacity-60" />
+          <h3 className="text-sm font-bold text-slate-800">No Teams Formed Yet</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-4">
+            Create developer, design, or calling units with appointed Team Leads.
+          </p>
+          <button onClick={openCreateModal} className="ent-btn-primary mx-auto">
+            <Plus size={14} /> Create First Team
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTeams.map((team) => (
+            <div
+              key={team._id}
+              className="ent-card p-5 bg-white flex flex-col justify-between hover:border-slate-300 transition-all shadow-xs"
             >
-              {/* Header */}
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#D1DCEB]/50">
-                <h2 className="text-xl font-bold text-[#1F2328]">
-                  {editingTeamId ? "Edit Team" : "Create New Team"}
-                </h2>
-                <button 
+              <div>
+                {/* Team Header */}
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 leading-snug">
+                      {team.teamName}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                      {team.description || "Operational unit"}
+                    </p>
+                  </div>
+                  <Badge variant="blue">
+                    {team.department || team.teamType || "General"}
+                  </Badge>
+                </div>
+
+                {/* Team Lead Identity */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded mb-4">
+                  <span className="ent-label text-[10px] text-slate-500">Appointed Team Lead (TL)</span>
+                  {team.teamLead ? (
+                    <div className="flex items-center gap-2.5 mt-1">
+                      <div className="w-7 h-7 rounded bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                        {team.teamLead.username?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">
+                          {team.teamLead.username}
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {team.teamLead.designation || team.teamLead.role || "Team Lead"} • {team.teamLead.email}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No Lead Appointed</span>
+                  )}
+                </div>
+
+                {/* Team Members List */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                    <span>Assigned Team Members</span>
+                    <span className="text-[11px] text-slate-500 font-bold">
+                      {team.members?.length || 0} members
+                    </span>
+                  </div>
+
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                    {team.members?.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">No members assigned to this team</span>
+                    ) : (
+                      team.members?.map((m) => (
+                        <div
+                          key={m._id}
+                          className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                              {m.username?.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-800 truncate">
+                              {m.username}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {m.designation || m.role}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Footer Actions */}
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-slate-500 font-semibold">
+                  Total { (team.members?.length || 0) + (team.teamLead ? 1 : 0) } Staff
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEditModal(team)}
+                    className="p-1.5 rounded text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors"
+                    title="Configure Team"
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTeam(team._id, team.teamName)}
+                    className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Dismantle Team"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Team Form Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingTeamId ? "Configure Team Structure" : "Create New Team"}
+        subtitle="Specify team name, appoint any user as Team Lead (TL), and select team members"
+        maxWidth="max-w-xl"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="ent-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="teamForm"
+              disabled={isSubmitting}
+              className="ent-btn-primary"
+            >
+              {isSubmitting ? "Saving..." : editingTeamId ? "Save Team Changes" : "Create Team"}
+            </button>
+          </>
+        }
+      >
+        <form id="teamForm" onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="ent-label">Team Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Core Engineering / Alpha Calling"
+                value={formData.teamName}
+                onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
+                className="ent-input"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="ent-label mb-0">Department / Unit</label>
+                <button
                   type="button"
-                  onClick={closeModal} 
-                  className="neu-flat-sm neu-action-btn rounded-lg p-2.5 text-[#656D76] hover:text-[#D1242F]"
+                  onClick={() => setIsNewDeptOpen(!isNewDeptOpen)}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
+                  {isNewDeptOpen ? "Cancel" : "+ Add Department"}
                 </button>
               </div>
 
-              {/* Form Body */}
-              <form onSubmit={handleSubmit} className="flex flex-col flex-1 max-h-[70vh]">
-                <div className="overflow-y-auto custom-scrollbar pr-2 space-y-6">
-                  
-                  {/* Name Input */}
-                  <div className="relative z-20">
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-                      Team Name <span className="text-[#D1242F]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Alpha Squad"
-                      className="w-full neu-pressed rounded-md p-3.5 text-sm font-medium text-[#1F2328] outline-none cursor-text relative z-20"
-                      value={formData.teamName}
-                      onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Manager Select */}
-                  <div className="relative z-20">
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-                      Manager <span className="text-[#D1242F]">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        required
-                        className="w-full neu-pressed rounded-md p-3.5 pr-10 text-sm font-medium text-[#1F2328] outline-none cursor-pointer appearance-none bg-transparent relative z-20"
-                        value={formData.managerId}
-                        onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
-                      >
-                        <option value="" disabled>Select a manager...</option>
-                        {managers.map((m) => (
-                          <option key={m._id} value={m._id}>{m.username}</option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-30">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656D76" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Callers Multi-select Checklist */}
-                  <div className="relative z-10 pb-2">
-                    <label className="text-[10px] font-bold text-[#656D76] uppercase tracking-wider mb-2 block">
-                      Members (Callers)
-                    </label>
-                    <div className="neu-pressed rounded-xl p-3 max-h-56 overflow-y-auto custom-scrollbar space-y-2">
-                      {callers.map((caller) => {
-                        const isChecked = formData.memberIds.includes(caller._id);
-                        return (
-                          <label 
-                            key={caller._id} 
-                            className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition-all duration-200 relative z-20 ${
-                              isChecked ? "neu-flat bg-[#F0F4F8]" : "hover:bg-[#D1DCEB]/20"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleCheckboxChange(caller._id)}
-                              className="w-4 h-4 accent-[#0969DA] cursor-pointer relative z-30"
-                            />
-                            <span className={`ml-3 text-sm transition-colors ${isChecked ? "font-bold text-[#0969DA]" : "font-medium text-[#1F2328]"}`}>
-                              {caller.username}
-                            </span>
-                          </label>
-                        );
-                      })}
-                      {callers.length === 0 && (
-                        <div className="p-4 text-center text-sm font-medium text-[#656D76] italic">No callers available</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Actions */}
-                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-[#D1DCEB]/50 relative z-20">
+              {isNewDeptOpen ? (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <input
+                    type="text"
+                    placeholder="Enter new department name..."
+                    value={newDeptInput}
+                    onChange={(e) => setNewDeptInput(e.target.value)}
+                    className="ent-input text-xs py-1.5"
+                    autoFocus
+                  />
                   <button
                     type="button"
-                    onClick={closeModal}
-                    className="neu-flat neu-action-btn px-6 py-3 rounded-lg text-sm font-bold text-[#656D76]"
+                    onClick={handleQuickAddDepartment}
+                    disabled={addingDept || !newDeptInput.trim()}
+                    className="px-2.5 py-1.5 rounded bg-blue-600 text-white font-bold text-xs shrink-0 hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="neu-btn-primary px-8 py-3 rounded-lg text-sm font-bold text-white neu-action-btn disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? "Saving..." : editingTeamId ? "Update Team" : "Create Team"}
+                    {addingDept ? "Adding..." : "Add"}
                   </button>
                 </div>
-              </form>
-            </motion.div>
+              ) : (
+                <select
+                  value={formData.department}
+                  onChange={(e) => {
+                    if (e.target.value === "__ADD_NEW__") {
+                      setIsNewDeptOpen(true);
+                    } else {
+                      setFormData({ ...formData, department: e.target.value });
+                    }
+                  }}
+                  className="ent-select"
+                >
+                  {departments.length === 0 ? (
+                    <option value="General">General</option>
+                  ) : (
+                    departments.map((d) => (
+                      <option key={d._id || d.name} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))
+                  )}
+                  <option value="__ADD_NEW__">+ Add New Department...</option>
+                </select>
+              )}
+            </div>
           </div>
-        )}
-      </AnimatePresence>
 
-      {/* Neumorphic CSS Rules & Bug Fixes */}
-      <style>{`
-        :root {
-          --neu-bg: #F0F4F8; 
-          --neu-light: #FFFFFF;
-          --neu-dark: #D1DCEB;
-        }
-        .neu-base { background-color: var(--neu-bg); }
-        .neu-flat {
-          background-color: var(--neu-bg);
-          box-shadow: 5px 5px 10px var(--neu-dark), -5px -5px 10px var(--neu-light);
-        }
-        .neu-flat-sm {
-          background-color: var(--neu-bg);
-          box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
-        }
-        .neu-pressed {
-          background-color: var(--neu-bg);
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-        }
-        .neu-pressed-sm {
-          background-color: var(--neu-bg);
-          box-shadow: inset 1.5px 1.5px 3px var(--neu-dark), inset -1.5px -1.5px 3px var(--neu-light);
-        }
-        
-        /* Force Input Clickability and Text Selection globally over any wrapper rules */
-        input, textarea, select {
-          position: relative;
-          z-index: 20;
-          pointer-events: auto !important;
-          user-select: text !important;
-          -webkit-user-select: text !important;
-        }
-        
-        select {
-          cursor: pointer !important;
-          -moz-appearance: none; 
-          -webkit-appearance: none; 
-          appearance: none;
-        }
+          <div>
+            <label className="ent-label">Appointed Team Lead (Select Any User)</label>
+            <select
+              value={formData.teamLeadId}
+              onChange={(e) => setFormData({ ...formData, teamLeadId: e.target.value })}
+              className="ent-select"
+            >
+              <option value="">-- Select Any User as Team Lead (TL) --</option>
+              {allUsers.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.username} ({u.role} - {u.designation || "Staff"}) - {u.email}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">
+              You can appoint any user to lead this team and delegate deliverables.
+            </p>
+          </div>
 
-        /* Fixed Interactive Buttons to Ensure Clickability */
-        .neu-action-btn { 
-          cursor: pointer; 
-          transition: all 0.2s ease; 
-          position: relative;
-          z-index: 20;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-action-btn:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light) !important;
-        }
-        .neu-btn-primary {
-          background-color: #0969DA;
-          box-shadow: 3px 3px 8px rgba(9, 105, 218, 0.3);
-          border: none;
-          position: relative;
-          z-index: 20;
-          cursor: pointer;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .neu-btn-primary:active:not(:disabled) {
-          box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
-        }
+          <div>
+            <label className="ent-label">Team Description / Purpose</label>
+            <textarea
+              rows={2}
+              placeholder="Responsibilities or focus area of this unit..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="ent-input resize-none"
+            />
+          </div>
 
-        /* Prevent SVG Icons from intercepting parent button clicks */
-        button svg {
-          pointer-events: none !important;
-        }
-
-        input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 30px var(--neu-bg) inset !important;
-          -webkit-text-fill-color: #1F2328 !important;
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--neu-dark); border-radius: 10px; }
-      `}</style>
+          {/* Member Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="ent-label mb-0">Select Team Members</label>
+              <span className="text-[10px] text-slate-500 font-semibold">
+                {formData.memberIds.length} Selected
+              </span>
+            </div>
+            <div className="border border-slate-200 rounded p-2 max-h-48 overflow-y-auto space-y-1 bg-slate-50/50">
+              {allUsers.length === 0 ? (
+                <div className="text-xs text-slate-400 text-center py-4">No users available</div>
+              ) : (
+                allUsers.map((u) => {
+                  const isSelected = formData.memberIds.includes(u._id);
+                  const isTL = formData.teamLeadId === u._id;
+                  return (
+                    <div
+                      key={u._id}
+                      onClick={() => handleMemberToggle(u._id)}
+                      className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors text-xs ${
+                        isSelected
+                          ? "bg-blue-50 border border-blue-200 text-blue-900"
+                          : "hover:bg-slate-100 border border-transparent text-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[9px] ${
+                          isSelected ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
+                        }`}>
+                          {isSelected ? <Check size={10} /> : u.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="truncate">
+                          <span className="font-semibold">{u.username}</span>
+                          {isTL && (
+                            <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1 rounded font-bold">
+                              Appointed TL
+                            </span>
+                          )}
+                          <span className="text-slate-400 ml-1.5 text-[10px]">
+                            ({u.role} - {u.department || "General"})
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono">{u.email}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
-};
-
-export default Teams;
+}
